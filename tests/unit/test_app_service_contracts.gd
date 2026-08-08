@@ -1,0 +1,47 @@
+extends ProjectTestCase
+
+
+func test_event_bus_declares_only_confirmed_signal_surface() -> void:
+	var service := EventBusService.new()
+	for signal_name: StringName in [
+		&"map_change_requested",
+		&"map_changed",
+		&"time_advanced",
+		&"day_advanced",
+		&"inventory_changed",
+		&"interaction_committed",
+		&"save_completed",
+		&"load_completed",
+	]:
+		assert_true(service.has_signal(signal_name))
+	service.free()
+
+
+func test_scene_router_requires_explicit_hosts() -> void:
+	var router := SceneRouterService.new()
+	assert_equal(router.register_hosts(null, null, null, null), ERR_INVALID_PARAMETER)
+	var map_host := Node2D.new()
+	var actor_host := Node2D.new()
+	var ui_layer := CanvasLayer.new()
+	var overlay := ColorRect.new()
+	assert_equal(router.register_hosts(map_host, actor_host, ui_layer, overlay), OK)
+	assert_true(router.has_registered_hosts())
+	assert_equal(router.request_map_change(&"farm", &"default"), ERR_UNAVAILABLE)
+	router.unregister_hosts(map_host)
+	assert_true(not router.has_registered_hosts())
+	overlay.free()
+	ui_layer.free()
+	actor_host.free()
+	map_host.free()
+	router.free()
+
+
+func test_save_and_audio_unavailable_operations_return_errors() -> void:
+	var save_manager := SaveManagerService.new()
+	var audio_manager := AudioManagerService.new()
+	assert_equal(save_manager.save_slot(0), ERR_UNAVAILABLE)
+	assert_equal(save_manager.load_slot(0), ERR_UNAVAILABLE)
+	assert_equal(audio_manager.play_event(&"ui_confirm"), ERR_UNAVAILABLE)
+	assert_equal(audio_manager.stop_event(&"ui_confirm"), ERR_UNAVAILABLE)
+	save_manager.free()
+	audio_manager.free()

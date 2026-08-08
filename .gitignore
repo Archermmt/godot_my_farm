@@ -1,0 +1,20 @@
+# Godot import and editor state
+.godot/
+
+# Operating system metadata
+.DS_Store
+
+# Local logs and temporary files
+*.log
+*.tmp
+logs/
+
+# Exported builds
+build/
+
+# Capture frames are generated locally. Curated final evidence remains tracked.
+screenshots/capture/
+screenshots/tmp/
+
+# do not count addons
+addons

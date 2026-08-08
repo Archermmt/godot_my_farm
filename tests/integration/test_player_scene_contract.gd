@@ -1,0 +1,37 @@
+extends ProjectTestCase
+
+const PLAYER_SCENE_PATH := "res://scenes/actors/player/player.tscn"
+const MAIN_SCENE_PATH := "res://scenes/app/main.tscn"
+
+
+func test_player_leaf_scene_uses_one_root_controller() -> void:
+	var packed: PackedScene = load(PLAYER_SCENE_PATH) as PackedScene
+	var player: FarmPlayer = packed.instantiate() as FarmPlayer
+	assert_true(player != null)
+	assert_true(player.is_in_group("player"))
+	assert_true(player.get_node("CollisionShape2D") is CollisionShape2D)
+	assert_true(player.get_node("Visual") is Node2D)
+	assert_true(player.get_node("Visual").get_script() == null)
+	assert_true(not player.has_node("PlayerInput"))
+	assert_true(not player.has_node("PlayerMotor"))
+	assert_true(player.get_node("Visual/Sprite") is Sprite2D)
+	assert_true(player.get_node("Hands") is Node2D)
+	assert_true(player.get_node("InteractionOrigin") is Marker2D)
+	var camera: Camera2D = player.get_node("Camera2D") as Camera2D
+	assert_true(camera.enabled)
+	assert_equal(camera.process_callback, Camera2D.CAMERA2D_PROCESS_PHYSICS)
+	var sprite: Sprite2D = player.get_node("Visual/Sprite") as Sprite2D
+	assert_equal(sprite.hframes, 6)
+	assert_equal(sprite.vframes, 4)
+	assert_true(sprite.texture != null)
+	player.free()
+
+
+func test_main_actor_host_contains_exactly_one_player() -> void:
+	var packed: PackedScene = load(MAIN_SCENE_PATH) as PackedScene
+	var main: Node = packed.instantiate()
+	var actor_host: Node2D = main.get_node("World/ActorHost") as Node2D
+	assert_equal(actor_host.get_child_count(), 1)
+	assert_true(actor_host.get_child(0) is FarmPlayer)
+	assert_true(actor_host.get_child(0).is_in_group("player"))
+	main.free()

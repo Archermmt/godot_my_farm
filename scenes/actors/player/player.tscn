@@ -1,0 +1,48 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/actors/player.gd" id="1_player"]
+[ext_resource type="Texture2D" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
+
+[sub_resource type="CapsuleShape2D" id="CapsulePlayer"]
+radius = 6.0
+height = 14.0
+
+[node name="Player" type="CharacterBody2D" groups=["player"]]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_player")
+run_speed = 96.0
+walk_speed = 48.0
+
+[node name="Shadow" type="Polygon2D" parent="."]
+position = Vector2(0, -2)
+polygon = PackedVector2Array(-8, -2, -5, -4, 5, -4, 8, -2, 5, 0, -5, 0)
+color = Color(0.0392157, 0.0627451, 0.0588235, 0.42)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -7)
+shape = SubResource("CapsulePlayer")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Sprite" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -16)
+texture_filter = 1
+texture = ExtResource("5_sprite")
+hframes = 6
+vframes = 4
+
+[node name="Hands" type="Node2D" parent="."]
+position = Vector2(0, -15)
+
+[node name="InteractionOrigin" type="Marker2D" parent="."]
+position = Vector2(0, 8)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(0, -8)
+position_smoothing_enabled = false
+rotation_smoothing_enabled = false
+process_callback = 0
+enabled = true
+limit_smoothed = false
+editor_draw_limits = true

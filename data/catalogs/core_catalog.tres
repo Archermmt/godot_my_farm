@@ -1,0 +1,296 @@
+[gd_resource type="Resource" load_steps=37 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/game_catalog.gd" id="1_catalog"]
+[ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_item"]
+[ext_resource type="Script" path="res://scripts/data/growth_stage_definition.gd" id="3_stage"]
+[ext_resource type="Script" path="res://scripts/data/crop_definition.gd" id="4_crop"]
+[ext_resource type="Script" path="res://scripts/data/drop_table_entry.gd" id="5_entry"]
+[ext_resource type="Script" path="res://scripts/data/drop_table.gd" id="6_table"]
+[ext_resource type="Script" path="res://scripts/data/harvestable_definition.gd" id="7_harvestable"]
+[ext_resource type="Script" path="res://scripts/data/npc_schedule_event.gd" id="8_event"]
+[ext_resource type="Script" path="res://scripts/data/npc_schedule.gd" id="9_schedule"]
+
+[sub_resource type="Resource" id="ItemHoe"]
+script = ExtResource("2_item")
+id = &"tool_hoe"
+display_name = "Hoe"
+description = "Tills farmable soil."
+item_type = 0
+use_kind = 1
+tool_kind = 1
+stack_limit = 1
+base_stamina_cost = 2
+animation_tags = Array[StringName]([&"tool", &"hoe"])
+
+[sub_resource type="Resource" id="ItemWateringCan"]
+script = ExtResource("2_item")
+id = &"tool_watering_can"
+display_name = "Watering Can"
+description = "Waters tilled soil."
+item_type = 0
+use_kind = 1
+tool_kind = 2
+stack_limit = 1
+base_stamina_cost = 1
+animation_tags = Array[StringName]([&"tool", &"water"])
+
+[sub_resource type="Resource" id="ItemSickle"]
+script = ExtResource("2_item")
+id = &"tool_sickle"
+display_name = "Sickle"
+description = "Cuts grass and light plants."
+item_type = 0
+use_kind = 2
+tool_kind = 3
+stack_limit = 1
+base_stamina_cost = 1
+animation_tags = Array[StringName]([&"tool", &"swing"])
+
+[sub_resource type="Resource" id="ItemBasket"]
+script = ExtResource("2_item")
+id = &"tool_basket"
+display_name = "Harvest Basket"
+description = "Harvests ripe produce."
+item_type = 0
+use_kind = 2
+tool_kind = 4
+stack_limit = 1
+base_stamina_cost = 0
+animation_tags = Array[StringName]([&"tool", &"harvest"])
+
+[sub_resource type="Resource" id="ItemPickaxe"]
+script = ExtResource("2_item")
+id = &"tool_pickaxe"
+display_name = "Pickaxe"
+description = "Breaks stone."
+item_type = 0
+use_kind = 2
+tool_kind = 5
+stack_limit = 1
+base_stamina_cost = 2
+animation_tags = Array[StringName]([&"tool", &"swing"])
+
+[sub_resource type="Resource" id="ItemAxe"]
+script = ExtResource("2_item")
+id = &"tool_axe"
+display_name = "Axe"
+description = "Chops trees and stumps."
+item_type = 0
+use_kind = 2
+tool_kind = 6
+stack_limit = 1
+base_stamina_cost = 2
+animation_tags = Array[StringName]([&"tool", &"swing"])
+
+[sub_resource type="Resource" id="ItemSeedParsnip"]
+script = ExtResource("2_item")
+id = &"seed_parsnip"
+display_name = "Parsnip Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+use_kind = 3
+stack_limit = 99
+buy_price = 20
+related_crop_id = &"crop_parsnip"
+animation_tags = Array[StringName]([&"seed"])
+
+[sub_resource type="Resource" id="ItemParsnip"]
+script = ExtResource("2_item")
+id = &"crop_parsnip"
+display_name = "Parsnip"
+description = "A crisp spring root."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+buy_price = 50
+sell_price = 35
+
+[sub_resource type="Resource" id="ItemWood"]
+script = ExtResource("2_item")
+id = &"material_wood"
+display_name = "Wood"
+description = "Useful building material."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+sell_price = 2
+
+[sub_resource type="Resource" id="ItemStone"]
+script = ExtResource("2_item")
+id = &"material_stone"
+display_name = "Stone"
+description = "A sturdy piece of stone."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+sell_price = 2
+
+[sub_resource type="Resource" id="ItemGrass"]
+script = ExtResource("2_item")
+id = &"material_grass"
+display_name = "Fiber"
+description = "Plant fiber cut from grass."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+sell_price = 1
+
+[sub_resource type="Resource" id="ItemFood"]
+script = ExtResource("2_item")
+id = &"food_bread"
+display_name = "Bread"
+description = "Restores a little stamina."
+item_type = 2
+use_kind = 4
+stack_limit = 20
+buy_price = 80
+sell_price = 30
+
+[sub_resource type="Resource" id="DropParsnipEntry"]
+script = ExtResource("5_entry")
+item_id = &"crop_parsnip"
+min_amount = 1
+max_amount = 2
+chance = 1.0
+weight = 1
+
+[sub_resource type="Resource" id="DropParsnip"]
+script = ExtResource("6_table")
+id = &"drop_parsnip"
+entries = Array[ExtResource("5_entry")]([SubResource("DropParsnipEntry")])
+
+[sub_resource type="Resource" id="DropWoodEntry"]
+script = ExtResource("5_entry")
+item_id = &"material_wood"
+min_amount = 2
+max_amount = 4
+chance = 1.0
+weight = 1
+
+[sub_resource type="Resource" id="DropWood"]
+script = ExtResource("6_table")
+id = &"drop_wood"
+entries = Array[ExtResource("5_entry")]([SubResource("DropWoodEntry")])
+
+[sub_resource type="Resource" id="DropStoneEntry"]
+script = ExtResource("5_entry")
+item_id = &"material_stone"
+min_amount = 1
+max_amount = 3
+chance = 1.0
+weight = 1
+
+[sub_resource type="Resource" id="DropStone"]
+script = ExtResource("6_table")
+id = &"drop_stone"
+entries = Array[ExtResource("5_entry")]([SubResource("DropStoneEntry")])
+
+[sub_resource type="Resource" id="DropGrassEntry"]
+script = ExtResource("5_entry")
+item_id = &"material_grass"
+min_amount = 1
+max_amount = 2
+chance = 0.8
+weight = 1
+
+[sub_resource type="Resource" id="DropGrass"]
+script = ExtResource("6_table")
+id = &"drop_grass"
+entries = Array[ExtResource("5_entry")]([SubResource("DropGrassEntry")])
+
+[sub_resource type="Resource" id="StageSeed"]
+script = ExtResource("3_stage")
+start_day = 0
+max_health = 1
+visual_key = &"parsnip_seed"
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="Resource" id="StageSprout"]
+script = ExtResource("3_stage")
+start_day = 2
+max_health = 1
+visual_key = &"parsnip_sprout"
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="Resource" id="StageLeaves"]
+script = ExtResource("3_stage")
+start_day = 4
+max_health = 2
+visual_key = &"parsnip_leaves"
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="Resource" id="StageMature"]
+script = ExtResource("3_stage")
+start_day = 6
+max_health = 2
+visual_key = &"parsnip_mature"
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drop_table_id = &"drop_parsnip"
+
+[sub_resource type="Resource" id="CropParsnip"]
+script = ExtResource("4_crop")
+id = &"crop_parsnip"
+seed_item_id = &"seed_parsnip"
+produce_item_id = &"crop_parsnip"
+stages = Array[ExtResource("3_stage")]([SubResource("StageSeed"), SubResource("StageSprout"), SubResource("StageLeaves"), SubResource("StageMature")])
+requires_water = true
+harvest_tool = 4
+harvest_drop_table_id = &"drop_parsnip"
+
+[sub_resource type="Resource" id="HarvestTree"]
+script = ExtResource("7_harvestable")
+id = &"tree"
+display_name = "Tree"
+required_tool = 6
+max_health = 5
+drop_table_id = &"drop_wood"
+blocks_movement = true
+state_tags = Array[StringName]([&"tree"])
+
+[sub_resource type="Resource" id="HarvestRock"]
+script = ExtResource("7_harvestable")
+id = &"rock"
+display_name = "Rock"
+required_tool = 5
+max_health = 3
+drop_table_id = &"drop_stone"
+blocks_movement = true
+state_tags = Array[StringName]([&"rock"])
+
+[sub_resource type="Resource" id="HarvestGrass"]
+script = ExtResource("7_harvestable")
+id = &"grass"
+display_name = "Grass"
+required_tool = 3
+max_health = 1
+drop_table_id = &"drop_grass"
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+
+[sub_resource type="Resource" id="ScheduleEventFarm"]
+script = ExtResource("8_event")
+id = &"morning_farm"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 480
+duration_minutes = 240
+map_id = &"farm"
+target_spawn_id = &"farm_square"
+target_cell = Vector2i(12, 8)
+behavior_id = &"wander"
+
+[sub_resource type="Resource" id="ScheduleVillager"]
+script = ExtResource("9_schedule")
+id = &"schedule_villager"
+npc_id = &"npc_villager"
+fallback_map_id = &"cabin"
+fallback_cell = Vector2i(5, 4)
+events = Array[ExtResource("8_event")]([SubResource("ScheduleEventFarm")])
+
+[resource]
+script = ExtResource("1_catalog")
+items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemParsnip"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood")])
+crops = Array[ExtResource("4_crop")]([SubResource("CropParsnip")])
+harvestables = Array[ExtResource("7_harvestable")]([SubResource("HarvestTree"), SubResource("HarvestRock"), SubResource("HarvestGrass")])
+drop_tables = Array[ExtResource("6_table")]([SubResource("DropParsnip"), SubResource("DropWood"), SubResource("DropStone"), SubResource("DropGrass")])
+npc_schedules = Array[ExtResource("9_schedule")]([SubResource("ScheduleVillager")])

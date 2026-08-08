@@ -1,0 +1,25 @@
+class_name EventBusService
+extends Node
+
+@warning_ignore("unused_signal")
+signal map_change_requested(map_id: StringName, spawn_id: StringName)
+@warning_ignore("unused_signal")
+signal map_will_change(from_id: StringName, to_id: StringName)
+@warning_ignore("unused_signal")
+signal map_changed(map_id: StringName)
+@warning_ignore("unused_signal")
+signal time_advanced(unit: int, before: Dictionary, delta: int)
+@warning_ignore("unused_signal")
+signal day_advanced(previous_day: int, current_day: int)
+@warning_ignore("unused_signal")
+signal inventory_changed(owner_id: StringName)
+@warning_ignore("unused_signal")
+signal selected_item_changed(item_id: StringName, amount: int)
+@warning_ignore("unused_signal")
+signal player_stats_changed
+@warning_ignore("unused_signal")
+signal interaction_committed(action_id: StringName, cells: Array[Vector2i])
+@warning_ignore("unused_signal")
+signal save_completed(slot: int)
+@warning_ignore("unused_signal")
+signal load_completed(slot: int)
