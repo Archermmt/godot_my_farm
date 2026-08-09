@@ -18,12 +18,12 @@
 ## 实现要求
 
 1. 根结构遵循 [../02_ARCHITECTURE.md](../02_ARCHITECTURE.md)，`schema_version=1`，包含 saved_at/game_version。
-2. 保存前要求当前 FarmSystem/EntityRoot/NPC 将最新状态同步到 GameState；snapshot 为深副本。
+2. 保存前要求当前 BaseMap 将 cells/entities 同步到对应 MapState，NPC 将位置同步到全局 GameState.npcs；snapshot 为深副本。
 3. 写入同目录临时文件，flush/close 成功后再替换正式文件；已有正式文件可保留一个 `.bak`。
 4. 保存期间阻止重复保存；失败发结构化错误和 UI 提示，不声称成功。
 5. 读取流程为 parse -> schema validate -> migrate -> 构造临时状态 -> deep validate -> 整体 replace。任何失败都保留当前运行状态。
 6. 未知字段忽略、缺省字段有明确策略；高于支持版本拒绝加载且不覆盖原文件。
-7. 加载成功后 SceneRouter 按存档 map/spawn/position 重建，HUD/光照/Hotbar/NPC 同步；Player/Autoload 不重复。
+7. 加载成功后 SceneManager 按存档 map/spawn/position 重建，HUD/光照/Hotbar/NPC 同步；Player/Autoload 不重复。
 8. quick_load 在无存档时只提示；场景 transition/interaction transaction 中拒绝或排队，不并发破坏状态。
 9. 测试使用独立 `user://tests/...` 路径或注入存储，不覆盖用户 slot_0。
 
@@ -47,4 +47,3 @@
 ## 完成记录
 
 STATUS 记录 schema/version、存档绝对用户路径、round-trip 摘要、两个 run_id 和截图；总表 T14 completed。
-

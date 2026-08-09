@@ -6,7 +6,7 @@
 
 > 当前处于核心玩法开发阶段。仓库中的场景和美术仍包含开发夹具与原创占位资源；正式地图、TileMap 和农田网格从 T04 开始接入。
 
-![当前玩家移动夹具](./screenshots/t03/single_script_player.png)
+![当前地图 TileMap 夹具](./screenshots/t04/farm.png)
 
 ## 当前进度
 
@@ -16,9 +16,9 @@
 | T01 | 静态定义、运行时状态、序列化与 catalog 校验 | 已完成 |
 | T02 | Autoload、应用启动、全局服务和新游戏状态 | 已完成 |
 | T03 | 玩家移动、碰撞、四向动画、相机与输入锁 | 已完成 |
-| T04 | 地图、TileMap、农田网格与场景切换 | 下一任务 |
+| T04 | 地图、TileMap、农田网格与场景切换 | 已完成 |
 
-最新验证结果：**44 tests / 250 assertions**，玩家碰撞 fixture、主场景启动和 godot-ai 运行验收均通过。
+最新验证结果：**49 tests / 307 assertions**，三地图序列化 TileMap cells、坐标/flags、主场景启动和 `cabin -> farm -> cabin` 场景往返均通过。
 
 - [完整任务路线](./docs/TASKS.md)
 - [当前开发状态与验收记录](./docs/STATUS.md)
@@ -26,11 +26,13 @@
 
 ## 已实现能力
 
-- 7 个有明确职责的 Autoload：EventBus、DataCatalog、GameState、TimeManager、SceneRouter、SaveManager、AudioManager。
+- 7 个有明确职责的 Autoload：EventBus、DataCatalog、GameState、TimeManager、SceneManager、SaveManager、AudioManager。
 - 12 个物品定义、1 种作物及 4 个成长阶段、3 个采集物、4 张掉落表和 1 份 NPC 日程定义。
 - 可 JSON round-trip 的玩家、背包、日历、地图、农田、作物、世界实体和 NPC 状态模型。
 - 固定容量背包的堆叠、添加、移除、交换、合并和跨容器交换逻辑。
-- 单一 `player.gd` 根控制器：InputMap、跑步/慢走、对角归一化、碰撞、四向朝向、动画状态、输入锁和 Camera2D limits。
+- 单一 `player.gd` 根控制器：InputMap、跑步/慢走、对角归一化、碰撞、四向朝向、输入锁和 Camera2D limits；动画由 `AnimationPlayer` + `AnimationLibrary` 管理。
+- `farm`、`field`、`cabin` 三张原创 TileMapLayer 地图；TileMapLayer 直接由各自地图根节点管理，通用逻辑集中在最小基类 `BaseMap`，并由 `FarmMap`、`FieldMap`、`CabinMap` 分别扩展，`MapEntities` 仅作为普通实体容器。
+- 静态地图 cell 直接保存在各地图 `.tscn` 中，可使用 Godot TileMap 编辑器查看和修改；运行时只重建 Dug/Watered 等动态投影。
 - 原生 GDScript 测试运行器、碰撞 fixture、godot-ai 输入序列和运行截图验收链路。
 
 ## 技术约束
@@ -48,6 +50,8 @@
 
 重要架构规则：角色 leaf scene 默认只在根节点使用一个角色脚本。只有出现真实跨角色复用、独立生命周期或可替换实现时，才允许把角色逻辑拆成额外组件。完整规则见 [Godot 与 GDScript 技术规则](./docs/01_TECHNICAL_RULES.md)。
 
+动画规则：可编辑动画使用 `AnimationPlayer`/`AnimationLibrary`；程序化的位移和数值过渡才使用 `Tween`。运行脚本不得直接写 `Sprite2D.frame` 或维护动画计时器。
+
 ## 架构概览
 
 ```text
@@ -64,14 +68,14 @@ Main
 
 输入与表现
       ↓
-场景领域：Player / FarmSystem / WorldItem / NPC / ScenePort
+场景领域：Player / BaseMap / FarmMap / WorldItem / NPC / ScenePort
       ↓
-应用服务：SceneRouter / TimeManager / SaveManager / AudioManager
+应用服务：SceneManager / TimeManager / SaveManager / AudioManager
       ↓
 状态与定义：GameState / MapState / InventoryState / DataCatalog / *.tres
 ```
 
-状态、场景和表现分离：GameState 不持有 Node，地图只管理当前空间，持久 Player 由 Main 所有，地图切换由 SceneRouter 以事务方式协调。
+状态、场景和表现分离：GameState 不持有 Node，地图只管理当前空间，持久 Player 由 Main 所有，地图切换由 SceneManager 以事务方式协调。
 
 详细设计见 [总体技术架构](./docs/02_ARCHITECTURE.md) 和 [参考项目映射](./docs/03_REFERENCE_MAPPING.md)。
 

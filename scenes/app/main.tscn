@@ -18,7 +18,7 @@ position = Vector2(320, 252)
 [node name="EffectHost" type="Node2D" parent="World"]
 
 [node name="UILayer" type="CanvasLayer" parent="."]
-layer = -1
+layer = 10
 
 [node name="BootstrapScreen" type="Control" parent="UILayer"]
 layout_mode = 3

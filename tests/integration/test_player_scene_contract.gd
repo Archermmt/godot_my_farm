@@ -14,6 +14,7 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.get_node("Visual").get_script() == null)
 	assert_true(not player.has_node("PlayerInput"))
 	assert_true(not player.has_node("PlayerMotor"))
+	assert_true(player.get_node("AnimationPlayer") is AnimationPlayer)
 	assert_true(player.get_node("Visual/Sprite") is Sprite2D)
 	assert_true(player.get_node("Hands") is Node2D)
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
@@ -24,6 +25,13 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_equal(sprite.hframes, 6)
 	assert_equal(sprite.vframes, 4)
 	assert_true(sprite.texture != null)
+	var animation_player: AnimationPlayer = player.get_node("AnimationPlayer") as AnimationPlayer
+	var animation_library: AnimationLibrary = animation_player.get_animation_library("")
+	assert_true(animation_library != null)
+	assert_equal(animation_library.get_animation_list().size(), 12)
+	assert_true(animation_library.has_animation("idle_down"))
+	assert_true(animation_library.has_animation("walk_left"))
+	assert_true(animation_library.has_animation("run_up"))
 	player.free()
 
 

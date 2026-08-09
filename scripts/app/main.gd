@@ -10,6 +10,7 @@ extends Node
 @onready var service_panel: ColorRect = %ServicePanel
 @onready var service_summary: Label = %ServiceSummary
 @onready var version_label: Label = %VersionLabel
+@onready var bootstrap_screen: Control = $UILayer/BootstrapScreen
 
 
 func _ready() -> void:
@@ -23,14 +24,14 @@ func _ready() -> void:
 	if not GameState.is_initialized():
 		_show_boot_error(["GameState did not create a new game"])
 		return
-	var register_error: Error = SceneRouter.register_hosts(
+	var register_error: Error = SceneManager.register_hosts(
 		map_host,
 		actor_host,
 		ui_layer,
 		transition_overlay
 	)
 	if register_error != OK:
-		_show_boot_error(["SceneRouter host registration failed: %s" % error_string(register_error)])
+		_show_boot_error(["SceneManager host registration failed: %s" % error_string(register_error)])
 		return
 	var player_error: Error = _register_unique_player()
 	if player_error != OK:
@@ -38,23 +39,28 @@ func _ready() -> void:
 		return
 	player.set_facing(GameState.player.facing)
 
+	var map_error: Error = await SceneManager.load_initial_map(GameState.player.map_id, GameState.player.spawn_id)
+	if map_error != OK:
+		_show_boot_error(["Initial map load failed: %s" % error_string(map_error)])
+		return
 	TimeManager.start()
 	status_dot.color = Color("77cc59")
-	status_label.text = "T03  PLAYER READY"
+	status_label.text = "T04  WORLD READY"
 	service_panel.visible = false
-	player.set_camera_limits(Rect2i(0, 0, 640, 360))
-	print("[T03] player ready | run=%.1f walk=%.1f facing=%s | %s | renderer=%s" % [
+	bootstrap_screen.visible = false
+	print("[T04] world ready | map=%s player_count=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
+		SceneManager.current_map_id(),
+		get_tree().get_nodes_in_group("player").size(),
 		player.run_speed,
 		player.walk_speed,
-		player.facing,
 		DataCatalog.summary(),
 		RenderingServer.get_current_rendering_method(),
 	])
 
 
 func _exit_tree() -> void:
-	if SceneRouter != null:
-		SceneRouter.unregister_hosts(map_host)
+	if SceneManager != null:
+		SceneManager.unregister_hosts(map_host)
 
 
 func _show_boot_error(errors: Array[String]) -> void:
@@ -71,4 +77,4 @@ func _register_unique_player() -> Error:
 	var players: Array[Node] = get_tree().get_nodes_in_group("player")
 	if players.size() != 1 or players[0] != player:
 		return ERR_ALREADY_EXISTS
-	return SceneRouter.register_player(player)
+	return SceneManager.register_player(player)

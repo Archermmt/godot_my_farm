@@ -19,7 +19,7 @@
 | T01 | [定义与运行状态模型](./tasks/T01_DATA_AND_STATE.md) | T00 | A 基础 | completed |
 | T02 | [Autoload 与应用启动](./tasks/T02_APP_SERVICES.md) | T01 | A 基础 | completed |
 | T03 | [玩家移动、相机与动画状态](./tasks/T03_PLAYER_MOVEMENT.md) | T02 | B 核心切片 | completed |
-| T04 | [地图、网格与场景切换](./tasks/T04_MAPS_AND_FARM_GRID.md) | T03 | B 核心切片 | pending |
+| T04 | [地图、网格与场景切换](./tasks/T04_MAPS_AND_FARM_GRID.md) | T03 | B 核心切片 | completed |
 | T05 | [背包、快捷栏与手持物](./tasks/T05_INVENTORY_AND_HOTBAR.md) | T03 | B 核心切片 | pending |
 | T06 | [统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md) | T04, T05 | B 核心切片 | pending |
 | T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | pending |

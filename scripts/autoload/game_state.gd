@@ -17,6 +17,7 @@ const DEFAULT_WORLD_SEED := 12031992
 var player: PlayerState = null
 var inventory: InventoryState = null
 var maps: Dictionary[StringName, MapState] = {}
+var npcs: Dictionary[StringName, NpcState] = {}
 var world_seed: int = 0
 var current_slot: int = -1
 var game_version: String = "0.1.0"
@@ -70,6 +71,7 @@ func new_game(p_seed: int) -> Error:
 	player = next_player
 	inventory = next_inventory
 	maps = next_maps
+	npcs = {}
 	world_seed = p_seed
 	current_slot = -1
 	_initialized = true
@@ -92,6 +94,7 @@ func reset() -> void:
 	player = null
 	inventory = null
 	maps.clear()
+	npcs.clear()
 	world_seed = 0
 	current_slot = -1
 	_initialized = false
@@ -103,9 +106,15 @@ func snapshot() -> Dictionary:
 	var map_data: Array[Dictionary] = []
 	var map_ids: Array[StringName] = []
 	map_ids.assign(maps.keys())
-	map_ids.sort()
+	map_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
 	for map_id: StringName in map_ids:
 		map_data.append(maps[map_id].to_dict())
+	var npc_data: Array[Dictionary] = []
+	var npc_ids: Array[StringName] = []
+	npc_ids.assign(npcs.keys())
+	npc_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
+	for npc_id: StringName in npc_ids:
+		npc_data.append(npcs[npc_id].to_dict())
 	return {
 		"game_version": game_version,
 		"world_seed": world_seed,
@@ -113,6 +122,7 @@ func snapshot() -> Dictionary:
 		"player": player.to_dict(),
 		"inventory": inventory.to_dict(),
 		"maps": map_data,
+		"npcs": npc_data,
 	}.duplicate(true)
 
 
@@ -123,7 +133,7 @@ func replace_snapshot(data: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_dictionary(data, "player") or not SerializationUtil.has_valid_dictionary(data, "inventory"):
 		return ERR_INVALID_DATA
-	if not SerializationUtil.has_valid_array(data, "maps"):
+	if not SerializationUtil.has_valid_array(data, "maps") or not SerializationUtil.has_valid_array(data, "npcs"):
 		return ERR_INVALID_DATA
 
 	var next_player := PlayerState.from_dict(data.get("player", {}) as Dictionary)
@@ -140,10 +150,19 @@ func replace_snapshot(data: Dictionary) -> Error:
 		next_maps[map_state.map_id] = map_state
 	if next_maps.is_empty() or not next_maps.has(next_player.map_id):
 		return ERR_INVALID_DATA
+	var next_npcs: Dictionary[StringName, NpcState] = {}
+	for raw_npc: Variant in data.get("npcs", []) as Array:
+		if typeof(raw_npc) != TYPE_DICTIONARY:
+			return ERR_INVALID_DATA
+		var npc_state := NpcState.from_dict(raw_npc as Dictionary)
+		if npc_state == null or next_npcs.has(npc_state.npc_id) or not next_maps.has(npc_state.map_id):
+			return ERR_INVALID_DATA
+		next_npcs[npc_state.npc_id] = npc_state
 
 	player = next_player
 	inventory = next_inventory
 	maps = next_maps
+	npcs = next_npcs
 	world_seed = int(data.get("world_seed", 0))
 	current_slot = int(data.get("current_slot", -1))
 	game_version = str(data.get("game_version", game_version))
@@ -151,6 +170,21 @@ func replace_snapshot(data: Dictionary) -> Error:
 	EventBus.inventory_changed.emit(inventory.owner_id)
 	EventBus.player_stats_changed.emit()
 	return OK
+
+
+func set_npc(state: NpcState) -> Error:
+	if state == null or state.npc_id == &"" or state.map_id == &"":
+		return ERR_INVALID_PARAMETER
+	if npcs.has(state.npc_id):
+		return ERR_ALREADY_EXISTS
+	if not maps.has(state.map_id):
+		return ERR_DOES_NOT_EXIST
+	npcs[state.npc_id] = state
+	return OK
+
+
+func get_npc(npc_id: StringName) -> NpcState:
+	return npcs.get(npc_id, null) as NpcState
 
 
 func startup_summary() -> String:

@@ -19,11 +19,11 @@
 
 1. Schedule event 可按季节/月/星期过滤，含开始分钟、持续、地图、目标 spawn/cell、behavior ID；同优先级冲突在 catalog 校验时报错。
 2. 每天开始或加载存档时选择确定 schedule；无匹配使用 fallback home event，不访问空数组。
-3. 当前地图导航使用 Godot `AStarGrid2D`，节点来自 FarmSystem 可行走格；道路降低 cost，静态/dynamic 障碍阻挡。
+3. 当前地图导航使用 Godot `AStarGrid2D`，节点来自 BaseMap 可行走格；道路降低 cost，静态/dynamic 障碍阻挡。
 4. 对角移动不可切阻挡拐角；NPC 使用 delta 移动、稳定朝向和 walk/idle 状态。
 5. 日程时间到达时构建路径；游戏加载到事件中段时允许放置到可解释的估计位置，不要求重放全天每帧。
 6. 跨地图通过 portal graph 更新 NpcState；仅当前地图实例可见，离场状态不丢且不需要隐藏的物理节点持续运行。
-7. SceneRouter/MapState 重建 NPC 时保持 npc_id 唯一；地图往返和 save/load 不重复实例。
+7. GameState.npcs 以 npc_id 保持全局唯一；SceneManager 仅重建 NpcState.map_id 对应当前地图的 NPC，并以 Entity.Type.NPC 通过 BaseMap.add_entity() 挂入 NPC host。地图往返和 save/load 不重复实例。
 8. 路径不可达时 NPC 留在最近安全位置、记录一次 warning，并在下一日程/地图变化时重试，不死循环。
 
 ## 自动化验收
@@ -46,4 +46,3 @@
 ## 完成记录
 
 STATUS 记录 NPC IDs、schedule 摘要、路径断言、跨图结果、run_id 和截图；总表 T13 completed。
-

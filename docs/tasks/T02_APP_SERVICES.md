@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- `scripts/autoload/`：event_bus、data_catalog、game_state、time_manager、scene_router、save_manager、audio_manager。
+- `scripts/autoload/`：event_bus、data_catalog、game_state、time_manager、scene_manager、save_manager、audio_manager。
 - `scripts/app/main.gd`：注册 MapHost/ActorHost/UILayer 等场景依赖。
 - `project.godot`：仅按架构顺序注册 7 个 Autoload。
 - `tests/unit/` 与 `tests/integration/`：服务启动、reset、暂停 reason、catalog 查找。
@@ -21,9 +21,9 @@
 2. DataCatalog 从显式 catalog Resource 加载定义，建立只读索引并在启动时校验；未知 ID 返回 null 并输出有上下文的错误。
 3. GameState 提供 `new_game(seed)`、整体 snapshot/replace/reset；新游戏含 6 个工具、初始种子、生命/体力/金币和 cabin 起点。
 4. TimeManager 先实现 CalendarState、倍率、start/stop 和 reason-based pause；完整换日行为留 T10。
-5. SceneRouter/SaveManager/AudioManager 提供可调用但未实现内容的安全窄 API；不允许空方法假装成功，应返回明确 Error/Result。
+5. SceneManager/SaveManager/AudioManager 提供可调用但未实现内容的安全窄 API；不允许空方法假装成功，应返回明确 Error/Result。
 6. Main 显式注册 host 和 overlay；Autoload 不搜索场景树。
-7. Autoload 初始化顺序严格为 EventBus -> DataCatalog -> GameState -> TimeManager -> SceneRouter -> SaveManager -> AudioManager。
+7. Autoload 初始化顺序严格为 EventBus -> DataCatalog -> GameState -> TimeManager -> SceneManager -> SaveManager -> AudioManager。
 8. 启动校验失败时停止进入游戏逻辑，画面显示开发期错误摘要，日志包含具体定义。
 
 ## 自动化验收
@@ -43,10 +43,9 @@
 
 ## 不做
 
-- SceneRouter 不加载正式地图；SaveManager 不写磁盘；AudioManager 不需要正式音频。
+- SceneManager 不加载正式地图；SaveManager 不写磁盘；AudioManager 不需要正式音频。
 - 不增加第 8 个 Autoload。
 
 ## 完成记录
 
 STATUS 记录 Autoload 列表、测试结果、run_id、日志和截图；总表 T02 completed。
-

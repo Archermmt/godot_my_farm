@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/scene_port.gd" id="1_port"]
+
+[sub_resource type="RectangleShape2D" id="RectanglePort"]
+size = Vector2(28, 28)
+
+[node name="ScenePort" type="Area2D"]
+collision_layer = 0
+collision_mask = 1
+monitoring = true
+script = ExtResource("1_port")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectanglePort")
+
+[node name="Marker" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
+color = Color(0.94902, 0.639216, 0.141176, 0.42)

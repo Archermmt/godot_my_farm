@@ -14,15 +14,15 @@ InputMap / HUD / InventoryUI / Cursor / Animation / Audio / Effects
                          |
                          v
 场景领域层
-Player / FarmSystem / InteractionController / WorldItem / NPC / ScenePort
+Player / BaseMap / MapCell / Entity / InteractionController / WorldItem / NPC / ScenePort
                          |
                          v
 应用服务层
-SceneRouter / TimeManager / ItemFactory / SaveManager / AudioManager
+SceneManager / TimeManager / ItemFactory / SaveManager / AudioManager
                          |
                          v
 状态与定义层
-GameState / MapState / FarmCellState / InventoryState / DataCatalog / *.tres
+GameState / MapState / CellState / EntityState / CropEntityState / InventoryState / DataCatalog / *.tres
 ```
 
 依赖只能向下。下层通过返回值或 `EventBus` 的事实信号通知上层，不得反向引用 HUD、Player 或具体地图节点。
@@ -54,7 +54,6 @@ res://
 │   ├── actors/{player,npcs}/
 │   ├── maps/{farm,field,cabin}/
 │   ├── world/
-│   │   ├── farm_system.tscn
 │   │   ├── interaction_cursor.tscn
 │   │   ├── scene_port.tscn
 │   │   ├── pickups/
@@ -65,8 +64,15 @@ res://
 │   ├── autoload/
 │   ├── data/
 │   ├── state/
+│   │   └── entity/
+│   │       ├── entity_state.gd
+│   │       └── crop_entity_state.gd
 │   ├── actors/
 │   ├── world/
+│   │   ├── base_map.gd
+│   │   ├── map_cell.gd
+│   │   ├── entity/entity.gd
+│   │   └── scene_port.gd
 │   ├── interaction/
 │   ├── ui/
 │   └── utilities/
@@ -105,20 +111,21 @@ Main (Node)
 1. Autoload 按 [01_TECHNICAL_RULES.md](./01_TECHNICAL_RULES.md) 的顺序初始化。
 2. `DataCatalog` 加载并校验所有定义 ID 和交叉引用；失败则停止进入游戏并输出明确错误。
 3. `GameState` 创建新游戏状态，或由 `SaveManager` 整体替换为验证后的存档状态。
-4. `Main` 实例化持久 Player、HUD，向 SceneRouter 注册 `MapHost`、Player 和 TransitionOverlay。
-5. `SceneRouter` 加载状态中的当前地图，地图注册 FarmSystem、ScenePort 和出生点。
-6. SceneRouter 恢复地图动态状态并将 Player 放到出生点，完成淡入后解除输入和时间暂停。
+4. `Main` 实例化持久 Player、HUD，向 SceneManager 注册 `MapHost`、Player 和 TransitionOverlay。
+5. `SceneManager` 加载状态中的当前地图；每张地图由自己的根脚本注册 TileMapLayer、ScenePort、出生点和动态实体容器。
+6. SceneManager 恢复地图动态状态并将 Player 放到出生点，完成淡入后解除输入和时间暂停。
 
 ## 5. Autoload 职责
 
 ### 5.1 EventBus
 
-只存跨模块信号。建议的最小集合：
+所有信号声明和跨模块事实事件都集中存放在 `EventBus`。建议的最小集合：
 
 ```gdscript
 signal map_change_requested(map_id: StringName, spawn_id: StringName)
 signal map_will_change(from_id: StringName, to_id: StringName)
 signal map_changed(map_id: StringName)
+signal map_change_failed(map_id: StringName, error: Error)
 signal time_advanced(unit: int, before: Dictionary, delta: int)
 signal day_advanced(previous_day: int, current_day: int)
 signal inventory_changed(owner_id: StringName)
@@ -129,7 +136,7 @@ signal save_completed(slot: int)
 signal load_completed(slot: int)
 ```
 
-单地图内部的目标光标刷新、作物受击等信号留在本地节点，不进入全局总线。
+目标光标刷新、作物受击等也不得在组件中声明新的信号；需要通知其他模块时扩展 `EventBus`，纯同步逻辑使用直接方法调用。
 
 ### 5.2 DataCatalog
 
@@ -144,7 +151,8 @@ signal load_completed(slot: int)
 
 - `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币。
 - `InventoryState`：背包、快捷栏、当前选择。
-- `Dictionary[StringName, MapState]`：每张地图的地块动态状态、生成物、NPC 状态。
+- `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内实体状态。
+- `Dictionary[StringName, NpcState]`：跨地图 NPC 的全局状态；`map_id/cell` 表示当前位置。
 - 新游戏种子、当前存档槽和游戏版本元数据。
 
 GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
@@ -156,7 +164,7 @@ GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
 - 按跨越的边界依次发出 minute/hour/day/month/year 事件。
 - 午夜规则只由一个流程推进，禁止 Player 和 TimeManager 同时递归触发换日。
 
-### 5.5 SceneRouter
+### 5.5 SceneManager
 
 - 维护地图 ID 到 PackedScene 的显式表。
 - 地图切换事务：锁输入/时间 -> 发出 will_change -> 当前地图写回 MapState -> 淡出 -> 替换 MapHost 子节点 -> 恢复目标地图 -> 放置玩家 -> changed -> 淡入 -> 解锁。
@@ -167,7 +175,7 @@ GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
 
 - 对 GameState 和 TimeManager 的纯字典快照进行版本化保存。
 - 负责 I/O、模式校验、迁移、临时文件替换和错误报告。
-- 加载成功后调用 GameState 的整体替换 API，再由 SceneRouter 重建当前地图。
+- 加载成功后调用 GameState 的整体替换 API，再由 SceneManager 重建当前地图。
 
 ### 5.7 AudioManager
 
@@ -229,55 +237,76 @@ harvest_drop_table_id
 
 不在背包中保存 WorldItem Node、Texture 或 ItemDefinition 副本。
 
-### 7.2 FarmCellState
+### 7.2 MapCell
+
+`BaseMap` 为边界内每个坐标创建一个 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。每个 MapCell 始终绑定一个通用 CellState，作为行走、耕种、浇水、放置和占用的唯一入口。静态 status 从 `Dictionary[TileMapLayer, MapCell.Status]` 的 authored cells 叠加重建。
+
+MapCell 不继承 Node，不持有 TileMapLayer 或实体节点。后续 MapEntity 只负责场景表现；MapCell 通过 CellState.entities 查询同格实体状态。
+
+### 7.3 CellState 与 EntityState
 
 ```text
 cell: Vector2i               # 字典 key，序列化时写 x/y
-base_flags: int              # 来自地图，通常不进动态存档
+status: int                  # 当前地图配置的格子能力
 dug: bool
 watered_on_day: int
-occupant_id: String          # 世界实体稳定实例 ID，可为空
-crop: CropState?             # crop_id、growth_days、health、随机种子
+entities: Dictionary[StringName, EntityState] # 同格实体唯一所有权
 ```
 
-`FarmSystem` 是当前地图中该状态的唯一写入者。TileMapLayer 和 Sprite 只是投影，可随时由状态重建。
+所有地图共用 CellState，不按场景派生状态类型。MapState 持有 cells，每个 CellState 直接持有同格 EntityState；MapCell 是运行时行为入口，TileMapLayer 和 Sprite 只是投影。MapState 的实体 API 只协调跨 cell 事务，不保存第二份实体索引。
 
-### 7.3 MapState
+EntityState 保存 instance_id、definition_id、entity_kind、cell、health、random_seed 和 flags。CropEntityState 继承 EntityState，只增加 seed_item_id、growth_days 和 planted_on_day。EntityState.from_dict 根据 entity_kind 创建真实子类；definition_id 只用于选择数据定义。
+
+### 7.4 MapState
 
 ```text
 map_id
-farm_cells
-spawned_entities             # instance_id -> WorldEntityState
-npcs                         # npc_id -> NpcState
+cells                        # Vector2i -> CellState
 generator_initialized
 ```
 
-地图卸载前从当前节点同步；地图加载时先建静态场景，再应用 MapState。手工放置的静态装饰不写入存档。
+MapState 只管理 cells，不持有 NPC。地图卸载前同步 cell/entity 状态；地图加载时先建静态场景，再应用 MapState。手工放置的静态装饰不写入存档。
+
+NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 NPC 运行时 Entity，并以 `Entity.Type.NPC` 经 `BaseMap.add_entity()` 挂载到该地图的 entity host。
 
 ## 8. 场景领域组件
 
 ### 8.1 Player
 
-- `player.gd` 挂在 CharacterBody2D 根节点，集中处理 InputMap、移动碰撞、输入锁、朝向、角色动画状态、相机边界和角色专属交互。
-- Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点，由 `player.gd` 直接引用。
+- `player.gd` 挂在 CharacterBody2D 根节点，集中处理 InputMap、移动碰撞、输入锁、朝向、动画选择、相机边界和角色专属交互。
+- Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点；`AnimationPlayer` 直接引用 `Visual/Sprite`，动画帧和时间存放在 `AnimationLibrary` 资源中。
 - 不为同一个 Player 按 Input/Motor/Visual/Interaction 的概念名称建立一组只被 Player 使用的转发组件。只有产生跨角色复用或独立生命周期后才提取共享脚本。
-- Player 不直接修改 FarmCellState、背包字典或时间；通过领域 API 请求。
+- Player 不直接修改 CellState、EntityState、背包字典或时间；通过领域 API 请求。
 
-### 8.2 FarmSystem
+### 8.2 BaseMap、MapCell 与动态实体
 
-包含共享对齐的 TileMapLayer：
+地图根场景参考 cabin 的并列职责结构。Grid 的直接子节点只能是 TileMapLayer：
 
 ```text
-FarmSystem (Node2D)
+Farm (BaseMap)
 ├── BaseLayer (TileMapLayer)
-├── DugLayer (TileMapLayer)
-├── WateredLayer (TileMapLayer)
-├── CropRoot (Node2D, y_sort_enabled)
-├── EntityRoot (Node2D, y_sort_enabled)
-└── InteractionCursor (Node2D)
+├── DiggableLayer (TileMapLayer, status mask)
+├── DropableLayer (TileMapLayer, status mask)
+├── RoadStatusLayer (TileMapLayer, status mask)
+├── ResourceStatusLayer (TileMapLayer, status mask)
+├── BoundaryStatusLayer (TileMapLayer, status mask)
+├── MapEntities (Node2D)
+│   ├── Crops (Node2D, y_sort_enabled)
+│   └── Entities (Node2D, y_sort_enabled)
+├── InteractionCursor (Node2D)
+├── Landmarks
+├── StaticCollision
+├── SpawnPoints
+└── Ports
 ```
 
-职责：坐标转换、查询静态/动态地块、恢复投影、提交翻地/浇水/种植、实体占用和范围排序。它不读取物理鼠标输入。
+`BaseMap` 负责所有地图的身份、尺寸、坐标转换、边界、MapCell/CellState 绑定、cell_status、entity_hosts 和 TileMapLayer 对齐。每个 status layer 只映射一个 MapCell.Status，同坐标通过多个 layer 组合状态；三张地图都直接挂 BaseMap。
+
+Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 status mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 status，不创建动态状态 TileMapLayer。
+
+Entity 是运行时 Node2D 基类并声明 Type 枚举。BaseMap.entity_hosts 将 Crops、Entities 等普通 Node2D host 映射到唯一 Entity.Type；实体根据自身 type 挂入对应 host，不再维护 crop_root/entity_root 等专属路径。
+
+与某个地图强耦合的网格和实体功能统一放在地图根脚本中，不再抽出 `MapGrid` 或 `MapEntityManager`。Field/Cabin 将各自的 Ground/Road/Resource/Boundary 或 Floor/Wall 直接作为 BaseMap 根节点子节点，不创建无额外行为的地图脚本；地图树中不得添加仅用于包装 TileMapLayer 的 Grid 节点。
 
 ### 8.3 Targeting 与行动
 
@@ -291,7 +320,7 @@ FarmSystem (Node2D)
  -> Cursor 渲染同一结果
  -> UseAction.commit(context, preview_result)
  -> 校验体力/数量仍足够
- -> 原子修改 FarmSystem/GameState
+ -> 原子修改 MapCell/GameState
  -> EventBus 事实事件 + 音画反馈
 ```
 
@@ -316,7 +345,7 @@ WorldEntity (Node2D)
 ### 8.5 NPC
 
 - `NpcScheduleController` 根据 TimeManager 选择当前/下个日程。
-- `NpcNavigator` 使用 Godot 内建 `AStarGrid2D`，从 FarmSystem 的阻挡和道路权重构建网格。
+- `NpcNavigator` 使用 Godot 内建 `AStarGrid2D`，从当前 BaseMap 的阻挡和道路权重构建网格。
 - NPC 跨地图时把状态写入 GameState；只有位于当前地图的 NPC 需要可见实例。
 - 日程状态以游戏分钟为基准，加载存档后直接重建到正确位置，不要求重放所有历史路径。
 
@@ -344,7 +373,7 @@ TimeManager reaches day boundary
 -> CropSystem: previous day watered ? growth_days += 1
 -> generators/NPC schedules update
 -> PlayerState reset health/energy
--> SceneRouter sends player to cabin wake spawn
+-> SceneManager sends player to cabin wake spawn
 -> UI and light refresh
 ```
 
@@ -366,9 +395,12 @@ TimeManager reaches day boundary
   "time": {"year": 1, "month": 0, "day": 0, "hour": 6, "minute": 0},
   "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500},
   "inventory": {"selected_hotbar": 0, "hotbar": [], "backpack": []},
-  "maps": {
-    "farm": {"farm_cells": [], "spawned_entities": [], "npcs": []}
-  }
+  "maps": [
+    {"map_id": "farm", "generator_initialized": false, "cells": []}
+  ],
+  "npcs": [
+    {"npc_id": "npc_villager", "map_id": "farm", "cell": {"x": 12, "y": 8}}
+  ]
 }
 ```
 
@@ -381,6 +413,7 @@ TimeManager reaches day boundary
 - UI 是否写了领域状态？若是，改为调用命令。
 - Autoload 是否搜索场景树？若是，改为注册/注入。
 - Node 是否被写入 JSON？若是，改为稳定 ID 和 DTO。
-- TileMapLayer 是否被当作权威状态？若是，改为从 FarmCellState 投影。
+- 是否出现绕过 MapCell 的平行坐标字典？若是，合并到 `BaseMap.cells` 和 MapCell API。
+- TileMapLayer 是否被当作权威状态？若是，改为从 MapCell 绑定的 CellState 投影。
 - preview 与 commit 是否重复计算目标？若是，复用同一结果。
 - 地图切换是否会创建第二个 Player/TimeManager？若是，修正主场景边界。

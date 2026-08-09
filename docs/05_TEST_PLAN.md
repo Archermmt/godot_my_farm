@@ -28,7 +28,7 @@ godot --headless --path . --quit
 测试规则：
 
 - 每个 `test_*` 至少一个断言；环境不满足时显式 skip 并说明原因。
-- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、CropState day。
+- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、CropEntityState growth_days。
 - 随机行为固定 seed，并断言边界与确定结果。
 - 测试结束清理 `user://` 下测试专用文件，不能覆盖真实 `slot_0.json`。
 - 测试套件之间不共享可变 Autoload 状态；每个套件 reset 或构造独立实例。
@@ -40,10 +40,10 @@ godot --headless --path . --quit
 | DataCatalog | ID 索引和交叉引用 | 重复 ID、缺失 crop/drop 引用 |
 | InventoryState | 堆叠、交换、合并、移除 | 满包、不足数量、越界 slot |
 | PlayerState | 体力/生命/金币上下限 | 负数和超过上限 |
-| FarmCellState | 翻地、浇水日、占用 | 不可挖、重复操作、占用冲突 |
+| CellState | status、翻地、浇水日、entities | 不可挖、重复 ID、坐标不匹配、占用冲突 |
 | Targeting | 各蓄力范围和稳定顺序 | 地图边缘、阻挡、可用目标不足 |
 | Action transaction | 体力/物品/地块一起提交 | 任一条件失败时全部不变 |
-| CropState | 浇水后跨天成长和阶段切换 | 未浇水不成长、重复 day event |
+| CropEntityState | 多态恢复、浇水后跨天成长和阶段切换 | payload 缺失、未知类型、重复 day event |
 | Harvest/DropTable | 工具匹配、生命、掉落 | 错工具、未死亡无掉落、min/max |
 | TimeManager | 分钟跨小时/日/月/年 | 大 delta、暂停 reason 叠加 |
 | NpcSchedule | 季节/星期过滤和 fallback | 无匹配、跨午夜、加载中间时刻 |
@@ -51,7 +51,7 @@ godot --headless --path . --quit
 
 ## 4. 集成测试场景
 
-### I01 Player 与 FarmSystem
+### I01 Player 与 BaseMap
 
 在 fixture map 中移动到指定格，验证世界坐标/map 坐标一致、碰撞阻挡、光标与面向方向匹配。
 
@@ -61,7 +61,7 @@ godot --headless --path . --quit
 
 ### I03 种植到收获
 
-翻地、种种、浇水、推进多日、收获；检查种子数量、CropState 阶段、产物和格子占用。
+翻地、种种、浇水、推进多日、收获；检查种子数量、CropEntityState 阶段、产物和 CellState.entities。
 
 ### I04 掉落到背包
 
@@ -69,7 +69,7 @@ godot --headless --path . --quit
 
 ### I05 地图往返
 
-修改 farm 状态 -> 经 ScenePort 到 cabin -> 返回 farm；检查 Player 唯一、地块/实体/NPC 状态未重置，输入和时间锁已释放。
+修改 farm 状态 -> 经 ScenePort 到 cabin -> 返回 farm；检查 Player 唯一、地块/实体状态未重置，GameState.npcs 中的 NPC 跨图位置正确且当前地图实例唯一，输入和时间锁已释放。
 
 ### I06 换日
 
@@ -133,4 +133,3 @@ godot --headless --path . --quit
 T17 输出 15-20 秒连续证明片段或等价的连续截图序列，至少包含：移动 -> 选择工具 -> 翻地/播种/浇水 -> 采集掉落 -> 背包操作 -> 转场/换日后的成长结果。
 
 录制前固定 seed 和起始存档，删除所有 debug overlay，使用真实主场景。录制后必须回看，确认不是空帧、卡死、单帧循环、UI 遮挡或音画严重不同步。证明文件路径和运行日志写入 `STATUS.md`。
-

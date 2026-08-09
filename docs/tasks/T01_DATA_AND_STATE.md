@@ -11,7 +11,7 @@
 ## 交付范围
 
 - `scripts/data/`：ItemDefinition、GrowthStageDefinition、CropDefinition、HarvestableDefinition、DropTable/entry、NpcSchedule/event。
-- `scripts/state/`：ItemStack、InventoryState、PlayerState、CalendarState、CropState、FarmCellState、WorldEntityState、NpcState、MapState。
+- `scripts/state/`：ItemStack、InventoryState、PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/state/entity/` 统一存放 EntityState 及 CropEntityState 等实体状态子类。
 - `data/`：最小测试 catalog，包括 6 个工具、欧洲防风草种子/作物、木材、石头、草、食物占位定义。
 - `tests/unit/`：catalog/state/round-trip 测试。
 
@@ -21,7 +21,7 @@
 2. 所有 ID 为稳定 StringName，显示名独立；交叉引用用 ID 或直接静态 Resource，不用文件名推断。
 3. ItemStack/InventoryState 完成堆叠、添加、移除、交换、合并、容量和选择 API；调用失败不改变部分状态。
 4. PlayerState 对生命、体力、金币做范围保护。
-5. FarmCellState 使用 `watered_on_day`，CropState 保存 growth_days/health/seed；MapState 可容纳动态实体和 NPC。
+5. 所有地图共用 CellState；EntityState 使用 entity_kind 工厂恢复真实子类，CropEntityState 保存 growth_days/health/seed；MapState 持有 cells，每个 CellState.entities 直接持有同格动态实体。
 6. 所有需存档状态实现纯 Dictionary `to_dict()` 和严格 factory；Vector/ID 按技术规则序列化。
 7. 定义校验函数能发现重复/空 ID、非法 stack、负价格、错误掉落范围、非递增成长阶段和缺交叉引用。
 8. 不在状态对象中保存 Node、Texture、PackedScene instance 或 Callable。
@@ -47,4 +47,3 @@
 ## 完成记录
 
 STATUS 记录定义数量、单元测试通过/失败数和 diagnostics 结论；总表 T01 completed。
-

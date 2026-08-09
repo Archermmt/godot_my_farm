@@ -2,7 +2,7 @@
 
 ## 目标
 
-创建 farm、field、cabin 三张原创占位地图，建立统一 TileMapLayer/FarmSystem 坐标系统，并通过 ScenePort 和 SceneRouter 实现持久 Player 的淡入淡出切换。
+创建 farm、field、cabin 三张原创占位地图，建立统一 TileMapLayer/BaseMap 坐标系统，并通过 ScenePort 和 SceneManager 实现持久 Player 的淡入淡出切换。
 
 ## 依赖
 
@@ -10,27 +10,28 @@
 
 ## 交付范围
 
-- `scenes/maps/farm/farm.tscn`、`field/field.tscn`、`cabin/cabin.tscn`。
-- `scenes/world/farm_system.tscn`、`scene_port.tscn`。
-- `scripts/world/farm_system.gd`、`scene_port.gd`，完善 SceneRouter。
+- `scenes/maps/farm/farm.tscn`、`field/field.tscn`、`cabin/cabin.tscn`，每张地图直接管理自己的 TileMapLayer 层级。
+- `scenes/world/scene_port.tscn`。
+- `scripts/world/base_map.gd`、`map_cell.gd`、`entity/entity.gd`、`scene_port.gd`，完善 SceneManager。
 - 原创占位 TileSet/tiles、地图 registry、地图切换集成测试。
 
 ## 实现要求
 
 1. 三地图视觉和边界明显不同；至少 farm 有可挖区/道路/阻挡区，field 有资源区，cabin 有床和出口占位。
-2. FarmSystem 包含 Base/Dug/Watered TileMapLayer、CropRoot、EntityRoot、Cursor 挂点，并校验 tile size/transform/origin 对齐。
-3. 静态 flags 来自地图数据；动态 FarmCellState 由 FarmSystem 查询/修改，TileMapLayer 不作为唯一权威。
-4. 提供 world_to_cell、cell_to_world_center、get_cell_state、is_walkable、get_cells_in_rect 等 typed API。
-5. ScenePort 通过 map_id/spawn_id 请求 SceneRouter；重复进入只提交一次。
-6. SceneRouter 完成事务式锁输入/时间、写回当前 MapState、fade、替换 MapHost、恢复目标状态、放置 Player、解锁。
-7. Camera limits 在地图 ready 时注入 Player Camera。转场第一帧不显示地图外空白。
-8. 地图往返始终只有一个 Player、一个 HUD 和一组 Autoload；失败加载保留原地图。
+2. TileMapLayer 直接挂在地图根节点；Farm、Field、Cabin 全部直接使用 BaseMap，并校验 tile size/transform/origin 对齐。
+3. `cell_status: Dictionary[TileMapLayer, MapCell.Status]` 将每层全部 used cells 映射为可组合 status；MapCell/CellState 保存全部动态 cell 信息。
+4. 静态地图 cell 必须绘制并序列化在 `.tscn` 中；不得创建 Dug/Watered 等动态状态 TileMapLayer。
+5. 提供 world_to_cell、cell_to_world_center、get_cell_state、is_walkable、get_cells_in_rect 等 typed API。
+6. ScenePort 通过 map_id/spawn_id 请求 SceneManager；重复进入只提交一次。
+7. SceneManager 完成事务式锁输入/时间、写回当前 MapState、fade、替换 MapHost、恢复目标状态、放置 Player、解锁。
+8. Camera limits 在地图 ready 时注入 Player Camera。转场第一帧不显示地图外空白。
+9. 地图往返始终只有一个 Player、一个 HUD 和一组 Autoload；失败加载保留原地图。
 
 ## 自动化验收
 
 - 三地图关键 world/cell 往返转换一致。
-- 所有农事层对齐；地图边界和 static flag 查询正确。
-- SceneRouter 忽略重复请求，失败时锁能释放且原地图仍存在。
+- 所有农事层对齐；每个 configured status layer 的全部 used cells 都投影到 MapCell，同坐标的多 status 可组合。
+- SceneManager 忽略重复请求，失败时锁能释放且原地图仍存在。
 - farm -> cabin -> farm 后 Player instance 唯一、位置为目标 spawn。
 
 ## godot-ai 验收
@@ -44,5 +45,10 @@
 
 ## 完成记录
 
-STATUS 记录地图 registry、往返输入序列、实例数量、run_id 和 3 张截图；总表 T04 completed。
-
+- 状态：completed（2026-08-09，Asia/Shanghai；地图层级规则修订）。
+- 地图 registry：farm、field、cabin 全部使用 BaseMap；entity_hosts 按 Entity.Type 配置 Crops/Entities 等节点。
+- `BaseMap` 提供公共坐标、MapCell 索引、layer-status dictionary、范围、实体入口和层对齐 API；地图子类不再声明 Rect2i 区域配置。MapCell 是每格的运行时领域对象，不是场景转发组件。
+- SceneManager 已实现初始地图加载、输入/时间锁、Tween 淡入淡出、MapHost 替换、失败保留原地图和重复请求拒绝；ScenePort 只提交一次请求。
+- 自动化：`49 tests / 307 assertions`；三张地图均包含序列化 `tile_map_data`，map transition fixture 完成 `cabin -> farm -> cabin`，往返后 Player 数量为 1。
+- 视觉证据：`screenshots/t04/cabin.png`、`screenshots/t04/farm.png`、`screenshots/t04/field.png`，均为 1280x720 Godot framebuffer。
+- 下一任务：T05 背包、快捷栏与手持物。

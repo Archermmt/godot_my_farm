@@ -5,7 +5,7 @@ const EXPECTED_AUTOLOAD_ORDER: Array[String] = [
 	"DataCatalog",
 	"GameState",
 	"TimeManager",
-	"SceneRouter",
+	"SceneManager",
 	"SaveManager",
 	"AudioManager",
 ]

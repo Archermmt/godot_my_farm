@@ -38,6 +38,14 @@
 - 禁止用静态全局可变变量代替明确的数据所有者。
 - 角色 leaf scene 默认只在根节点挂一个角色脚本。输入、移动、朝向、角色动画状态和该角色专属交互应优先集中实现，不得仅按概念职责拆成多个只服务同一角色的小组件。
 - 角色逻辑只有在至少两个角色类型真实复用、具有独立生命周期，或需要可替换实现时才拆分脚本；拆分前必须在对应任务卡说明复用对象和边界。子节点可以组织碰撞、Sprite、挂点和相机，但不得为了转发根脚本调用而额外挂脚本。
+- 可由开发者调节的角色、UI、特效和过场动画必须使用 Godot 标准 `AnimationPlayer`/`AnimationLibrary` 资源管理；脚本只选择动画名称并调用 `play()`、`stop()` 或 `seek()`，不得直接写 `Sprite2D.frame`、维护动画帧计数器或用 `_process` 手写动画时钟。
+- 纯程序化的位移、淡入淡出、弹性和数值过渡使用 `Tween`；当动画需要在 Animation 面板中编辑时，不得用 Tween 取代 AnimationPlayer。
+- 地图场景必须像 cabin 一样在根节点下按职责并列组织 TileMapLayer、动态实体、静态装饰、碰撞、出生点和传送口。地图根脚本直接管理自己的 TileMapLayer，不再增加只用于包裹 TileMapLayer 的 Grid 节点。
+- 地面道路等可行走 TileMapLayer 必须保持在角色渲染层级之下；同级地面层可通过节点顺序叠加，但不得使用高于 `ActorHost` 的 `z_index` 覆盖 Player。资源、边界和前景装饰需要遮挡角色时必须明确标注其前景层级。
+- 与某个组件强耦合的功能不需要独立成类；地图统一使用 `BaseMap` 负责坐标、边界、MapCell 索引和实体 host 路由。MapCell 是每个格子的领域对象并绑定通用 CellState；地图场景不创建无额外行为的根脚本。
+- `map_id`、尺寸、`Dictionary[Vector2i, MapCell]`、`cell_status: Dictionary[TileMapLayer, MapCell.Status]` 和 `entity_hosts: Dictionary[Node2D, Entity.Type]` 放在 BaseMap。不得增加 farm/field/cabin 专属地图类或 crop 专属 host API。
+- 地面、道路、墙体、水域、静态资源区等开发者需要编辑的 TileMap cell 必须使用 Godot TileMap 编辑器绘制并序列化在对应 `.tscn` 中。运行脚本不得 `clear()` 后重建静态地图，也不得用启动时代码替代场景内的 `tile_map_data`。
+- dug、watered、entities 等运行状态只保存在 MapCell 绑定的 CellState 中；不得再创建 Dug/Watered TileMapLayer 或其他重复状态投影。
 
 ## 4. 场景规则
 
@@ -66,7 +74,7 @@
 2. `DataCatalog`：只读定义索引和启动校验。
 3. `GameState`：玩家状态、背包和各地图动态状态的唯一所有者。
 4. `TimeManager`：游戏日历、倍率、暂停和时间推进。
-5. `SceneRouter`：地图切换、出生点和淡入淡出协调。
+5. `SceneManager`：地图切换、出生点和淡入淡出协调。
 6. `SaveManager`：版本化存取与迁移，不直接操作场景表现。
 7. `AudioManager`：音频总线和池化播放。
 
@@ -74,8 +82,9 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 
 ## 7. 事件与数据所有权
 
-- 每份可变数据只有一个权威写入者。例如金币与背包由 `GameState` 写，UI 只订阅；农田由当前 `FarmSystem` 写并同步回地图状态。
+- 每份可变数据只有一个权威写入者。例如金币与背包由 GameState 写，UI 只订阅；cell 行为通过 MapCell 修改绑定的 CellState，实体节点通过 BaseMap.entity_hosts 挂载。
 - Signal 用于通知和跨模块请求，不作为无类型的数据总线。参数必须有稳定类型和清楚语义。
+- 所有信号声明必须集中在 `EventBus`；领域服务、地图根节点和场景组件不得自行声明信号变量。模块内部需要通知时也通过 `EventBus` 的稳定事实信号，避免信号所有权分散。
 - 同一模块内部优先直接方法调用；不要把所有调用都绕到 `EventBus`。
 - 需要原子性的行为采用“校验 -> 计算变化 -> 提交 -> 发出事实事件”。体力、种子、地块和产出不能只提交一半。
 - UI 不直接修改领域字典；UI 调用公开命令并根据信号刷新。
@@ -83,9 +92,57 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 ## 8. 网格与坐标
 
 - 全部农事状态以 `Vector2i` 地图坐标为主键，禁止用像素位置或字符串作为运行时主键。
-- 坐标转换只由拥有对应 `TileMapLayer` 的 `FarmSystem` 提供：世界坐标 -> layer local -> map，以及 map -> local -> world。
+- 坐标转换只由 BaseMap 通过 cell_status 中唯一的 BASE TileMapLayer 提供：世界坐标 -> layer local -> map，以及 map -> local -> world。
 - 所有农事层共享同一 tile size、transform 和 origin；T04 必须加入对齐检查。
-- 静态地块能力来自地图/自定义数据；动态耕地、浇水和占用状态来自 `FarmCellState`。
+
+### 8.1 Map、Cell、Entity 核心关系
+
+运行时对象关系：
+
+```text
+BaseMap
+├── cells: Dictionary[Vector2i, MapCell]
+│   └── MapCell -> 绑定同坐标的 CellState
+└── entity_hosts: Dictionary[Node2D, Entity.Type]
+    └── host -> 挂载该 Type 的 Entity 节点
+```
+
+持久化状态关系：
+
+```text
+GameState
+├── maps: Dictionary[StringName, MapState]
+│   └── MapState.cells: Dictionary[Vector2i, CellState]
+│       └── CellState.entities: Dictionary[StringName, EntityState]
+└── npcs: Dictionary[StringName, NpcState]
+```
+
+- `BaseMap` 是当前已加载地图的运行时根和协调者，负责坐标转换、MapCell 索引、MapState 绑定、Entity host 路由；它不复制 CellState 或 EntityState 数据。
+- `MapState` 是地图卸载后仍存在的持久化聚合根。BaseMap.configure_state() 必须让每个 MapCell 绑定 `MapState.cells` 中同坐标的 CellState；不得为同一坐标创建第二份权威状态。
+- `MapCell` 是单格行为入口，负责 status 查询、dig、water、drop/occupancy 校验等。业务代码不得直接组合 status 位或绕过 MapCell 修改 dug/watered；MapCell 的写操作直接提交到已绑定 CellState。
+- `CellState` 是单格可序列化状态，直接拥有该格的 EntityState dictionary。EntityState 不得同时存入 MapState 的第二份全局 entities dictionary，也不得嵌套到多个 CellState。
+- `EntityState` 是实体的持久化数据，`instance_id` 在整张 MapState 内唯一，`cell` 必须等于所属 CellState.cell。`entity_kind` 决定反序列化子类，`definition_id` 只选择静态定义。
+- `NpcState` 的唯一所有者是 `GameState.npcs`，其 `map_id/cell` 表示 NPC 当前所在地图和格子。NPC 可跨地图活动，因此不得写入 MapState 或 CellState.entities。
+- `Entity` 是场景树中的运行时 Node2D，只负责表现和生命周期，不进入 JSON。`Entity.Type` 决定 BaseMap.add_entity() 使用哪个 entity host；Entity.Type 与 EntityState.entity_kind 的映射必须由显式工厂维护，不得依赖节点名或脚本路径推断。
+- 仅实例化 `NpcState.map_id` 等于当前地图的 NPC；NPC 运行时节点必须设为 `Entity.Type.NPC` 并通过 `BaseMap.add_entity()` 挂入当前地图配置的 NPC host。缺少该 host 时返回 `ERR_UNCONFIGURED`，不得改由 MapState 持有节点或状态。
+- 创建实体的事务顺序固定为：校验目标 MapCell/status -> 创建并写入 EntityState 到 CellState -> 由工厂创建 Entity -> BaseMap.add_entity() 挂载到对应 host。节点创建或挂载失败时必须回滚 CellState 中的 EntityState。
+- 移动实体必须通过 MapState.move_entity() 原子地从源 CellState 移除、更新 EntityState.cell、写入目标 CellState；成功后再移动 Entity 节点表现。目标校验或节点更新失败时不得留下双重归属。
+- 删除实体的事务顺序固定为：确认稳定 instance_id -> 从所属 CellState 删除 EntityState -> 从 host 移除 Entity 节点 -> 结算掉落/事件。重复删除必须返回明确错误且不能重复结算。
+- 地图卸载时只释放 BaseMap、MapCell 和 Entity 节点；MapState、CellState、EntityState、NpcState 继续由 GameState 持有。地图恢复时以状态对象重建 MapCell 绑定和当前地图的 Entity/NPC 节点，不从旧 Node 反推存档状态。
+
+### 8.2 Cell Status 与坐标规则
+
+- `BaseMap` 在 ready 时为地图边界内每个坐标创建且只创建一个 `MapCell` 和一个通用 `CellState`，并持有 `Dictionary[Vector2i, MapCell]`。不得按 farm/field/cabin 创建不同 CellState 子类；调用方通过 `get_cell()` 取得同一个运行时对象。
+- `MapCell.Status` 是可组合位标记，至少包含 BASE、DIGGABLE、DROPABLE、ROAD、BLOCKED、RESOURCE、INTERIOR。BASE 表示地图唯一的基础/坐标层，其 used cells 默认可行走。
+- BaseMap 的 `cell_status: Dictionary[TileMapLayer, MapCell.Status]` 是静态 cell status 的唯一配置入口。每个 entry 表示该 TileMapLayer 的每个 used cell 都获得对应 status；同一坐标出现在多个 layer 时按位 OR 叠加。
+- status cell 集合必须直接绘制并序列化在对应 TileMapLayer 中；禁止用 Rect2i、Polygon、节点名称推断或启动时代码生成固定形状。只用于配置的 status mask layer 可以不可见，但必须拥有 tile_map_data，并与坐标层保持 tile size、transform 和 origin 对齐。
+- 每张地图必须且只能配置一个 BASE layer；坐标转换、地图边界参考和基础可行走查询都由该 dictionary entry 决定。BLOCKED 是行为否决状态，可以与 BASE/DROPABLE 等同时存在；`is_walkable()`、`is_dropable()` 等查询必须显式排除 BLOCKED。
+- `MapState.cells: Dictionary[Vector2i, CellState]` 保存所有地图的 cell 状态；不得增加场景专属状态字典或动态 TileMap 状态投影。
+- Entity 是所有地图实体节点的运行时基类，使用 `Entity.Type` 区分类别。BaseMap.entity_hosts 的每个 host 只能对应一个唯一 Type；`add_entity()` 按 entity.type 路由，CROP、HARVESTABLE、PICKUP 等不得各自增加 root path。
+- `CellState.entities: Dictionary[StringName, EntityState]` 是同格实体状态的唯一所有者，EntityState 只在所属 CellState 内序列化。MapState 不得建立第二份 entities 字典；跨 cell 的查询、添加、移动和删除由 MapState 事务方法协调并落到源/目标 CellState。
+- EntityState 使用 `entity_kind` 作为反序列化 discriminator。工厂必须先根据 entity_kind 创建真实子类，例如 `CropEntityState`，调用方才可使用 `is`/`as` downcast；不得根据 definition_id、脚本路径或 class_name 动态加载类型。
+- EntityState 基类及其所有实体专属状态子类统一放在 `scripts/state/entity/`；通用 cell、map、player、inventory 状态保留在 `scripts/state/` 根目录。
+- Entity 节点负责 EntityState 的场景表现和生命周期，不替代 EntityState，不进入 JSON；MapCell 直接通过 CellState.entities 查询所属格的实体状态。
 - 浇水使用 `watered_on_day: int`，而不是每天遍历清零布尔值。
 - 对角移动允许时做归一化；NPC 对角寻路不得穿过两个相邻阻挡格的夹角。
 
@@ -120,7 +177,7 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 ## 12. 错误处理与日志
 
 - 开发期对不变量使用 `assert`；用户输入、缺失存档和可恢复资源问题使用返回值、`push_warning`/`push_error` 和 UI 提示。
-- 日志带模块前缀，如 `[FarmSystem]`，不得在每帧循环刷屏。
+- 日志带模块前缀，如 `[BaseMap]`、`[MapCell]`，不得在每帧循环刷屏。
 - 不吞掉 Godot `Error` 返回值。文件、资源保存和场景切换失败都必须处理。
 - godot-ai 写脚本后必须检查该次响应的 `diagnostics`；不能只依赖后续 game log。
 - 任务结束时 editor log 与本次 game run log 都必须检查。

@@ -37,16 +37,16 @@
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemDefinition + held/world scene 组件 |
 | `Tool` | 体力和蓄力 | `UseAction`/`ToolAction` 策略 |
-| `GridTool` | 网格行动 | `GridToolAction` + FarmSystem transaction |
+| `GridTool` | 网格行动 | `GridToolAction` + MapCell transaction |
 | `ItemTool` | 对对象行动 | `HarvestToolAction` + Harvestable component |
 | `Seed` | 种植范围和消耗 | `SeedAction` + CropDefinition |
 | `Harvestable/LifePeriod` | 阶段、生命、掉落 | `HarvestableDefinition`/GrowthStage + component |
-| `Plant/Crop` | 地块植物与浇水成长 | `CropEntity` + CropState + day_advanced |
+| `Plant/Crop` | 地块植物与浇水成长 | `CropEntity` + CropEntityState + day_advanced |
 | `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `TreeEntity` 专属状态/动画策略 |
 | `Pickable` | 吸附拾取 | `PickupEntity (Area2D)` |
-| `FieldGrid` | 单格标签与实体 | `FarmCellState` + static flags |
-| `FieldLayer` | Tilemap 标签/保存 | `TileMapLayer` 表现 + FarmSystem 状态投影 |
-| `FieldManager` | 网格、光标、工具执行 | `FarmSystem` + TargetingService + InteractionController |
+| `FieldGrid` | 单格标签与实体 | `MapCell` + 通用 CellState + EntityState |
+| `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_status` + MapCell/CellState |
+| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + TargetingService + InteractionController |
 | `Cursor` | 有效/无效目标反馈 | `InteractionCursor` scene |
 | `Generator` | 随机环境对象 | seeded `WorldGenerator` + MapState |
 | `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `InventoryState` 与 InventoryUI 分离 |
@@ -54,8 +54,8 @@
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
 | `PlayerStatus` | 生命/体力/金币与 UI | PlayerState + HUD 投影 |
 | `EnvManager/Clock` | 时间推进和显示 | TimeManager + ClockUI |
-| `SceneController` | additive scene/淡入淡出 | persistent Main + SceneRouter + MapHost |
-| `ScenePort` | 地图触发器 | Area2D `ScenePort` 请求 SceneRouter |
+| `SceneController` | additive scene/淡入淡出 | persistent Main + SceneManager + MapHost |
+| `ScenePort` | 地图触发器 | Area2D `ScenePort` 请求 SceneManager |
 | `ItemManager` | 定义索引、工厂、地图 item 内存 | DataCatalog + ItemFactory + MapState |
 | `GameLight` | 时段光照 | CanvasModulate/Light2D + LightSchedule Resource |
 | `AudioManager/Sound` | 音频查找与播放 | AudioManager pool + AudioDefinition |
@@ -78,7 +78,7 @@
 
 ### 4.4 玩家跨地图保持，地图动态状态恢复
 
-Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 MapState，再次进入时恢复作物、掉落、被砍树木和 NPC；不能重新生成成初始地图。
+Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 MapState 的 cells/entities；NPC 状态持续保存在 GameState.npcs。再次进入时恢复作物、掉落、被砍树木，并按 NpcState.map_id 恢复当前地图 NPC；不能重新生成成初始地图。
 
 ### 4.5 时间事件驱动而非对象轮询
 
@@ -90,7 +90,7 @@ Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 Ma
 |---|---|---|
 | Manager 经常按 tag/名称搜索场景树 | 显式注册、导出引用、窄 API | 防止换场景时绑定错误，便于测试 |
 | ItemData、行为、Prefab 路径部分靠名称约定 | Resource 直接引用 PackedScene，稳定 ID 索引 | 重命名安全，可在启动时校验 |
-| FieldLayer 同时承载表现、标签和存档 | FarmCellState 权威，TileMapLayer 仅投影 | 存档、测试与重建更可靠 |
+| FieldLayer 同时承载表现、标签和存档 | MapCell 统一查询，CellState/EntityState 持久化，TileMapLayer 仅投影 | 存档、测试与重建更可靠 |
 | Inventory Slot 同时持有数据和 UI | InventoryState 与 Control 分离 | UI 销毁不丢状态，便于存档 |
 | 工具应用可能跨多个对象逐个修改 | 先完整校验，再原子提交 | 避免体力/数量不足时只执行一半 |
 | Scene item 状态仅在进程内缓存 | MapState + 单槽版本化存档 | 支持真正退出/读取 |

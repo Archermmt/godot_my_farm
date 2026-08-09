@@ -39,17 +39,16 @@ func test_walk_speed_is_lower_and_zero_input_stops() -> void:
 	player.free()
 
 
-func test_motion_state_and_visual_frames_are_deterministic() -> void:
+func test_motion_state_and_animation_names_are_deterministic() -> void:
 	assert_equal(FarmPlayer.resolve_motion_state(Vector2.ZERO, false), &"idle")
 	assert_equal(FarmPlayer.resolve_motion_state(Vector2.RIGHT, true), &"walk")
 	assert_equal(FarmPlayer.resolve_motion_state(Vector2.RIGHT, false), &"run")
 	var player := FarmPlayer.new()
 	player.set_motion(&"idle", &"down")
-	assert_equal(player.current_frame_index(), 0)
+	assert_equal(player.animation_name(), &"idle_down")
 	player.set_motion(&"walk", &"left")
-	assert_equal(player.current_frame_index(), 8)
-	player.animation_phase = 1
-	assert_equal(player.current_frame_index(), 9)
+	assert_equal(player.animation_name(), &"walk_left")
 	player.set_motion(&"run", &"up")
-	assert_equal(player.current_frame_index(), 22)
+	assert_equal(player.animation_name(), &"run_up")
+	assert_equal(FarmPlayer.animation_name_for(&"invalid", &"invalid"), &"idle_down")
 	player.free()

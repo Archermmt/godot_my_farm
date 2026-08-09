@@ -22,7 +22,7 @@
 3. 只在 `generator_initialized=false` 时执行初始生成；地图往返不能再次叠加。
 4. 生成前检查格子可放置、无占用、无 ScenePort/Player spawn/静态障碍；失败候选有最大尝试次数。
 5. 每个实体有稳定 instance ID、definition ID、cell/position、health/stage/generated 标记；手工静态实体与生成实体区分。
-6. 地图卸载前 FarmSystem/EntityRoot/NPC 状态写回 MapState；恢复时由 ItemFactory 创建一次并注册占用。
+6. 地图卸载前 BaseMap 将 cell/entity 状态写回 MapState；恢复时由 ItemFactory 创建一次并注册占用。NPC 状态不进入 MapState。
 7. 被采集对象保持消失，未拾取掉落保持存在，树桩/作物阶段保持；地图切换不推进时间。
 8. 换日再生若启用，使用明确配置与 generation epoch，只补允许对象，不重置整图。
 
@@ -41,9 +41,8 @@
 ## 不做
 
 - 不实现复杂生态、季节生成表或地图编辑器 UI。
-- 不通过删除整个 EntityRoot 简化状态保存。
+- 不通过删除整个地图实体容器简化状态保存。
 
 ## 完成记录
 
 STATUS 记录 seed、初始/恢复实体摘要、20 次往返结果、run_id 和截图；总表 T11 completed。
-

@@ -19,7 +19,7 @@
 
 1. 新游戏无需 Debug 指令即可完成：起床 -> farm -> 翻地 -> 播种 -> 浇水 -> 采集 -> 背包 -> 次日成长 -> 成熟收获 -> NPC 观察 -> save/load。
 2. 初始 seed、种子、体力、地图资源和作物成长天数平衡到 10-15 分钟开发验收可完成；正式时间倍率仍可配置。
-3. UI panel、工具 charging、SceneRouter 和 SaveManager 的锁定不会死锁或提前解除。
+3. UI panel、工具 charging、SceneManager 和 SaveManager 的锁定不会死锁或提前解除。
 4. preview、commit、音画反馈和存档状态对每种行为一致；错误工具、无体力、满包、无存档都有清楚反馈。
 5. 地图切换、换日、save/load 过程中没有重复 Player/HUD/NPC、重复 signal、orphan Node 或未停止 tween/audio。
 6. 清除所有临时 debug key、测试 label、无用 placeholder summary；必要 DevHooks 默认关闭。
@@ -45,4 +45,3 @@
 ## 完成记录
 
 STATUS 写完整回归表、失败路径、性能数据、run_id 和截图索引；总表 T15 completed。
-

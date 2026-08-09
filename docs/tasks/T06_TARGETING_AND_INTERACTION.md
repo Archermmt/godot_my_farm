@@ -12,13 +12,13 @@
 
 - `scripts/interaction/`：context、candidate、targeting_service、use_action 基类/协议、grid/harvest/seed/drop action 骨架。
 - `scenes/world/interaction_cursor.tscn` 与脚本。
-- `PlayerInteractionController` 接入 selected ItemStack、FarmSystem 和 Hands。
+- `PlayerInteractionController` 接入 selected ItemStack、BaseMap 和 Hands。
 - targeting/charge 单元与集成测试。
 
 ## 实现要求
 
 1. 状态机严格为 idle -> charging -> committed/cancelled -> idle；一次 release 只触发一次 commit signal。
-2. 鼠标/面向方向、Player cell、charge level、选中数量、体力和当前 FarmSystem 组成不可变 InteractionContext 快照。
+2. 鼠标/面向方向、Player cell、charge level、选中数量、体力和当前 BaseMap 组成不可变 InteractionContext 快照。
 3. preview 返回有序 TargetCandidate，每项包含 cell、可选 entity ID、valid 和 reason code。
 4. Cursor 完整渲染同一 preview 结果：有效格、有效对象、无效目标在形状/图标和颜色上均可区分。
 5. charge level 按数据配置升级并限制最大级；目标范围遵循参考的单格、3x1、3x3、9x3、9x9 语义，不超地图或可用数量。
@@ -46,4 +46,3 @@
 ## 完成记录
 
 STATUS 记录各 level 的目标数量/顺序、取消测试、run_id 和范围截图；总表 T06 completed。
-
