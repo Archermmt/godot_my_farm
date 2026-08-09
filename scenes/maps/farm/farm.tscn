@@ -13,9 +13,9 @@ size = Vector2(32, 640)
 [sub_resource type="RectangleShape2D" id="PondShape"]
 size = Vector2(160, 128)
 
-[node name="Farm" type="Node2D" unique_id=560373562 node_paths=PackedStringArray("cell_status", "entity_hosts")]
+[node name="Farm" type="Node2D" unique_id=560373562 node_paths=PackedStringArray("cell_flags", "entity_hosts")]
 script = ExtResource("1_x0kw4")
-cell_status = {
+cell_flags = {
 NodePath("BaseLayer"): 1,
 NodePath("DiggableLayer"): 2,
 NodePath("DropableLayer"): 4,

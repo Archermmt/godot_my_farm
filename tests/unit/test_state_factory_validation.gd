@@ -26,36 +26,36 @@ func test_map_rejects_invalid_nested_state_and_duplicate_ids() -> void:
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": false,
-		"cells": [{"cell": {"x": 0, "y": 0}, "status": 1, "dug": false, "watered_on_day": 0, "entities": [{"entity_kind": "crop"}]}],
-	}) == null)
+		"cells": [{"cell": {"x": 0, "y": 0}, "flags": 1, "dug": false, "watered_on_day": 0, "entity_ids": ["crop_0_0"]}],
+		"entities": [{"type": EntityState.EntityType.CROP}],
+	}) == null, "MapState accepted malformed nested EntityState")
 	var entity: Dictionary = {
 		"instance_id": "tree_001",
 		"definition_id": "tree",
-		"entity_kind": "harvestable",
+		"type": EntityState.EntityType.HARVESTABLE,
 		"cell": {"x": 1, "y": 2},
 		"health": 1,
 		"random_seed": 0,
 		"flags": [],
+		"seed_item_id": "",
+		"growth_days": 0,
+		"planted_on_day": 1,
 	}
-	var duplicate_entity := entity.duplicate(true)
-	duplicate_entity["cell"] = {"x": 2, "y": 2}
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": true,
-		"cells": [
-			{"cell": {"x": 1, "y": 2}, "status": 1, "dug": false, "watered_on_day": 0, "entities": [entity]},
-			{"cell": {"x": 2, "y": 2}, "status": 1, "dug": false, "watered_on_day": 0, "entities": [duplicate_entity]},
-		],
-	}) == null)
+		"cells": [{"cell": {"x": 1, "y": 2}, "flags": 1, "dug": false, "watered_on_day": 0, "entity_ids": []}],
+		"entities": [entity, entity],
+	}) == null, "MapState accepted duplicate entity IDs")
 
 
-func test_entity_factory_rejects_invalid_crop_payload() -> void:
+func test_entity_state_rejects_invalid_type() -> void:
 	assert_true(EntityState.from_dict({
 		"instance_id": "crop_1_2",
 		"definition_id": "crop_parsnip",
-		"entity_kind": "crop",
+		"type": 999,
 		"cell": {"x": 1, "y": 2},
 		"health": 1,
 		"random_seed": 0,
 		"flags": [],
-	}) == null)
+	}) == null, "EntityState accepted invalid type")

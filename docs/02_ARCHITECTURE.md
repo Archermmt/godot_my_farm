@@ -22,7 +22,7 @@ SceneManager / TimeManager / ItemFactory / SaveManager / AudioManager
                          |
                          v
 状态与定义层
-GameState / MapState / CellState / EntityState / CropEntityState / InventoryState / DataCatalog / *.tres
+GameState / MapState / CellState / EntityState / InventoryState / DataCatalog / *.tres
 ```
 
 依赖只能向下。下层通过返回值或 `EventBus` 的事实信号通知上层，不得反向引用 HUD、Player 或具体地图节点。
@@ -239,9 +239,9 @@ harvest_drop_table_id
 
 ### 7.2 MapCell
 
-`BaseMap` 为边界内每个坐标创建一个 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。每个 MapCell 始终绑定一个通用 CellState，作为行走、耕种、浇水、放置和占用的唯一入口。静态 status 从 `Dictionary[TileMapLayer, MapCell.Status]` 的 authored cells 叠加重建。
+`BaseMap` 为边界内每个坐标创建 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。configure_state 后每个 MapCell 绑定 MapState.cells 中同坐标的 CellState。MapCell 是行走、耕种、浇水、放置和占用的运行时入口；静态 flag 从 authored TileMapLayer 叠加重建并写入 DTO。
 
-MapCell 不继承 Node，不持有 TileMapLayer 或实体节点。后续 MapEntity 只负责场景表现；MapCell 通过 CellState.entities 查询同格实体状态。
+MapCell 不继承 Node，不持有 TileMapLayer 或实体节点。它只通过绑定的 CellState 读写数据，所有业务判断保留在 MapCell。
 
 ### 7.3 CellState 与 EntityState
 
@@ -250,24 +250,27 @@ cell: Vector2i               # 字典 key，序列化时写 x/y
 status: int                  # 当前地图配置的格子能力
 dug: bool
 watered_on_day: int
-entities: Dictionary[StringName, EntityState] # 同格实体唯一所有权
+entity_ids: Array[StringName] # 同格实体稳定 ID 引用
 ```
 
-所有地图共用 CellState，不按场景派生状态类型。MapState 持有 cells，每个 CellState 直接持有同格 EntityState；MapCell 是运行时行为入口，TileMapLayer 和 Sprite 只是投影。MapState 的实体 API 只协调跨 cell 事务，不保存第二份实体索引。
+MapState 分别持有 CellState 和 EntityState。两个 State 都是无运行时操作的 DTO；MapCell/Entity 绑定 DTO 后提供行为与场景表现。TileMapLayer 和 Sprite 只是投影。
 
-EntityState 保存 instance_id、definition_id、entity_kind、cell、health、random_seed 和 flags。CropEntityState 继承 EntityState，只增加 seed_item_id、growth_days 和 planted_on_day。EntityState.from_dict 根据 entity_kind 创建真实子类；definition_id 只用于选择数据定义。
+EntityState 是单一扁平 DTO，保存 instance_id、definition_id、type、cell、health、random_seed、flags，以及 seed_item_id、growth_days、planted_on_day 等当前实体数据。EntityState 不派生子类；BaseMap 根据 type 创建 CropEntity 等运行时节点。
 
 ### 7.4 MapState
 
 ```text
 map_id
 cells                        # Vector2i -> CellState
+entities                     # instance_id -> EntityState
 generator_initialized
 ```
 
-MapState 只管理 cells，不持有 NPC。地图卸载前同步 cell/entity 状态；地图加载时先建静态场景，再应用 MapState。手工放置的静态装饰不写入存档。
+MapState 只保存 cells/entities DTO，不持有 NPC，也不实现实体事务或场景操作。地图加载时 BaseMap 绑定 CellState，并按 EntityState.type 创建运行时 Entity。手工放置的静态装饰不写入存档。
 
-NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 NPC 运行时 Entity，并以 `Entity.Type.NPC` 经 `BaseMap.add_entity()` 挂载到该地图的 entity host。
+MapState 与 BaseMap 不合并：MapState 是可在无场景树时创建和反序列化的纯数据容器，BaseMap 是随地图切换实例化和释放的 Node2D，并拥有当前地图的 MapCell/Entity 运行时对象。
+
+NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 NPC 运行时 Entity，并以 `EntityState.EntityType.NPC` 经 `BaseMap.add_entity()` 挂载到该地图的 entity host。
 
 ## 8. 场景领域组件
 
@@ -276,7 +279,7 @@ NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/ce
 - `player.gd` 挂在 CharacterBody2D 根节点，集中处理 InputMap、移动碰撞、输入锁、朝向、动画选择、相机边界和角色专属交互。
 - Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点；`AnimationPlayer` 直接引用 `Visual/Sprite`，动画帧和时间存放在 `AnimationLibrary` 资源中。
 - 不为同一个 Player 按 Input/Motor/Visual/Interaction 的概念名称建立一组只被 Player 使用的转发组件。只有产生跨角色复用或独立生命周期后才提取共享脚本。
-- Player 不直接修改 CellState、EntityState、背包字典或时间；通过领域 API 请求。
+- Player 不直接修改 CellState.entity_ids、MapState.entities、背包字典或时间；通过 BaseMap/MapCell 领域 API 请求。
 
 ### 8.2 BaseMap、MapCell 与动态实体
 
@@ -300,11 +303,11 @@ Farm (BaseMap)
 └── Ports
 ```
 
-`BaseMap` 负责所有地图的身份、尺寸、坐标转换、边界、MapCell/CellState 绑定、cell_status、entity_hosts 和 TileMapLayer 对齐。每个 status layer 只映射一个 MapCell.Status，同坐标通过多个 layer 组合状态；三张地图都直接挂 BaseMap。
+`BaseMap` 负责所有地图的身份、尺寸、坐标转换、边界、MapCell/Entity 运行时字典、状态绑定、cell_flags、entity_hosts 和 TileMapLayer 对齐。每个 flag layer 只映射一个 CellState.CellFlag，同坐标通过多个 layer 组合 flag；三张地图都直接挂 BaseMap。
 
-Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 status mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 status，不创建动态状态 TileMapLayer。
+Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 flag mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 flag，不创建动态状态 TileMapLayer。
 
-Entity 是运行时 Node2D 基类并声明 Type 枚举。BaseMap.entity_hosts 将 Crops、Entities 等普通 Node2D host 映射到唯一 Entity.Type；实体根据自身 type 挂入对应 host，不再维护 crop_root/entity_root 等专属路径。
+Entity 是运行时 Node2D 基类并声明 Type 枚举。BaseMap 根据 EntityState.type 创建 Entity/CropEntity，绑定 DTO 后通过 entity_hosts 挂入对应 host，不再维护 crop_root/entity_root 等专属路径。
 
 与某个地图强耦合的网格和实体功能统一放在地图根脚本中，不再抽出 `MapGrid` 或 `MapEntityManager`。Field/Cabin 将各自的 Ground/Road/Resource/Boundary 或 Floor/Wall 直接作为 BaseMap 根节点子节点，不创建无额外行为的地图脚本；地图树中不得添加仅用于包装 TileMapLayer 的 Grid 节点。
 
@@ -396,7 +399,7 @@ TimeManager reaches day boundary
   "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500},
   "inventory": {"selected_hotbar": 0, "hotbar": [], "backpack": []},
   "maps": [
-    {"map_id": "farm", "generator_initialized": false, "cells": []}
+    {"map_id": "farm", "generator_initialized": false, "cells": [], "entities": []}
   ],
   "npcs": [
     {"npc_id": "npc_villager", "map_id": "farm", "cell": {"x": 12, "y": 8}}
@@ -414,6 +417,6 @@ TimeManager reaches day boundary
 - Autoload 是否搜索场景树？若是，改为注册/注入。
 - Node 是否被写入 JSON？若是，改为稳定 ID 和 DTO。
 - 是否出现绕过 MapCell 的平行坐标字典？若是，合并到 `BaseMap.cells` 和 MapCell API。
-- TileMapLayer 是否被当作权威状态？若是，改为从 MapCell 绑定的 CellState 投影。
+- TileMapLayer 是否被当作动态权威状态？若是，改为从 MapCell 投影。
 - preview 与 commit 是否重复计算目标？若是，复用同一结果。
 - 地图切换是否会创建第二个 Player/TimeManager？若是，修正主场景边界。

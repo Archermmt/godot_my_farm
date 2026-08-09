@@ -2,7 +2,7 @@
 
 ## 目标
 
-实现锄头和水壶的真实网格事务，使目标预览、MapCell/CellState、体力与反馈保持一致。
+实现锄头和水壶的真实网格事务，使目标预览、MapCell、体力与反馈保持一致。
 
 ## 依赖
 
@@ -31,7 +31,7 @@
 - 单格和多格的 changed 数、体力消耗、signal 次数。
 - 体力恰好、少 1、为 0 三种边界，失败时状态深度等价。
 - watered_on_day round-trip，另一天查询不再视为当天浇水但历史值保留。
-- 从 CellState 重建 TileMap 的 used cells 与状态一致。
+- 从 MapCell 绑定的 CellState 重建动态表现且状态一致。
 
 ## godot-ai 验收
 

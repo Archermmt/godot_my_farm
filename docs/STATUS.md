@@ -11,7 +11,7 @@
 
 - 已完成参考 Unity/C# 项目的代码级职责分析。
 - 已固定 GDScript、Godot 场景/状态边界、任务依赖和验收流程。
-- T01 已建立 10 个静态数据/校验类、9 个运行时状态类和 1 个序列化工具类；状态层不持有 Node、Texture、PackedScene、Callable 或 NodePath。
+- T01 已建立静态定义、纯 DTO 状态和序列化校验链路；MapState、CellState、EntityState 等状态对象不持有 Node、Texture、PackedScene、Callable 或 NodePath。
 - 核心 catalog 包含 12 个物品、1 种作物/4 个成长阶段、3 个采集物、4 张掉落表/4 个 entry、1 份 NPC 日程/1 个 event，共 30 个 Resource 记录。
 - InventoryState 支持固定容量、堆叠、添加/移除、交换、合并、跨容器交换和选择；失败路径保持事务前状态。
 - 所有存档状态提供纯 Dictionary `to_dict()` 与显式严格 factory，Vector2i 和 StringName 经 JSON round-trip 后恢复原类型。
@@ -23,7 +23,7 @@
 - Player 动画已改为 `AnimationPlayer` + `player_animations.tres`，包含 12 个可编辑的 idle/walk/run 四向动画；运行脚本不再设置 Sprite frame、维护动画相位或手写动画时钟。
 - 原创占位角色图为 144x128、4 行 x 6 帧；T04 已接入原创占位 TileMap 和地图层，资源许可记录在 `assets/licenses/ASSETS.md`，T16 再完成正式美术替换与整体 polish。
 - T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actors/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
-- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；cell_status 管理静态能力，MapCell/CellState 管理全部动态 cell 信息，entity_hosts 按 Entity.Type 路由实体节点；ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
+- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/EntityState DTO，BaseMap 管理 MapCell/Entity 运行时对象并按 EntityState.type 路由 host；ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
 
 ## 环境记录
 

@@ -13,11 +13,11 @@ size = Vector2(32, 384)
 [sub_resource type="RectangleShape2D" id="BedShape"]
 size = Vector2(96, 64)
 
-[node name="Cabin" type="Node2D" unique_id=947449751 node_paths=PackedStringArray("cell_status")]
+[node name="Cabin" type="Node2D" unique_id=947449751 node_paths=PackedStringArray("cell_flags")]
 script = ExtResource("1_rjrbm")
 map_id = &"cabin"
 map_size = Vector2i(20, 12)
-cell_status = {
+cell_flags = {
 NodePath("FloorLayer"): 1,
 NodePath("DropableLayer"): 4,
 NodePath("InteriorStatusLayer"): 64,

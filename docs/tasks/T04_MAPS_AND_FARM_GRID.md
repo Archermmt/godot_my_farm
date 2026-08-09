@@ -19,7 +19,7 @@
 
 1. 三地图视觉和边界明显不同；至少 farm 有可挖区/道路/阻挡区，field 有资源区，cabin 有床和出口占位。
 2. TileMapLayer 直接挂在地图根节点；Farm、Field、Cabin 全部直接使用 BaseMap，并校验 tile size/transform/origin 对齐。
-3. `cell_status: Dictionary[TileMapLayer, MapCell.Status]` 将每层全部 used cells 映射为可组合 status；MapCell/CellState 保存全部动态 cell 信息。
+3. `cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 将每层全部 used cells 映射为可组合 flag；MapCell 绑定 CellState 并负责运行时行为。
 4. 静态地图 cell 必须绘制并序列化在 `.tscn` 中；不得创建 Dug/Watered 等动态状态 TileMapLayer。
 5. 提供 world_to_cell、cell_to_world_center、get_cell_state、is_walkable、get_cells_in_rect 等 typed API。
 6. ScenePort 通过 map_id/spawn_id 请求 SceneManager；重复进入只提交一次。
@@ -30,7 +30,7 @@
 ## 自动化验收
 
 - 三地图关键 world/cell 往返转换一致。
-- 所有农事层对齐；每个 configured status layer 的全部 used cells 都投影到 MapCell，同坐标的多 status 可组合。
+- 所有农事层对齐；每个 configured flag layer 的全部 used cells 都投影到 MapCell，同坐标的多个 flag 可组合。
 - SceneManager 忽略重复请求，失败时锁能释放且原地图仍存在。
 - farm -> cabin -> farm 后 Player instance 唯一、位置为目标 spawn。
 
@@ -46,7 +46,7 @@
 ## 完成记录
 
 - 状态：completed（2026-08-09，Asia/Shanghai；地图层级规则修订）。
-- 地图 registry：farm、field、cabin 全部使用 BaseMap；entity_hosts 按 Entity.Type 配置 Crops/Entities 等节点。
+- 地图 registry：farm、field、cabin 全部使用 BaseMap；entity_hosts 按 EntityState.EntityType 配置 Crops/Entities 等节点。
 - `BaseMap` 提供公共坐标、MapCell 索引、layer-status dictionary、范围、实体入口和层对齐 API；地图子类不再声明 Rect2i 区域配置。MapCell 是每格的运行时领域对象，不是场景转发组件。
 - SceneManager 已实现初始地图加载、输入/时间锁、Tween 淡入淡出、MapHost 替换、失败保留原地图和重复请求拒绝；ScenePort 只提交一次请求。
 - 自动化：`49 tests / 307 assertions`；三张地图均包含序列化 `tile_map_data`，map transition fixture 完成 `cabin -> farm -> cabin`，往返后 Player 数量为 1。

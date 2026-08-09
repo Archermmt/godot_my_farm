@@ -28,7 +28,7 @@ godot --headless --path . --quit
 测试规则：
 
 - 每个 `test_*` 至少一个断言；环境不满足时显式 skip 并说明原因。
-- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、CropEntityState growth_days。
+- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、EntityState type/growth_days。
 - 随机行为固定 seed，并断言边界与确定结果。
 - 测试结束清理 `user://` 下测试专用文件，不能覆盖真实 `slot_0.json`。
 - 测试套件之间不共享可变 Autoload 状态；每个套件 reset 或构造独立实例。
@@ -40,10 +40,10 @@ godot --headless --path . --quit
 | DataCatalog | ID 索引和交叉引用 | 重复 ID、缺失 crop/drop 引用 |
 | InventoryState | 堆叠、交换、合并、移除 | 满包、不足数量、越界 slot |
 | PlayerState | 体力/生命/金币上下限 | 负数和超过上限 |
-| CellState | status、翻地、浇水日、entities | 不可挖、重复 ID、坐标不匹配、占用冲突 |
+| CellState/MapCell | DTO round-trip、status、翻地、浇水日、entity_ids | 不可挖、重复 ID、坐标不匹配、占用冲突 |
 | Targeting | 各蓄力范围和稳定顺序 | 地图边缘、阻挡、可用目标不足 |
 | Action transaction | 体力/物品/地块一起提交 | 任一条件失败时全部不变 |
-| CropEntityState | 多态恢复、浇水后跨天成长和阶段切换 | payload 缺失、未知类型、重复 day event |
+| EntityState/Entity | type 恢复、BaseMap 工厂、浇水后跨天成长 | 非法 type、host 缺失、重复 ID |
 | Harvest/DropTable | 工具匹配、生命、掉落 | 错工具、未死亡无掉落、min/max |
 | TimeManager | 分钟跨小时/日/月/年 | 大 delta、暂停 reason 叠加 |
 | NpcSchedule | 季节/星期过滤和 fallback | 无匹配、跨午夜、加载中间时刻 |
@@ -61,7 +61,7 @@ godot --headless --path . --quit
 
 ### I03 种植到收获
 
-翻地、种种、浇水、推进多日、收获；检查种子数量、CropEntityState 阶段、产物和 CellState.entities。
+翻地、种种、浇水、推进多日、收获；检查种子数量、EntityState 阶段、产物、MapState DTO 和 BaseMap 运行时节点。
 
 ### I04 掉落到背包
 
