@@ -1,25 +1,26 @@
 extends Node
 
-const CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
-
-
 func _ready() -> void:
-	var catalog: GameCatalog = load(CATALOG_PATH) as GameCatalog
-	if catalog == null:
-		push_error("[T01Fixture] failed to load %s" % CATALOG_PATH)
-		get_tree().quit(1)
-		return
-	var errors: Array[String] = CatalogValidator.validate(catalog)
+	var catalog := DataCatalogService.new()
+	var errors: Array[String] = catalog.setup()
 	if not errors.is_empty():
 		for error: String in errors:
 			push_error("[T01Fixture] %s" % error)
 		get_tree().quit(1)
 		return
-	print("[T01Fixture] catalog valid | items=%d crops=%d harvestables=%d drops=%d schedules=%d" % [
-		catalog.items.size(),
-		catalog.crops.size(),
-		catalog.harvestables.size(),
-		catalog.drop_tables.size(),
-		catalog.npc_schedules.size(),
+	print("[T01Fixture] catalog valid | items=%d plants=%d harvestables=%d schedules=%d" % [
+		catalog.config.items.size(),
+		_count_type(catalog.config.items, PlantMeta),
+		_count_type(catalog.config.items, HarvestableMeta),
+		catalog.config.npc_schedules.size(),
 	])
+	catalog.free()
 	get_tree().quit(0)
+
+
+func _count_type(items: Dictionary[StringName, ItemMeta], meta_script: Script) -> int:
+	var count := 0
+	for item: ItemMeta in items.values():
+		if is_instance_of(item, meta_script):
+			count += 1
+	return count

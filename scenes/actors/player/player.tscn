@@ -1,53 +1,99 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://ctuq8r0y26w3g"]
 
-[ext_resource type="Script" path="res://scripts/actors/player.gd" id="1_player"]
-[ext_resource type="Texture2D" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
-[ext_resource type="AnimationLibrary" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
+[ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actor/player.gd" id="1_player"]
+[ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
+[ext_resource type="AnimationLibrary" uid="uid://vyh3yhltdeot" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
+[ext_resource type="PackedScene" path="res://scenes/world/interact_area.tscn" id="7_interact_area"]
+[ext_resource type="Script" uid="uid://cq4t3tm1opk5a" path="res://scripts/actor/backpack.gd" id="8_backpack"]
 
 [sub_resource type="CapsuleShape2D" id="CapsulePlayer"]
 radius = 6.0
 height = 14.0
 
-[node name="Player" type="CharacterBody2D" groups=["player"]]
-collision_layer = 1
-collision_mask = 1
+[sub_resource type="StyleBoxFlat" id="StyleBoxChargeBackground"]
+bg_color = Color(0.0470588, 0.0705882, 0.0666667, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.839216, 0.901961, 0.776471, 0.7)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxChargeFill"]
+bg_color = Color(0.964706, 0.898039, 0.552941, 1)
+
+[node name="Player" type="CharacterBody2D" unique_id=420612843 groups=["player"]]
 script = ExtResource("1_player")
-run_speed = 96.0
-walk_speed = 48.0
 
-[node name="Shadow" type="Polygon2D" parent="."]
+[node name="Shadow" type="Polygon2D" parent="." unique_id=747648563]
 position = Vector2(0, -2)
-polygon = PackedVector2Array(-8, -2, -5, -4, 5, -4, 8, -2, 5, 0, -5, 0)
 color = Color(0.0392157, 0.0627451, 0.0588235, 0.42)
+polygon = PackedVector2Array(-8, -2, -5, -4, 5, -4, 8, -2, 5, 0, -5, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1099933518]
 position = Vector2(0, -7)
 shape = SubResource("CapsulePlayer")
 
-[node name="Visual" type="Node2D" parent="."]
+[node name="Visual" type="Node2D" parent="." unique_id=142939104]
 
-[node name="Sprite" type="Sprite2D" parent="Visual"]
-position = Vector2(0, -16)
+[node name="Sprite" type="Sprite2D" parent="Visual" unique_id=149319971]
 texture_filter = 1
+position = Vector2(0, -16)
 texture = ExtResource("5_sprite")
 hframes = 6
 vframes = 4
+frame = 8
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-libraries = {&"": ExtResource("6_animations")}
-autoplay = "idle_down"
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=207226228]
+libraries/ = ExtResource("6_animations")
+autoplay = &"idle_down"
 
-[node name="Hands" type="Node2D" parent="."]
-position = Vector2(0, -15)
+[node name="ChargeBar" type="ProgressBar" parent="." unique_id=2102465929]
+visible = false
+z_index = 25
+offset_left = -18.0
+offset_top = -43.0
+offset_right = 18.0
+offset_bottom = -37.0
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxChargeBackground")
+theme_override_styles/fill = SubResource("StyleBoxChargeFill")
+max_value = 1.0
+show_percentage = false
 
-[node name="InteractionOrigin" type="Marker2D" parent="."]
+[node name="SelectionPopup" type="Control" parent="." unique_id=720045240]
+visible = false
+z_index = 20
+layout_mode = 3
+anchors_preset = 0
+offset_left = -124.0
+offset_top = -70.0
+offset_right = 124.0
+offset_bottom = -42.0
+mouse_filter = 2
+
+[node name="Slots" type="HBoxContainer" parent="SelectionPopup" unique_id=1859731803]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="SelectionTimer" type="Timer" parent="." unique_id=1270161843]
+wait_time = 1.25
+one_shot = true
+
+[node name="InteractionOrigin" type="Marker2D" parent="." unique_id=101471676]
 position = Vector2(0, 8)
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="InteractArea" parent="." unique_id=218021092 instance=ExtResource("7_interact_area")]
+
+[node name="Backpack" type="Node" parent="." unique_id=931873519]
+script = ExtResource("8_backpack")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1862161815]
 position = Vector2(0, -8)
-position_smoothing_enabled = false
-rotation_smoothing_enabled = false
 process_callback = 0
-enabled = true
-limit_smoothed = false
 editor_draw_limits = true

@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://bglxl0qrlh1qx"]
+
+[ext_resource type="Script" uid="uid://wy72d3c4pgk0" path="res://scripts/actor/interactable/television.gd" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="InteractionShape"]
+size = Vector2(64, 40)
+
+[node name="Television" type="Polygon2D" unique_id=735553232 groups=["interaction_target"]]
+color = Color(0.145098, 0.192157, 0.227451, 1)
+polygon = PackedVector2Array(-32, -20, 32, -20, 32, 20, -32, 20)
+script = ExtResource("1_script")
+dialogue_id = &"television_report"
+
+[node name="InteractionMarker" type="Marker2D" parent="." unique_id=870589357]
+position = Vector2(0, -43)
+
+[node name="InteractionArea" type="Area2D" parent="." unique_id=1935558073]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea" unique_id=1712081308]
+shape = SubResource("InteractionShape")

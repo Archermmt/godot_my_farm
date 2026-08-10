@@ -11,6 +11,18 @@ func _init() -> void:
 
 
 func _run_all() -> void:
+	var main_scene := load("res://scenes/app/main.tscn") as PackedScene
+	var main: Node = null
+	if main_scene != null:
+		change_scene_to_packed(main_scene)
+		await process_frame
+		main = current_scene
+		for _frame: int in 30:
+			await process_frame
+		var catalog := get_root().get_node_or_null("DataCatalog")
+		if catalog != null and catalog.get("config") != null:
+			catalog.get("config").verbose_level = 0
+
 	var test_files: Array[String] = []
 	for directory: String in TEST_DIRECTORIES:
 		_collect_test_files(directory, test_files)
@@ -34,7 +46,7 @@ func _run_all() -> void:
 		if suite == null:
 			all_failures.append("%s must extend ProjectTestCase" % path)
 			continue
-		var result: Dictionary = suite.run()
+		var result: Dictionary = await suite.run()
 		total_tests += int(result.get("tests", 0))
 		total_assertions += int(result.get("assertions", 0))
 		var failures: Array = result.get("failures", []) as Array
@@ -52,11 +64,21 @@ func _run_all() -> void:
 			total_assertions,
 			all_failures.size(),
 		])
-		quit(1)
+		call_deferred("_finish", 1)
 		return
 
 	print("[TestRunner] PASS | %d tests | %d assertions" % [total_tests, total_assertions])
-	quit(0)
+	# Only tear down the test scene. Autoloads own their shutdown order and
+	# must remain alive until SceneTree exits.
+	if is_instance_valid(main):
+		main.queue_free()
+	for _frame: int in 4:
+		await process_frame
+	call_deferred("_finish", 0)
+
+
+func _finish(exit_code: int) -> void:
+	quit(exit_code)
 
 
 func _collect_test_files(directory_path: String, output: Array[String]) -> void:
@@ -74,4 +96,3 @@ func _collect_test_files(directory_path: String, output: Array[String]) -> void:
 				output.append(path)
 		entry = directory.get_next()
 	directory.list_dir_end()
-

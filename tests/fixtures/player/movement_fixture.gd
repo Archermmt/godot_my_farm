@@ -19,12 +19,11 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if player == null:
 		return
-	var state: Dictionary = player.debug_snapshot()
-	var position_value: Vector2 = state["position"]
+	var position_value := player.global_position
 	state_label.text = "x=%d y=%d  %s  facing=%s  speed=%d" % [
 		roundi(position_value.x),
 		roundi(position_value.y),
-		state["motion_state"],
-		state["facing"],
-		roundi((state["velocity"] as Vector2).length()),
+		player.motion_state,
+		player.facing,
+		roundi(player.velocity.length()),
 	]

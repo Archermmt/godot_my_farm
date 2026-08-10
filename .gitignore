@@ -17,4 +17,7 @@ screenshots/capture/
 screenshots/tmp/
 
 # do not count addons
-addons
+addons/*
+!addons/dialogic/
+!addons/dialogic/**
+addons/godot_ai/

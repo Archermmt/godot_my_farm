@@ -1,0 +1,10 @@
+{
+	"emeraldwalk.runonsave": {
+		"commands": [
+			{
+				"match": "\\.gd$",
+				"cmd": "'/Users/tongmeng/.local/bin/gdformat' '${file}'"
+			}
+		]
+	}
+}

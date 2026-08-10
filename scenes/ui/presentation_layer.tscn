@@ -1,0 +1,47 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/presentation_controller.gd" id="1_controller"]
+[ext_resource type="Theme" path="res://data/ui/game_theme.tres" id="2_theme"]
+
+[node name="PresentationLayer" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_controller")
+
+[node name="Toast" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -42.0
+offset_right = 140.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.0823529, 0.239216, 0.227451, 0.96)
+
+[node name="Label" type="Label" parent="Toast"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.941176, 0.956863, 0.890196, 1)
+theme_override_font_sizes/font_size = 11
+text = "ACTION UNAVAILABLE"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3

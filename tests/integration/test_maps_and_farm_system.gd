@@ -3,158 +3,260 @@ extends ProjectTestCase
 const MAP_PATHS := {
 	&"farm": "res://scenes/maps/farm/farm.tscn",
 	&"field": "res://scenes/maps/field/field.tscn",
-	&"cabin": "res://scenes/maps/cabin/cabin.tscn",
+	&"beach": "res://scenes/maps/beach/beach.tscn",
 }
 
-func test_all_maps_have_aligned_layers_and_spawn_points() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	for map_id: StringName in [&"cabin", &"farm", &"field"]:
-		var packed := load(MAP_PATHS[map_id]) as PackedScene
-		assert_true(packed != null)
-		var map := packed.instantiate() as BaseMap
-		scene_tree.root.add_child(map)
+
+func test_all_maps_have_valid_authored_layers() -> void:
+	for map_id: StringName in MAP_PATHS:
+		var map := (load(MAP_PATHS[map_id]) as PackedScene).instantiate() as BaseMap
+		assert_true(map != null)
 		assert_equal(map.map_id, map_id)
 		assert_equal(map.validate_alignment(), OK)
-		assert_true(not map.coordinate_layer().get_used_cells().is_empty())
-		assert_equal(map.cell_flags[map.coordinate_layer()], CellState.CellFlag.BASE)
-		assert_true(map.spawn_position(&"default") != Vector2.ZERO)
+		assert_true(map.get_map_size().x > 0 and map.get_map_size().y > 0)
 		map.free()
 
-func test_static_tile_cells_are_serialized_in_map_scenes() -> void:
-	for map_id: StringName in [&"cabin", &"farm", &"field"]:
-		var source := FileAccess.get_file_as_string(MAP_PATHS[map_id])
-		assert_true(source.contains("tile_map_data = PackedByteArray"), "%s has no authored TileMap cells" % map_id)
 
-func test_flag_layers_apply_flags_to_every_authored_cell() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	for map_id: StringName in [&"cabin", &"farm", &"field"]:
-		var map := (load(MAP_PATHS[map_id]) as PackedScene).instantiate() as BaseMap
-		scene_tree.root.add_child(map)
-		assert_true(not map.cell_flags.is_empty())
-		for layer: TileMapLayer in map.cell_flags:
-			var flag: CellState.CellFlag = map.cell_flags[layer]
-			assert_true(not layer.get_used_cells().is_empty(), "%s/%s flag layer is empty" % [map_id, layer.name])
-			for coordinates: Vector2i in layer.get_used_cells():
-				assert_true(map.get_cell(coordinates).has_flag(flag), "%s/%s did not apply flag at %s" % [map_id, layer.name, coordinates])
-		map.free()
-
-func test_farm_coordinate_round_trip_and_cell_flags() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
+func test_map_state_round_trip_uses_sparse_cells_and_items() -> void:
 	var map := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
-	scene_tree.root.add_child(map)
-	var farm := map
-	for cell: Vector2i in [Vector2i(2, 2), Vector2i(8, 10), Vector2i(15, 10), Vector2i(24, 16)]:
-		var world := farm.cell_to_world_center(cell)
-		assert_equal(farm.world_to_cell(world), cell)
-	assert_equal(farm.cells.size(), farm.map_size.x * farm.map_size.y)
-	assert_true(farm.get_cell(Vector2i(8, 10)).has_flag(CellState.CellFlag.DIGGABLE))
-	assert_true(farm.get_cell(Vector2i(8, 10)).has_flag(CellState.CellFlag.DROPABLE))
-	assert_true(farm.get_cell(Vector2i(15, 10)).has_flag(CellState.CellFlag.ROAD))
-	assert_true(farm.get_cell(Vector2i(24, 16)).has_flag(CellState.CellFlag.BLOCKED))
-	assert_true(not farm.is_walkable(Vector2i(24, 16)))
-	assert_equal(farm.get_cells_in_rect(Rect2i(3, 8, 2, 2)).size(), 4)
+	(Engine.get_main_loop() as SceneTree).root.add_child(map)
+	var state := MapState.new()
+	state.map_id = &"farm"
+	assert_equal(map.from_state(state), OK)
+	var cell := map.get_cell(Vector2i(8, 10))
+	assert_true(cell != null)
+	cell.add_flag(CellState.CellFlag.DUG)
+	var saved := map.to_state()
+	assert_true(saved.cells.has(Vector2i(8, 10)))
+	var restored := MapState.from_dict(saved.to_dict())
+	assert_true(restored != null)
+	assert_true(restored.cells.has(Vector2i(8, 10)))
 	map.free()
 
-func test_dynamic_cell_state_is_not_tilemap_authority() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	var map := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
-	scene_tree.root.add_child(map)
-	var state: MapState = GameState.maps[&"farm"]
-	assert_true(map.configure_state(state) == OK)
-	var map_cell := map.get_cell(Vector2i(5, 9))
-	assert_equal(map_cell.dig(), OK)
-	assert_equal(map_cell.water(0), OK)
-	assert_true(map_cell.cell_state().dug)
-	assert_true(map_cell.is_watered(0))
-	map.free()
 
-func test_base_map_restores_and_operates_on_state_dtos() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	var farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
-	scene_tree.root.add_child(farm)
-	var first_state := MapState.new()
-	first_state.map_id = &"farm"
-	var persisted_cell := CellState.new()
-	persisted_cell.cell = Vector2i(5, 9)
-	persisted_cell.dug = true
-	var persisted_entity := EntityState.new()
-	persisted_entity.instance_id = &"crop_5_9"
-	persisted_entity.definition_id = &"crop_parsnip"
-	persisted_entity.type = EntityState.EntityType.CROP
-	persisted_entity.seed_item_id = &"seed_parsnip"
-	persisted_entity.cell = persisted_cell.cell
-	persisted_cell.entity_ids = [persisted_entity.instance_id]
-	first_state.cells[persisted_cell.cell] = persisted_cell
-	first_state.entities[persisted_entity.instance_id] = persisted_entity
-	assert_equal(farm.configure_state(first_state), OK)
-	assert_true(farm.get_cell(Vector2i(5, 9)).cell_state() == persisted_cell)
-	assert_true(farm.get_cell(Vector2i(5, 9)).is_dug())
-	assert_true(farm.entities[&"crop_5_9"] is CropEntity)
-	assert_true(farm.entities[&"crop_5_9"].state == persisted_entity)
-	assert_equal(farm.move_entity(persisted_entity.instance_id, Vector2i(6, 9)), OK)
-	assert_equal(persisted_entity.cell, Vector2i(6, 9))
-	assert_true(not farm.get_cell(Vector2i(5, 9)).has_entity(persisted_entity.instance_id))
-	assert_true(farm.get_cell(Vector2i(6, 9)).has_entity(persisted_entity.instance_id))
-	var replacement_state := MapState.new()
-	replacement_state.map_id = &"farm"
-	assert_equal(farm.configure_state(replacement_state), OK)
-	assert_true(farm.get_cell(Vector2i(5, 9)).cell_state() != persisted_cell)
-	assert_true(replacement_state.cells[Vector2i(5, 9)] == farm.get_cell(Vector2i(5, 9)).cell_state())
-	assert_true(farm.entities.is_empty())
-	farm.free()
+func test_runtime_player_and_backpack_are_initialized() -> void:
+	assert_true(GameManager.player != null)
+	assert_true(GameManager.player.backpack != null)
+	assert_true(GameManager.snapshot().has("item_manager"))
 
-func test_each_map_owns_a_distinct_tilemap_hierarchy() -> void:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	var farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
-	var field := (load(MAP_PATHS[&"field"]) as PackedScene).instantiate() as BaseMap
-	var cabin := (load(MAP_PATHS[&"cabin"]) as PackedScene).instantiate() as BaseMap
-	scene_tree.root.add_child(farm)
-	scene_tree.root.add_child(field)
-	scene_tree.root.add_child(cabin)
-	assert_true(farm.has_node("BaseLayer"))
-	assert_true(not farm.has_node("DugLayer"))
-	assert_true(field.has_node("GroundLayer"))
-	assert_true(field.has_node("ResourceLayer"))
-	assert_true(cabin.has_node("FloorLayer"))
-	assert_true(cabin.has_node("WallLayer"))
-	for map: BaseMap in [farm, field, cabin]:
-		for child: Node in map.get_children():
-			if child is TileMapLayer:
-				continue
-			assert_true(child.name != "FarmGrid" and child.name != "FieldGrid" and child.name != "CabinGrid")
-	assert_true(farm.get_node("MapEntities") is Node2D)
-	assert_true(field.get_node("MapEntities") is Node2D)
-	assert_true(farm.entity_host(EntityState.EntityType.GENERIC) == farm.get_node("MapEntities/Entities"))
-	assert_true(farm.entity_host(EntityState.EntityType.CROP) == farm.get_node("MapEntities/Crops"))
-	var farm_state := MapState.new()
-	farm_state.map_id = &"farm"
-	assert_equal(farm.configure_state(farm_state), OK)
-	var crop_state := EntityState.new()
-	crop_state.instance_id = &"crop_runtime_test"
-	crop_state.definition_id = &"crop_parsnip"
-	crop_state.type = EntityState.EntityType.CROP
-	crop_state.seed_item_id = &"seed_parsnip"
-	crop_state.cell = Vector2i(5, 9)
-	assert_equal(farm.add_entity_state(crop_state), OK)
-	var crop := farm.get_entity(crop_state.instance_id)
-	assert_true(crop.get_parent() == farm.get_node("MapEntities/Crops"))
-	assert_true(crop is CropEntity)
-	assert_equal(crop.entity_id(), crop_state.instance_id)
-	assert_equal(farm.entity_count(EntityState.EntityType.CROP), 1)
-	assert_equal(farm.entity_count(), 1)
-	farm.free()
-	field.free()
-	cabin.free()
 
-func test_base_map_entity_helpers_handle_missing_values() -> void:
-	var base_map := BaseMap.new()
-	assert_equal(base_map.add_entity(null), ERR_INVALID_PARAMETER)
-	var state := EntityState.new()
-	state.instance_id = &"entity_test"
-	state.definition_id = &"test"
-	var entity := Entity.new()
-	assert_equal(entity.bind_state(state), OK)
-	assert_equal(base_map.add_entity(entity), ERR_UNCONFIGURED)
-	assert_equal(base_map.entity_count(), 0)
-	entity.free()
-	base_map.free()
+func test_successful_tool_use_reports_and_consumes_energy() -> void:
+	var player := GameManager.player
+	assert_true(player != null)
+	var cost := (DataCatalog.get_item(&"hoe") as ToolMeta).level_energy_cost(0)
+	assert_true(cost > 0)
+	var previous_energy := player.energy
+	assert_true(player.consume_energy(cost))
+	assert_equal(player.energy, previous_energy - cost)
+	player.energy = previous_energy
+
+
+func test_watered_plant_grows_on_day_advanced() -> void:
+	var map := MapManager.current_map()
+	assert_true(map != null)
+	var target := Vector2i(-1, -1)
+	for candidate: Vector2i in map.map_layers[CellState.CellFlag.BASE].get_used_cells():
+		if map.check_cell(candidate, CellState.CellCondition.DIGGABLE):
+			target = candidate
+			break
+	assert_true(target != Vector2i(-1, -1))
+	if target == Vector2i(-1, -1):
+		return
+	var cell := map.ensure_cell(target)
+	var original_flags := cell.state.flags
+	cell.add_flag(CellState.CellFlag.DUG)
+	cell.add_flag(CellState.CellFlag.WATERED)
+	var plant := ItemManager.create_from_id(&"parsnip") as Plant
+	assert_true(plant != null)
+	assert_equal(map.add_item(plant, map.cell_to_world(target)), OK)
+	var state := plant.state as PlantState
+	assert_equal(state.health, 1)
+	var day := CalendarManager.calendar.day
+	map._on_day_advanced()
+	assert_equal(state.health, 2, "watered plant should advance from the first growth stage")
+	assert_equal(state.last_growth_day, day)
+	assert_equal(map.remove_item(plant.item_id()), OK)
+	cell.state.flags = original_flags
+
+
+func test_map_transition_reuses_hosts_without_duplicate_runtime_maps() -> void:
+	var initial := MapManager.current_map()
+	assert_true(initial != null)
+	var field_result := await MapManager._change_map(&"field", &"default", false)
+	assert_equal(field_result, OK)
+	assert_equal(MapManager.current_map_id(), &"field")
+	assert_equal(await MapManager._change_map(&"farm", &"default", false), OK)
+	await (Engine.get_main_loop() as SceneTree).process_frame
+	assert_equal(MapManager.current_map_id(), &"farm")
+	assert_true((MapManager.current_map().get_parent() as Node).get_child_count() <= 2)
+
+
+func test_save_and_load_round_trip_restores_player_and_manager_state() -> void:
+	var previous_directory := GameManager.save_directory
+	GameManager.save_directory = "user://t17_integration"
+	var previous_gold := GameManager.player.gold
+	GameManager.player.gold = previous_gold + 37
+	assert_equal(await GameManager.save_game(0), OK)
+	await (Engine.get_main_loop() as SceneTree).process_frame
+	GameManager.player.gold = 1
+	var load_result := await GameManager.load_game(0)
+	assert_equal(load_result, OK)
+	assert_equal(GameManager.player.gold, previous_gold + 37)
+	assert_equal(await GameManager.load_game(0), OK)
+	assert_equal(GameManager.player.gold, previous_gold + 37)
+	GameManager.player.gold = previous_gold
+	var corrupt_path := GameManager.save_path(1)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://t17_integration"))
+	var corrupt_file := FileAccess.open(corrupt_path, FileAccess.WRITE)
+	corrupt_file.store_string("{broken")
+	corrupt_file.close()
+	assert_equal(await GameManager.load_game(1), ERR_INVALID_DATA)
+	assert_equal(GameManager.player.gold, previous_gold)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://t17_integration/slot_0.json"))
+	GameManager.save_directory = previous_directory
+
+
+func test_invalid_map_requests_do_not_leave_transition_locks() -> void:
+	var before := MapManager.current_map_id()
+	GameManager.player._lock_reasons.clear()
+	CalendarManager.stop()
+	CalendarManager.start()
+	assert_equal(MapManager.request_map_change(&"missing_map", &"default"), ERR_DOES_NOT_EXIST)
+	assert_equal(MapManager.current_map_id(), before)
+	assert_true(not MapManager.is_transitioning())
+	assert_true(not CalendarManager.is_paused())
+	assert_true(GameManager.player.input_lock_reasons().is_empty())
+
+
+func test_player_tool_flow_completes_hoe_seed_and_water_actions() -> void:
+	var map := MapManager.current_map()
+	var player := GameManager.player
+	assert_true(map != null and player != null and player.backpack != null)
+	var target := Vector2i(-1, -1)
+	var origin := Vector2i(-1, -1)
+	for candidate: Vector2i in map.map_layers[CellState.CellFlag.BASE].get_used_cells():
+		var candidate_origin := candidate + Vector2i.LEFT
+		if (
+			map.check_cell(candidate, CellState.CellCondition.DIGGABLE)
+			and map.check_cell(candidate_origin, CellState.CellCondition.WALKABLE)
+		):
+			target = candidate
+			origin = candidate_origin
+			break
+	assert_true(target != Vector2i(-1, -1), "farm needs a clear diggable cell for keyboard flow")
+	if target == Vector2i(-1, -1):
+		return
+	var original_position := player.global_position
+	var original_facing := player.facing
+	var original_energy := player.energy
+	var original_active_source := player.backpack.active_hand_source
+	var original_toolbar_selection: StringName = player.backpack.selected_ids.get(&"toolbar", &"")
+	var original_itembar_selection: StringName = player.backpack.selected_ids.get(&"itembar", &"")
+	var original_item_manager := ItemManager.to_dict()
+	var target_cell := map.ensure_cell(target)
+	var original_flags := target_cell.state.flags
+	var original_item_ids := target_cell.state.item_ids.duplicate()
+	player.global_position = map.cell_to_world(origin)
+	player.facing = &"right"
+	assert_true(player.backpack.select_bar_index(PlayerBackpack.ActiveHandSource.TOOLBAR, 0))
+	assert_true(player.backpack.active_slot() != null)
+	assert_equal(player.backpack.active_slot().item_id if player.backpack.active_slot() != null else &"", &"hoe")
+	player._begin_hold()
+	player._use_tool()
+	assert_true(map.check_cell(target, CellState.CellCondition.DUG), "hoe must dig the target cell")
+
+	var seed_count := player.backpack.count_item(&"itembar", &"parsnip_seed")
+	assert_true(player.backpack.select_bar_index(PlayerBackpack.ActiveHandSource.ITEMBAR, 0))
+	assert_equal(player.backpack.active_slot().item_id if player.backpack.active_slot() != null else &"", &"parsnip_seed")
+	player._begin_hold()
+	player._use_tool()
+	assert_equal(player.backpack.count_item(&"itembar", &"parsnip_seed"), seed_count - 1)
+	assert_true(target_cell.state.item_ids.size() > original_item_ids.size(), "seed must bind a plant to the target cell")
+
+	assert_true(player.backpack.select_bar_index(PlayerBackpack.ActiveHandSource.TOOLBAR, 1))
+	assert_equal(player.backpack.active_slot().item_id if player.backpack.active_slot() != null else &"", &"watering_can")
+	player._begin_hold()
+	player._use_tool()
+	assert_true(map.check_cell(target, CellState.CellCondition.WATERED), "watering can must water a planted dug cell")
+
+	for item_id: StringName in target_cell.state.item_ids.duplicate():
+		if item_id not in original_item_ids:
+			map.remove_item(item_id)
+	target_cell.state.flags = original_flags
+	var seed_slot := player.backpack.get_slot(&"itembar", 0)
+	if seed_slot != null:
+		seed_slot.amount = seed_count
+	player.global_position = original_position
+	player.facing = original_facing
+	player.energy = original_energy
+	player.backpack.selected_ids[&"toolbar"] = original_toolbar_selection
+	player.backpack.selected_ids[&"itembar"] = original_itembar_selection
+	player.backpack.active_hand_source = original_active_source
+	ItemManager.from_dict(original_item_manager)
+
+
+func test_one_hundred_invalid_actions_do_not_change_snapshot() -> void:
+	var player := GameManager.player
+	var before := GameManager.snapshot()
+	for _index: int in 100:
+		player._cancel_hold()
+		player._drop_item()
+		player._interact_with_facing_target()
+	assert_equal(GameManager.snapshot(), before)
+
+
+func test_transition_and_save_stress_does_not_duplicate_map_hosts() -> void:
+	var previous_directory := GameManager.save_directory
+	GameManager.save_directory = "user://t17_stress"
+	for _index: int in 20:
+		assert_equal(await MapManager._change_map(&"field", &"default", false), OK)
+		assert_equal(await MapManager._change_map(&"farm", &"default", false), OK)
+	for _index: int in 10:
+		assert_equal(await GameManager.save_game(0), OK)
+	assert_true((MapManager.current_map().get_parent() as Node).get_child_count() <= 2)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://t17_stress/slot_0.json"))
+	GameManager.save_directory = previous_directory
+
+
+func test_one_hundred_dynamic_items_can_be_added_and_removed() -> void:
+	var map := MapManager.current_map()
+	assert_true(map != null)
+	var created: Array[StringName] = []
+	var coordinates := map.map_layers[CellState.CellFlag.BASE].get_used_cells()
+	for cell: Vector2i in coordinates:
+		if created.size() >= 100:
+			break
+		if not map.check_cell(cell, CellState.CellCondition.DROPABLE):
+			continue
+		var item := ItemManager.create_from_id(&"wood")
+		if item == null or map.add_item(item, map.cell_to_world(cell, false)) != OK:
+			if item != null:
+				item.free()
+			continue
+		created.append(item.item_id())
+	assert_equal(created.size(), 100)
+	for item_id: StringName in created:
+		assert_equal(map.remove_item(item_id), OK)
+	assert_true(created.all(func(item_id: StringName) -> bool: return map.get_item(item_id) == null))
+
+
+func test_two_day_transitions_advance_calendar_once_each() -> void:
+	var old_day := CalendarManager.day
+	var old_month := CalendarManager.month
+	var old_hour := CalendarManager.hour
+	var old_minute := CalendarManager.minute
+	var first_day := old_day
+	assert_equal(CalendarManager.next_day(), OK)
+	for _frame: int in 80:
+		await (Engine.get_main_loop() as SceneTree).process_frame
+	first_day = CalendarManager.day
+	assert_true(first_day != old_day or CalendarManager.month != old_month)
+	assert_equal(CalendarManager.next_day(), OK)
+	for _frame: int in 80:
+		await (Engine.get_main_loop() as SceneTree).process_frame
+	assert_true(CalendarManager.day != first_day or CalendarManager.month != old_month)
+	CalendarManager.day = old_day
+	CalendarManager.month = old_month
+	CalendarManager.hour = old_hour
+	CalendarManager.minute = old_minute

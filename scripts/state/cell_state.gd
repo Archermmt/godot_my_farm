@@ -9,45 +9,46 @@ enum CellFlag {
 	BLOCKED = 16,
 	RESOURCE = 32,
 	INTERIOR = 64,
+	DUG = 128,
+	WATERED = 256,
+	GENERATE = 512
 }
 
-var cell: Vector2i = Vector2i.ZERO
+const PERSISTENT_FLAGS := CellFlag.DUG | CellFlag.WATERED
+enum CellCondition { WALKABLE, DIGGABLE, DUG, WATERED, HAS_OCCUPANT, PLANTABLE, DROPABLE }
+enum InteractionFlag { NONE = 0, VALID = 1, INVALID = 2, ENTITY = 4 }
+
+var coord: Vector2i = Vector2i.ZERO
+var item_ids: Array[StringName] = []
 var flags: int = 0
-var dug: bool = false
-var watered_on_day: int = 0
-var entity_ids: Array[StringName] = []
+var interaction_flags: int = InteractionFlag.NONE
+# Transient targeting state; these flags are not persisted with map state.
+var usable: bool = false
+var invalid: bool = false
 
 
 func to_dict() -> Dictionary:
 	return {
-		"cell": SerializationUtil.vector2i_to_dict(cell),
-		"flags": flags,
-		"dug": dug,
-		"watered_on_day": watered_on_day,
-		"entity_ids": SerializationUtil.string_name_array_to_strings(entity_ids),
+		"coord": SerializationUtil.vector2i_to_dict(coord),
+		"item_ids": item_ids.map(func(item_id: StringName) -> String: return String(item_id)),
+		"flags": flags & PERSISTENT_FLAGS,
 	}
 
 
 static func from_dict(data: Dictionary) -> CellState:
-	if not SerializationUtil.has_valid_vector2i(data, "cell"):
+	if not SerializationUtil.has_valid_vector2i(data, "coord"):
 		return null
-	if not SerializationUtil.has_valid_bool(data, "dug"):
+	if data.has("item_ids") and not SerializationUtil.has_valid_array(data, "item_ids"):
 		return null
-	if not SerializationUtil.has_valid_int(data, "flags") or not SerializationUtil.has_valid_int(data, "watered_on_day"):
+	if not SerializationUtil.has_valid_int(data, "flags"):
 		return null
-	if not SerializationUtil.has_valid_array(data, "entity_ids") or not SerializationUtil.is_string_array(data.get("entity_ids", []) as Array):
-		return null
-	if int(data.get("flags", 0)) < 0 or int(data.get("watered_on_day", 0)) < 0:
+	if int(data.get("flags", 0)) < 0:
 		return null
 	var restored := CellState.new()
-	restored.cell = SerializationUtil.vector2i_from_dict(data.get("cell", {}) as Dictionary)
-	restored.flags = int(data.get("flags", 0))
-	restored.dug = bool(data.get("dug", false))
-	restored.watered_on_day = int(data.get("watered_on_day", 0))
-	restored.entity_ids = SerializationUtil.string_array_to_string_names(data.get("entity_ids", []) as Array)
-	var unique_ids: Dictionary[StringName, bool] = {}
-	for entity_id: StringName in restored.entity_ids:
-		if entity_id == &"" or unique_ids.has(entity_id):
+	restored.coord = SerializationUtil.vector2i_from_dict(data.get("coord", {}) as Dictionary)
+	for raw_item_id: Variant in data.get("item_ids", []) as Array:
+		if typeof(raw_item_id) != TYPE_STRING or StringName(str(raw_item_id)) == &"":
 			return null
-		unique_ids[entity_id] = true
+		restored.item_ids.append(StringName(str(raw_item_id)))
+	restored.flags = int(data.get("flags", 0)) & PERSISTENT_FLAGS
 	return restored

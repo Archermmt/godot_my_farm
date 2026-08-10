@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://bfheo336ultp1"]
+
+[ext_resource type="Script" uid="uid://df0fd77dpa1s6" path="res://scripts/actor/interactable/bed.gd" id="2_script"]
+
+[sub_resource type="RectangleShape2D" id="InteractionShape"]
+size = Vector2(64, 80)
+
+[node name="Bed" type="Polygon2D" unique_id=1096082699 groups=["interaction_target"]]
+color = Color(0.509804, 0.658824, 0.788235, 1)
+polygon = PackedVector2Array(-32, -48, 32, -48, 32, 48, -32, 48)
+script = ExtResource("2_script")
+
+[node name="InteractionMarker" type="Marker2D" parent="." unique_id=899718259]
+position = Vector2(0, -64)
+
+[node name="InteractionArea" type="Area2D" parent="." unique_id=457031327]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea" unique_id=1989050091]
+shape = SubResource("InteractionShape")

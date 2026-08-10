@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://pyxdkb2xwrid"]
+
+[ext_resource type="Script" uid="uid://b6a3wv0sguwsy" path="res://scripts/item/harvestable.gd" id="1"]
+[ext_resource type="Shader" uid="uid://bakp7bc66cxg8" path="res://assets/shaders/harvestable_hit_flash.gdshader" id="2"]
+[ext_resource type="Texture2D" uid="uid://c2sdxxhaj3l1x" path="res://assets/art/items/harvestable_stages.svg" id="3"]
+
+[sub_resource type="ShaderMaterial" id="1"]
+resource_local_to_scene = true
+shader = ExtResource("2")
+shader_parameter/flash_amount = 0.0
+shader_parameter/dissolve_amount = 0.0
+
+[sub_resource type="AtlasTexture" id="4"]
+atlas = ExtResource("3")
+region = Rect2(384, 0, 48, 64)
+
+[sub_resource type="CircleShape2D" id="3"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="2"]
+radius = 18.027756
+
+[node name="Harvestable" type="Node2D" unique_id=2001065134]
+script = ExtResource("1")
+
+[node name="Visual" type="Sprite2D" parent="." unique_id=480340693]
+material = SubResource("1")
+position = Vector2(0, -8)
+texture = SubResource("4")
+
+[node name="Obstacle" type="StaticBody2D" parent="." unique_id=1085439550]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacle" unique_id=881936385]
+shape = SubResource("3")
+
+[node name="ToolArea" type="Area2D" parent="." unique_id=989301342]
+collision_layer = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ToolArea" unique_id=1798659318]
+shape = SubResource("2")

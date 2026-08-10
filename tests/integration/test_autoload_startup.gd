@@ -3,10 +3,11 @@ extends ProjectTestCase
 const EXPECTED_AUTOLOAD_ORDER: Array[String] = [
 	"EventBus",
 	"DataCatalog",
-	"GameState",
-	"TimeManager",
-	"SceneManager",
-	"SaveManager",
+	"ItemManager",
+	"GameManager",
+	"MapManager",
+	"CalendarManager",
+	"EffectManager",
 	"AudioManager",
 ]
 
@@ -24,10 +25,33 @@ func test_game_services_start_in_architecture_order() -> void:
 		previous_index = current_index
 
 
-func test_autoload_catalog_and_new_game_are_ready() -> void:
-	assert_true(DataCatalog.is_ready_for_game())
-	assert_equal(DataCatalog.get_item(&"tool_hoe").tool_kind, ItemDefinition.ToolKind.HOE)
-	assert_true(GameState.is_initialized())
-	assert_equal(GameState.player.map_id, &"cabin")
-	assert_equal(GameState.inventory.count_item(&"seed_parsnip"), 15)
-	assert_true(SaveManager.can_snapshot())
+func test_autoload_definitions_and_new_game_are_ready() -> void:
+	assert_true(DataCatalog.setup().is_empty())
+	assert_equal((DataCatalog.get_item(&"hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
+	assert_true(GameManager.is_initialized())
+	assert_equal(MapManager.current_map_id(), &"farm")
+	assert_true(GameManager.player != null)
+	assert_equal(GameManager.player.backpack.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(GameManager.player.backpack.count_item(&"toolbar", &"hoe"), 1)
+	assert_equal(GameManager.player.backpack.used_slot_count(&"main_space"), 0)
+	assert_true(not GameManager.snapshot().is_empty())
+
+
+func test_configurable_managers_load_shared_game_config() -> void:
+	assert_true(GameManager.config == DataCatalog.config)
+	assert_true(MapManager.config == DataCatalog.config)
+	assert_true(CalendarManager.config == DataCatalog.config)
+	assert_true(EffectManager.config == DataCatalog.config)
+	assert_true(AudioManager.config == DataCatalog.config)
+	assert_equal(GameManager.config.initial_time_scale, 1.0)
+	assert_equal(CalendarManager.time_scale, 1.0)
+	assert_equal(MapManager.config.transition_duration, 0.12)
+	assert_equal(MapManager.config.day_transition_duration, 0.55)
+	assert_true(CalendarManager.setup().is_empty())
+	assert_equal(CalendarManager.config.season_metas.size(), 4)
+	assert_equal(CalendarManager.calendar.season(1), SeasonMeta.SeasonType.SPRING)
+	assert_true(CalendarManager.current_weather != &"")
+	assert_equal(AudioManager.config.audio_definitions.size(), 18)
+	assert_equal(AudioManager.config.sfx_pool_limit, 10)
+	assert_equal(EffectManager.setup(), OK)
+	assert_true(EffectManager.config.effect_scenes.has(&"rain"))

@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://0c6r6oo8o4ft"]
+
+[ext_resource type="Script" uid="uid://6jbefmb25jdo" path="res://scripts/actor/interactable/interactable.gd" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="InteractionShape"]
+size = Vector2(56, 56)
+
+[node name="Fireplace" type="Polygon2D" unique_id=1421105976 groups=["interaction_target"]]
+color = Color(0.721569, 0.345098, 0.207843, 1)
+polygon = PackedVector2Array(-28, -28, 28, -28, 28, 28, -28, 28)
+script = ExtResource("1_script")
+
+[node name="InteractionMarker" type="Marker2D" parent="." unique_id=1470355429]
+position = Vector2(0, -49)
+
+[node name="InteractionArea" type="Area2D" parent="." unique_id=1199173486]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea" unique_id=181180214]
+shape = SubResource("InteractionShape")

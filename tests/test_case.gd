@@ -4,6 +4,7 @@ extends RefCounted
 var _assertion_count: int = 0
 var _test_count: int = 0
 var _failures: Array[String] = []
+var _current_test: StringName = &""
 
 
 func run() -> Dictionary:
@@ -16,10 +17,11 @@ func run() -> Dictionary:
 	test_methods.sort()
 
 	for method_name: StringName in test_methods:
+		_current_test = method_name
 		var assertions_before: int = _assertion_count
 		_test_count += 1
 		before_each()
-		call(method_name)
+		await call(method_name)
 		after_each()
 		if _assertion_count == assertions_before:
 			_failures.append("%s completed with zero assertions" % method_name)
@@ -42,7 +44,7 @@ func after_each() -> void:
 func assert_true(value: bool, message: String = "Expected value to be true") -> void:
 	_assertion_count += 1
 	if not value:
-		_failures.append(message)
+		_failures.append("%s: %s" % [_current_test, message])
 
 
 func assert_equal(actual: Variant, expected: Variant, message: String = "") -> void:
@@ -51,5 +53,4 @@ func assert_equal(actual: Variant, expected: Variant, message: String = "") -> v
 		var detail: String = message
 		if detail.is_empty():
 			detail = "Expected %s, got %s" % [str(expected), str(actual)]
-		_failures.append(detail)
-
+		_failures.append("%s: %s" % [_current_test, detail])

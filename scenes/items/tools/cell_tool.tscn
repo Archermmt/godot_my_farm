@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/item/tool/cell_tool.gd" id="1_tool"]
+[node name="CellTool" type="Node2D"]
+z_index = 1000
+script = ExtResource("1_tool")
+[node name="Visual" type="Sprite2D" parent="."]
