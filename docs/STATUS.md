@@ -3,27 +3,30 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T05 背包、快捷栏与手持物](./tasks/T05_INVENTORY_AND_HOTBAR.md)（pending）。
-- 下一任务：[T05 背包、快捷栏与手持物](./tasks/T05_INVENTORY_AND_HOTBAR.md)。
+- 当前任务：[T05 背包、Toolbar、Itembar 与手持物](./tasks/T05_INVENTORY_TOOLBAR_ITEMBAR.md)（completed）。
+- 下一任务：[T06 统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md)。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
 
 - 已完成参考 Unity/C# 项目的代码级职责分析。
 - 已固定 GDScript、Godot 场景/状态边界、任务依赖和验收流程。
-- T01 已建立静态定义、纯 DTO 状态和序列化校验链路；MapState、CellState、EntityState 等状态对象不持有 Node、Texture、PackedScene、Callable 或 NodePath。
+- T01 已建立静态定义、纯 DTO 状态和序列化校验链路；MapState、CellState、ItemState 等状态对象不持有 Node、Texture、PackedScene、Callable 或 NodePath。
 - 核心 catalog 包含 12 个物品、1 种作物/4 个成长阶段、3 个采集物、4 张掉落表/4 个 entry、1 份 NPC 日程/1 个 event，共 30 个 Resource 记录。
 - InventoryState 支持固定容量、堆叠、添加/移除、交换、合并、跨容器交换和选择；失败路径保持事务前状态。
 - 所有存档状态提供纯 Dictionary `to_dict()` 与显式严格 factory，Vector2i 和 StringName 经 JSON round-trip 后恢复原类型。
-- T02 已接入 7 个游戏 Autoload，顺序为 EventBus -> DataCatalog -> GameState -> TimeManager -> SceneManager -> SaveManager -> AudioManager；godot-ai 的 `_mcp_game_helper` 是开发期附加服务，不属于游戏服务。
-- DataCatalog 使用显式 `core_catalog.tres`，GameState 新游戏提供 6 个工具、15 个欧洲防风草种子、cabin/wake 起点、生命/体力/金币和三张空 MapState。
-- TimeManager 支持 start/stop、多个 pause reason 和安全 reset；SceneManager host 注入、SaveManager snapshot、AudioManager 播放 API 在未到对应任务时返回明确 `ERR_UNAVAILABLE`。
+- T02 已接入 5 个游戏 Autoload，顺序为 EventBus -> DataCatalog -> GameManager -> SceneManager -> AudioManager；GameManager 统一持有玩家、地图、NPC、时间和存档入口；godot-ai 的 `_mcp_game_helper` 是开发期附加服务，不属于游戏服务。
+- DataCatalog 使用显式 `core_catalog.tres`，GameManager 新游戏提供 6 个工具、15 个欧洲防风草种子、cabin/wake 起点、生命/体力/金币和三张空 MapState。
+- GameManager 支持 start/stop、多个 pause reason、时间快照和统一存档入口；SceneManager host 注入、AudioManager 播放 API 在未到对应任务时返回明确 `ERR_UNAVAILABLE`。
 - T03 已建立唯一持久 Player leaf scene：CharacterBody2D、Capsule 碰撞、四向 Visual、Hands、InteractionOrigin 与 Camera2D；Main 只在 ActorHost 实例化一个 Player，并由 SceneManager 拒绝重复注册。
 - `player.gd` 单一根控制器集中处理 InputMap、多 reason 输入锁、对角归一化、移动碰撞、朝向、动画选择和 Camera2D limits；默认跑速 96、Shift 慢走 48，斜向朝向水平优先。Visual、Hands、碰撞、交互挂点和相机子节点不再挂角色业务脚本。
 - Player 动画已改为 `AnimationPlayer` + `player_animations.tres`，包含 12 个可编辑的 idle/walk/run 四向动画；运行脚本不再设置 Sprite frame、维护动画相位或手写动画时钟。
 - 原创占位角色图为 144x128、4 行 x 6 帧；T04 已接入原创占位 TileMap 和地图层，资源许可记录在 `assets/licenses/ASSETS.md`，T16 再完成正式美术替换与整体 polish。
 - T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actors/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
-- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/EntityState DTO，BaseMap 管理 MapCell/Entity 运行时对象并按 EntityState.type 路由 host；ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
+- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/ItemState DTO，BaseMap 通过 ItemState.meta_id 解析 ItemMeta，管理 MapCell/Item 运行时对象并按 ItemMeta.world_type() 路由 host；Item 代码位于与 world 同级的 scripts/items，ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
+- T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
+- T05 已实现 6 格 Toolbar、10 格 Itembar 与 20 格 Inventory。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
+- 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
 
 ## 环境记录
 
@@ -35,8 +38,12 @@
 
 ## 最近一次验证
 
+- 日期：2026-08-10（Asia/Shanghai）。
+- T05 自动化：资源 import、runner、键盘背包 fixture、地图往返 fixture、玩家碰撞 fixture、主场景 quit 和 `git diff --check` 全部 exit 0；runner 为 63 tests / 3936 assertions。
+- T05 键盘流程：`InventoryKeyboardTest` 验证 Toolbar/Itembar 切换、Player 头顶提示、唯一 HeldVisual、空栏清手、非法 tool -> Itembar 回滚、Toolbar/Itembar -> Inventory 交换以及锁释放，输出 `PASS | toolbar/itembar/head-ui/swap/locks`。
+- T05 视觉：`screenshots/t05/inventory.png` 为 1280x720 Godot framebuffer；6 格 Toolbar、10 格 Itembar、20 格 Inventory、焦点高亮、物品详情和手持 HUD 完整可见，无裁切或重叠。
 - 日期：2026-08-08（Asia/Shanghai）。
-- T04 地图回归：runner 为 49 tests / 314 assertions；三张地图的静态 cells 已序列化进 `.tscn`，编辑器可直接查看修改。layer alignment、world/cell round-trip、farm static flags、动态地块投影、地图根节点直接管理 TileMapLayer 与实体入口契约均通过。场景 fixture `cabin -> farm -> cabin` 通过，往返后 Player=1。
+- T04 地图回归：runner 为 60 tests / 3881 assertions；三张地图的静态 cells 已序列化进 `.tscn`，编辑器可直接查看修改。layer alignment、world/cell round-trip、farm static flags、MapCell/ItemState 恢复、地图根节点直接管理 TileMapLayer 与 Item 入口、纯键盘 InputMap 契约均通过。场景 fixture `cabin -> farm -> cabin` 通过，往返后 Player=1。
 - T04 视觉：`screenshots/t04/cabin.png`、`screenshots/t04/farm.png`、`screenshots/t04/field.png` 均为 1280x720 Godot framebuffer；分别可见 cabin 床/家具、farm 道路/可耕区/水域、field 道路/资源林地。
 - T03 AnimationPlayer 回归：runner 为 44 tests / 256 assertions；import、runner、碰撞 fixture、主场景 quit 全部 exit 0。godot-ai session `godot-my-farm@9455`，run `r7840807-7`，`AnimationPlayer.current_animation` 经实机读回为 `idle_down` -> `idle_right` -> `idle_left`，输入序列的 `actions_pressed_at_end=[]`，game run `current_run_errors=[]`、editor errors 0；截图为 `screenshots/t03/animation_player.png`（1920x1080，stale_frame=false）。
 - T03 单脚本重构回归：runner 为 44 tests / 250 assertions；import、runner、碰撞 fixture、主场景 quit 全部 exit 0。godot-ai session `godot-my-farm@9455`，run `r6133040-6`，fixture live/helper_live=true，运行层级无 PlayerInput/PlayerMotor，输入序列右移 30 帧到 x=504.00，actions_pressed_at_end=[]，截图 `screenshots/t03/single_script_player.png`（1920x1080，stale_frame=false）。
@@ -48,7 +55,7 @@
 - T02 godot-ai：session `godot-my-farm@9455`，autoload list 读回 7 个游戏服务且顺序正确（总数 8 含开发 helper）；run `r359758-4` 状态 `live`、`helper_live=true`、`current_run_errors=[]`，editor/game 增量日志均为空。
 - T02 视觉：`screenshots/t02/app_services_ready.png`（640x360 game framebuffer）显示 APPLICATION READY、catalog、新游戏状态、7/7 services 和 hosts registered；文字无裁切或越界。
 - T01 自动化：`godot --headless --path . --import`、原生 test runner、`godot --headless --path . --quit` 全部 exit 0；runner 为 23 tests / 108 assertions。
-- T01 catalog fixture：godot-ai run `r1899847-4`，`autosave=false`；输出 `catalog valid | items=12 crops=1 harvestables=3 drops=4 schedules=1`，正常自行退出。
+- T01 catalog fixture：godot-ai run `r1899847-4`，`autosave=false`；catalog 已迁移为 PlantMeta 继承 HarvestableMeta；当前核心数据为 plants=1、harvestables=4（包含 Plant）。
 - T01 主场景回归：godot-ai run `r1925183-5`，状态 `live`、`helper_live=true`、`current_run_errors=[]`；游戏日志正常输出 `[T00] project ready`。
 - T01 diagnostics：首次 editor scan 分两轮注册 20 个互相依赖的 `class_name`；第二轮后 global class count 68，fixture 和主场景的增量 editor/game errors 均为 0，无 class_name 冲突或循环 preload。
 - T00 自动化：`godot --headless --path . --import`、原生 test runner、`godot --headless --path . --quit` 全部 exit 0；runner 为 1 test / 2 assertions。

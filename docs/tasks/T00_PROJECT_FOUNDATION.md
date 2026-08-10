@@ -21,7 +21,7 @@
 1. 探测并记录 Godot 可执行文件和精确版本；本项目固定使用 Godot 4.7 stable 标准版。
 2. 配置主场景、`640x360` 设计视口、`1280x720` 默认窗口、CanvasItems stretch、整数缩放/像素吸附和 nearest 默认过滤。
 3. 配置渲染器时以实际机器兼容为准；选择与理由写入 STATUS。
-4. 注册 [../01_TECHNICAL_RULES.md](../01_TECHNICAL_RULES.md) 的 InputMap actions，包括 10 个 hotbar action；不要在脚本里读物理键。
+4. 注册 [../01_TECHNICAL_RULES.md](../01_TECHNICAL_RULES.md) 的 InputMap actions；后续纯键盘交互使用 use/drop、Toolbar/Itembar 切换和 Inventory focus/swap action，不要在脚本里读物理键或鼠标。
 5. Main 至少包含 World、MapHost、ActorHost、EffectHost、UILayer、TransitionOverlay 的稳定骨架；用清楚色块显示“工程已启动”，不是空画面。
 6. 建立原生 headless test runner：能发现测试、报告断言总数、失败时 exit 非零；runner 自测不能静默通过零断言。
 7. 安装/连接 godot-ai，记录目标 `session_id`、project_path 和版本。插件文件是否纳入仓库按 godot-ai 安装说明处理。

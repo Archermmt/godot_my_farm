@@ -23,6 +23,7 @@ func test_player_round_trip_preserves_ids_and_vector() -> void:
 	player.spawn_id = &"north_gate"
 	player.cell = Vector2i(-3, 14)
 	player.facing = &"left"
+	player.active_hand_source = PlayerState.ActiveHandSource.ITEMBAR
 	player.set_gold(42)
 	var parsed: Dictionary = JSON.parse_string(JSON.stringify(player.to_dict())) as Dictionary
 	var restored := PlayerState.from_dict(parsed)
@@ -31,6 +32,7 @@ func test_player_round_trip_preserves_ids_and_vector() -> void:
 	assert_equal(restored.cell, Vector2i(-3, 14))
 	assert_equal(typeof(restored.cell), TYPE_VECTOR2I)
 	assert_equal(restored.gold, 42)
+	assert_equal(restored.active_hand_source, PlayerState.ActiveHandSource.ITEMBAR)
 
 
 func test_calendar_derives_season_and_round_trips() -> void:

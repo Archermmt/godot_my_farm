@@ -40,6 +40,70 @@ autoplay = "idle_down"
 [node name="Hands" type="Node2D" parent="."]
 position = Vector2(0, -15)
 
+[node name="HeldVisual" type="Node2D" parent="Hands"]
+visible = false
+z_index = 2
+position = Vector2(8, 2)
+
+[node name="Swatch" type="Polygon2D" parent="Hands/HeldVisual"]
+polygon = PackedVector2Array(-5, -7, 5, -7, 5, 7, -5, 7)
+color = Color(0.882353, 0.643137, 0.278431, 1)
+
+[node name="Label" type="Label" parent="Hands/HeldVisual"]
+offset_left = -6.0
+offset_top = -7.0
+offset_right = 6.0
+offset_bottom = 7.0
+theme_override_colors/font_color = Color(0.0784314, 0.172549, 0.168627, 1)
+theme_override_font_sizes/font_size = 7
+text = "HO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SelectionPopup" type="Control" parent="."]
+visible = false
+z_index = 20
+layout_mode = 0
+offset_left = -94.0
+offset_top = -78.0
+offset_right = 94.0
+offset_bottom = -40.0
+mouse_filter = 2
+
+[node name="Background" type="ColorRect" parent="SelectionPopup"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0352941, 0.0901961, 0.0862745, 0.94)
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="SelectionPopup/Background"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 2.0
+offset_right = 182.0
+offset_bottom = 15.0
+theme_override_colors/font_color = Color(0.901961, 0.941176, 0.87451, 1)
+theme_override_font_sizes/font_size = 8
+text = "TOOLS  Hoe"
+horizontal_alignment = 1
+
+[node name="Slots" type="HBoxContainer" parent="SelectionPopup/Background"]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 17.0
+offset_right = 183.0
+offset_bottom = 34.0
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="SelectionTimer" type="Timer" parent="."]
+wait_time = 1.25
+one_shot = true
+
 [node name="InteractionOrigin" type="Marker2D" parent="."]
 position = Vector2(0, 8)
 

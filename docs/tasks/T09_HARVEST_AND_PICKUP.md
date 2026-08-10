@@ -18,13 +18,13 @@
 ## 实现要求
 
 1. Harvestable 当前 stage 定义生命、允许 tool_kind、掉落表和受击反馈；错工具 preview/commit 均无效。
-2. 伤害与蓄力规则由工具配置计算；对象生命归零后只结算一次掉落，并通过 BaseMap 同时删除运行时 Entity、EntityState 和所属 CellState.entity_ids 引用。
+2. 伤害与蓄力规则由工具配置计算；对象生命归零后只结算一次掉落，并通过 BaseMap 同时删除运行时 Item、ItemState 和所属 CellState.item_ids 引用。
 3. DropTable 用可注入 RNG，min <= amount <= max；同一个死亡事务不因重试重复掉落。
-4. 成熟 Crop 用 Basket/指定工具收获，产出进入背包或生成 Pickup；格子占用清理，是否保留 dug 状态按数据规则明确。
+4. 成熟 Plant 用 Basket/指定工具收获，产出进入背包或生成 Pickup；格子占用清理，是否保留 dug 状态按数据规则明确。
 5. Tree 根据 Player 相对 x 确定倒向；成熟树死亡生成 stump，stump 可再次用斧处理。动画期间禁止二次命中结算。
 6. Pickup 使用 Area2D 探测 Player，在追踪半径内以 delta 平滑吸附；距离为 0 时不得除零。
 7. 拾取先尝试 InventoryState.add；全部成功才移除世界节点，部分/满包时剩余数量保留并停止吞物。
-8. 世界实体都有稳定 instance ID，可写入 MapState 并恢复。
+8. 世界 Item 都有稳定 instance ID，可写入 MapState 并恢复。
 
 ## 自动化验收
 
@@ -33,16 +33,17 @@
 - 固定 seed 得到稳定掉落；不同 seed 仍在边界内。
 - Pickup 距离为 0、正常吸附、满包、部分堆叠。
 - Tree -> stump -> 清除完整状态和占用变化。
-- 成熟 Crop 收获后 seed/produce/格子数量守恒。
+- 成熟 Plant 收获后 seed/produce/格子数量守恒。
 
 ## godot-ai 验收
 
-依次选择镰刀/镐/斧/篮子，先用错工具再用正确工具作用草、石、树和成熟作物。截图受击、掉落、吸附、树倒/树桩；读取背包变化。制造满包后验证 Pickup 留在世界，日志无除零/已释放实例错误。
+仅用 Toolbar 键盘 action 依次选择镰刀/镐/斧/篮子，先用错工具再用正确工具作用草、石、树和成熟作物。再从 Itembar 选择可丢下物品并用 `drop_held` 放到面向格。截图受击、掉落、吸附、树倒/树桩；读取背包变化。制造满包后验证 Pickup 留在世界，日志无除零/已释放实例错误。
 
 ## 不做
 
 - 不实现正式粒子、完整音频混音或复杂树倒物理。
 - 不增加战斗武器。
+- 不通过鼠标选择目标或丢下物品。
 
 ## 完成记录
 

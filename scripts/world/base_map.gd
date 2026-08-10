@@ -2,13 +2,11 @@ class_name BaseMap
 extends Node2D
 
 @export var map_id: StringName = &"farm"
-@export var map_size: Vector2i = Vector2i(30, 20)
-@export var tile_size: Vector2i = Vector2i(32, 32)
 @export var cell_flags: Dictionary[TileMapLayer, CellState.CellFlag] = {}
-@export var entity_hosts: Dictionary[Node2D, EntityState.EntityType] = {}
+@export var item_hosts: Dictionary[Node2D, ItemMeta.WorldType] = {}
 
 var cells: Dictionary[Vector2i, MapCell] = {}
-var entities: Dictionary[StringName, Entity] = {}
+var items: Dictionary[StringName, Item] = {}
 var _map_state: MapState = null
 @onready var spawn_points: Node2D = $SpawnPoints
 
@@ -30,46 +28,51 @@ func configure_state(map_state: MapState) -> Error:
 			state = CellState.new()
 			state.cell = coordinates
 			map_state.cells[coordinates] = state
-	var seen_entity_ids: Dictionary[StringName, bool] = {}
+	var seen_item_ids: Dictionary[StringName, bool] = {}
 	for coordinates: Vector2i in map_state.cells:
 		var state: CellState = map_state.cells[coordinates]
-		for entity_id: StringName in state.entity_ids:
-			var entity_state := map_state.entities.get(entity_id, null) as EntityState
-			if entity_state == null or entity_state.instance_id != entity_id or entity_state.cell != coordinates or seen_entity_ids.has(entity_id):
+		for item_id: StringName in state.item_ids:
+			var item_state := map_state.items.get(item_id, null) as ItemState
+			if item_state == null or item_state.instance_id != item_id or item_state.cell != coordinates or seen_item_ids.has(item_id):
 				return ERR_INVALID_DATA
-			seen_entity_ids[entity_id] = true
-	if seen_entity_ids.size() != map_state.entities.size():
+			seen_item_ids[item_id] = true
+	if seen_item_ids.size() != map_state.items.size():
 		return ERR_INVALID_DATA
-	var restored_entities: Array[Entity] = []
-	for entity_id: StringName in map_state.entities:
-		var entity_state: EntityState = map_state.entities[entity_id]
-		if entity_state == null or entity_state.instance_id != entity_id or entity_state.type == EntityState.EntityType.NONE or entity_state.type == EntityState.EntityType.NPC:
+	var restored_items: Array[Item] = []
+	for item_id: StringName in map_state.items:
+		var item_state: ItemState = map_state.items[item_id]
+		if item_state == null or item_state.instance_id != item_id or not DataCatalog.has_item(item_state.meta_id):
 			return ERR_INVALID_DATA
-		if entity_host(entity_state.type) == null:
+		var item_meta := DataCatalog.get_item(item_state.meta_id)
+		if not _state_matches_meta(item_state, item_meta):
+			return ERR_INVALID_DATA
+		if item_host(item_meta.world_type()) == null:
 			return ERR_UNCONFIGURED
-		var entity := _create_entity(entity_state)
-		if entity == null:
+		var item := _create_item(item_state)
+		if item == null:
 			return ERR_INVALID_DATA
-		restored_entities.append(entity)
-	_clear_entities()
+		restored_items.append(item)
+	_clear_items()
 	for coordinates: Vector2i in cells:
 		var bind_error := cells[coordinates].bind_state(map_state.cells[coordinates])
 		if bind_error != OK:
 			return bind_error
 	_map_state = map_state
-	for entity: Entity in restored_entities:
-		var add_error := add_entity(entity)
+	for item: Item in restored_items:
+		var add_error := add_item(item)
 		if add_error != OK:
-			_clear_entities()
+			_clear_items()
 			return add_error
 	return OK
 
 func validate_alignment() -> Error:
-	if tile_size.x <= 0 or tile_size.y <= 0 or map_size.x <= 0 or map_size.y <= 0:
-		return ERR_INVALID_DATA
 	var layers := managed_layers()
 	if layers.is_empty() or coordinate_layer() == null:
 		return ERR_UNCONFIGURED
+	var tile_size := get_tile_size()
+	var map_size := get_map_size()
+	if tile_size.x <= 0 or tile_size.y <= 0 or map_size.x <= 0 or map_size.y <= 0:
+		return ERR_INVALID_DATA
 	for layer: TileMapLayer in layers:
 		if layer.tile_set == null or layer.tile_set.tile_size != tile_size:
 			return ERR_UNCONFIGURED
@@ -88,12 +91,12 @@ func validate_alignment() -> Error:
 				return ERR_INVALID_DATA
 	if base_layer_count != 1:
 		return ERR_INVALID_DATA
-	var configured_entity_types: Dictionary[EntityState.EntityType, bool] = {}
-	for host: Node2D in entity_hosts:
-		var entity_type: EntityState.EntityType = entity_hosts[host]
-		if host == null or not is_ancestor_of(host) or entity_type == EntityState.EntityType.NONE or configured_entity_types.has(entity_type):
+	var configured_item_types: Dictionary[ItemMeta.WorldType, bool] = {}
+	for host: Node2D in item_hosts:
+		var item_type: ItemMeta.WorldType = item_hosts[host]
+		if host == null or not is_ancestor_of(host) or item_type == ItemMeta.WorldType.NONE or configured_item_types.has(item_type):
 			return ERR_INVALID_DATA
-		configured_entity_types[entity_type] = true
+		configured_item_types[item_type] = true
 	return OK
 
 func managed_layers() -> Array[TileMapLayer]:
@@ -109,98 +112,107 @@ func coordinate_layer() -> TileMapLayer:
 			return layer
 	return null
 
-func entity_host(entity_type: EntityState.EntityType) -> Node2D:
-	for host: Node2D in entity_hosts:
-		if entity_hosts[host] == entity_type:
+func get_map_size() -> Vector2i:
+	var base_layer := coordinate_layer()
+	return base_layer.get_used_rect().size if base_layer != null else Vector2i.ZERO
+
+func get_tile_size() -> Vector2i:
+	var base_layer := coordinate_layer()
+	return base_layer.tile_set.tile_size if base_layer != null and base_layer.tile_set != null else Vector2i.ZERO
+
+func item_host(item_type: ItemMeta.WorldType) -> Node2D:
+	for host: Node2D in item_hosts:
+		if item_hosts[host] == item_type:
 			return host
 	return null
 
-func add_entity(entity: Entity) -> Error:
-	if entity == null or entity.state == null or entity.entity_id() == &"":
+func add_item(item: Item) -> Error:
+	if item == null or item.state == null or item.meta == null or item.item_id() == &"":
 		return ERR_INVALID_PARAMETER
-	if entities.has(entity.entity_id()) or entity.get_parent() != null:
+	if items.has(item.item_id()) or item.get_parent() != null:
 		return ERR_ALREADY_EXISTS
-	var host := entity_host(entity.type)
+	var host := item_host(item.meta.world_type())
 	if host == null:
 		return ERR_UNCONFIGURED
-	host.add_child(entity)
-	entities[entity.entity_id()] = entity
+	host.add_child(item)
+	items[item.item_id()] = item
 	return OK
 
-func add_entity_state(entity_state: EntityState) -> Error:
-	if _map_state == null or entity_state == null or entity_state.instance_id == &"":
+func add_item_state(item_state: ItemState) -> Error:
+	if _map_state == null or item_state == null or item_state.instance_id == &"":
 		return ERR_INVALID_PARAMETER
-	if _map_state.entities.has(entity_state.instance_id) or entities.has(entity_state.instance_id):
+	if _map_state.items.has(item_state.instance_id) or items.has(item_state.instance_id):
 		return ERR_ALREADY_EXISTS
-	if entity_state.type == EntityState.EntityType.NONE or entity_state.type == EntityState.EntityType.NPC:
+	var item_meta := DataCatalog.get_item(item_state.meta_id)
+	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return ERR_INVALID_PARAMETER
-	var cell := get_cell(entity_state.cell)
+	var cell := get_cell(item_state.cell)
 	if cell == null:
 		return ERR_DOES_NOT_EXIST
-	var add_id_error := cell.add_entity_id(entity_state.instance_id)
+	var add_id_error := cell.add_item_id(item_state.instance_id)
 	if add_id_error != OK:
 		return add_id_error
-	_map_state.entities[entity_state.instance_id] = entity_state
-	var entity := _create_entity(entity_state)
-	var add_error := add_entity(entity)
+	_map_state.items[item_state.instance_id] = item_state
+	var item := _create_item(item_state)
+	var add_error := add_item(item)
 	if add_error != OK:
-		_map_state.entities.erase(entity_state.instance_id)
-		var rollback_error := cell.remove_entity_id(entity_state.instance_id)
+		_map_state.items.erase(item_state.instance_id)
+		var rollback_error := cell.remove_item_id(item_state.instance_id)
 		assert(rollback_error == OK)
 		return add_error
 	return OK
 
 
-func get_entity(entity_id: StringName) -> Entity:
-	return entities.get(entity_id, null) as Entity
+func get_item(item_id: StringName) -> Item:
+	return items.get(item_id, null) as Item
 
 
-func move_entity(entity_id: StringName, target_coordinates: Vector2i) -> Error:
-	var entity := get_entity(entity_id)
+func move_item(item_id: StringName, target_coordinates: Vector2i) -> Error:
+	var item := get_item(item_id)
 	var target := get_cell(target_coordinates)
-	if entity == null or entity.state == null:
+	if item == null or item.state == null:
 		return ERR_DOES_NOT_EXIST
 	if target == null:
 		return ERR_INVALID_PARAMETER
-	var source := get_cell(entity.state.cell)
-	if source == null or not source.has_entity(entity_id):
+	var source := get_cell(item.state.cell)
+	if source == null or not source.has_item(item_id):
 		return ERR_INVALID_DATA
 	if source == target:
 		return OK
-	var remove_error := source.remove_entity_id(entity_id)
+	var remove_error := source.remove_item_id(item_id)
 	if remove_error != OK:
 		return remove_error
-	var add_error := target.add_entity_id(entity_id)
+	var add_error := target.add_item_id(item_id)
 	if add_error != OK:
-		var rollback_error := source.add_entity_id(entity_id)
+		var rollback_error := source.add_item_id(item_id)
 		assert(rollback_error == OK)
 		return add_error
-	entity.state.cell = target_coordinates
-	entity.position = cell_to_world_center(target_coordinates)
+	item.state.cell = target_coordinates
+	item.position = cell_to_world_center(target_coordinates)
 	return OK
 
 
-func remove_entity(entity_id: StringName) -> Error:
-	var entity := get_entity(entity_id)
-	if entity == null or entity.state == null or _map_state == null:
+func remove_item(item_id: StringName) -> Error:
+	var item := get_item(item_id)
+	if item == null or item.state == null or _map_state == null:
 		return ERR_DOES_NOT_EXIST
-	var cell := get_cell(entity.state.cell)
+	var cell := get_cell(item.state.cell)
 	if cell == null:
 		return ERR_INVALID_DATA
-	var remove_error := cell.remove_entity_id(entity_id)
+	var remove_error := cell.remove_item_id(item_id)
 	if remove_error != OK:
 		return remove_error
-	entities.erase(entity_id)
-	_map_state.entities.erase(entity_id)
-	entity.queue_free()
+	items.erase(item_id)
+	_map_state.items.erase(item_id)
+	item.queue_free()
 	return OK
 
-func entity_count(entity_type: EntityState.EntityType = EntityState.EntityType.NONE) -> int:
-	if entity_type != EntityState.EntityType.NONE:
-		var host := entity_host(entity_type)
+func item_count(item_type: ItemMeta.WorldType = ItemMeta.WorldType.NONE) -> int:
+	if item_type != ItemMeta.WorldType.NONE:
+		var host := item_host(item_type)
 		return host.get_child_count() if host != null else 0
 	var count := 0
-	for host: Node2D in entity_hosts:
+	for host: Node2D in item_hosts:
 		count += host.get_child_count()
 	return count
 
@@ -214,7 +226,7 @@ func cell_to_world_center(cell: Vector2i) -> Vector2:
 
 func get_cells_in_rect(rect: Rect2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	var clipped := rect.intersection(Rect2i(Vector2i.ZERO, map_size))
+	var clipped := rect.intersection(Rect2i(Vector2i.ZERO, get_map_size()))
 	if clipped.size.x <= 0 or clipped.size.y <= 0:
 		return result
 	for y: int in range(clipped.position.y, clipped.end.y):
@@ -223,8 +235,9 @@ func get_cells_in_rect(rect: Rect2i) -> Array[Vector2i]:
 	return result
 
 func map_bounds_world() -> Rect2:
+	var tile_size := get_tile_size()
 	var top_left := cell_to_world_center(Vector2i.ZERO) - Vector2(tile_size) * 0.5
-	return Rect2(top_left, Vector2(map_size * tile_size))
+	return Rect2(top_left, Vector2(get_map_size() * tile_size))
 
 func contains_cell(cell: Vector2i) -> bool:
 	return cells.has(cell)
@@ -249,7 +262,7 @@ func spawn_position(spawn_id: StringName) -> Vector2:
 
 func _build_cells() -> void:
 	cells.clear()
-	for coordinates: Vector2i in get_cells_in_rect(Rect2i(Vector2i.ZERO, map_size)):
+	for coordinates: Vector2i in get_cells_in_rect(Rect2i(Vector2i.ZERO, get_map_size())):
 		cells[coordinates] = MapCell.new(coordinates)
 	for layer: TileMapLayer in cell_flags:
 		if layer == null:
@@ -261,17 +274,36 @@ func _build_cells() -> void:
 				map_cell.add_flag(flag)
 
 
-func _create_entity(entity_state: EntityState) -> Entity:
-	var entity: Entity = CropEntity.new() if entity_state.type == EntityState.EntityType.CROP else Entity.new()
-	if entity.bind_state(entity_state) != OK:
-		entity.free()
+func _create_item(item_state: ItemState) -> Item:
+	var item_meta := DataCatalog.get_item(item_state.meta_id)
+	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return null
-	entity.position = cell_to_world_center(entity_state.cell)
-	return entity
+	var item: Item
+	if item_meta is PlantMeta:
+		item = PlantItem.new()
+	elif item_meta is HarvestableMeta:
+		item = HarvestableItem.new()
+	else:
+		item = Item.new()
+	if item.bind_state(item_state, item_meta) != OK:
+		item.free()
+		return null
+	item.position = cell_to_world_center(item_state.cell)
+	return item
 
 
-func _clear_entities() -> void:
-	for entity: Entity in entities.values():
-		if is_instance_valid(entity):
-			entity.free()
-	entities.clear()
+func _state_matches_meta(item_state: ItemState, item_meta: ItemMeta) -> bool:
+	if item_state == null or item_meta == null:
+		return false
+	if item_meta is PlantMeta:
+		return item_state is PlantState
+	if item_meta is HarvestableMeta:
+		return item_state is HarvestableState
+	return item_state.state_type() == ItemState.StateType.ITEM
+
+
+func _clear_items() -> void:
+	for item: Item in items.values():
+		if is_instance_valid(item):
+			item.free()
+	items.clear()

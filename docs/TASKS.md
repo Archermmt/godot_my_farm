@@ -20,7 +20,7 @@
 | T02 | [Autoload 与应用启动](./tasks/T02_APP_SERVICES.md) | T01 | A 基础 | completed |
 | T03 | [玩家移动、相机与动画状态](./tasks/T03_PLAYER_MOVEMENT.md) | T02 | B 核心切片 | completed |
 | T04 | [地图、网格与场景切换](./tasks/T04_MAPS_AND_FARM_GRID.md) | T03 | B 核心切片 | completed |
-| T05 | [背包、快捷栏与手持物](./tasks/T05_INVENTORY_AND_HOTBAR.md) | T03 | B 核心切片 | pending |
+| T05 | [背包、Toolbar、Itembar 与手持物](./tasks/T05_INVENTORY_TOOLBAR_ITEMBAR.md) | T03 | B 核心切片 | completed |
 | T06 | [统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md) | T04, T05 | B 核心切片 | pending |
 | T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | pending |
 | T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | pending |
@@ -42,7 +42,7 @@
 
 ### M2 核心农事闭环（T03-T09）
 
-玩家可以在单张农场地图移动，管理快捷栏，翻地、播种、浇水、跨测试日成长、收获/破坏对象并拾取掉落。
+玩家可以在单张农场地图移动，用键盘管理 Toolbar、Itembar 和背包，翻地、播种、浇水、跨测试日成长、收获/破坏对象并拾取掉落。
 
 ### M3 活世界（T10-T13）
 

@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- 完善 TimeManager 与 CalendarState。
+- 完善 GameManager 内的时间控制与 CalendarState。
 - `scripts/world/day_cycle_controller.gd` 或等价应用协调器。
 - Clock/PlayerStatus 最小 HUD；LightSchedule Resource 与地图光照节点。
 - time/day-cycle 单元和集成测试。

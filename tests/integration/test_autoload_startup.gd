@@ -3,11 +3,9 @@ extends ProjectTestCase
 const EXPECTED_AUTOLOAD_ORDER: Array[String] = [
 	"EventBus",
 	"DataCatalog",
-	"GameState",
-	"TimeManager",
-	"SceneManager",
-	"SaveManager",
-	"AudioManager",
+	"GameManager",
+		"SceneManager",
+		"AudioManager",
 ]
 
 
@@ -26,8 +24,10 @@ func test_game_services_start_in_architecture_order() -> void:
 
 func test_autoload_catalog_and_new_game_are_ready() -> void:
 	assert_true(DataCatalog.is_ready_for_game())
-	assert_equal(DataCatalog.get_item(&"tool_hoe").tool_kind, ItemDefinition.ToolKind.HOE)
-	assert_true(GameState.is_initialized())
-	assert_equal(GameState.player.map_id, &"cabin")
-	assert_equal(GameState.inventory.count_item(&"seed_parsnip"), 15)
-	assert_true(SaveManager.can_snapshot())
+	assert_equal((DataCatalog.get_item(&"tool_hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
+	assert_true(GameManager.is_initialized())
+	assert_equal(GameManager.player.map_id, &"cabin")
+	assert_equal(GameManager.player.itembar.count_item(&"seed_parsnip"), 15)
+	assert_equal(GameManager.player.toolbar.count_item(&"tool_hoe"), 1)
+	assert_equal(GameManager.used_inventory_slots(), 0)
+	assert_true(GameManager.can_snapshot())

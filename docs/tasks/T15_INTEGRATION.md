@@ -17,20 +17,22 @@
 
 ## 实现要求
 
-1. 新游戏无需 Debug 指令即可完成：起床 -> farm -> 翻地 -> 播种 -> 浇水 -> 采集 -> 背包 -> 次日成长 -> 成熟收获 -> NPC 观察 -> save/load。
-2. 初始 seed、种子、体力、地图资源和作物成长天数平衡到 10-15 分钟开发验收可完成；正式时间倍率仍可配置。
-3. UI panel、工具 charging、SceneManager 和 SaveManager 的锁定不会死锁或提前解除。
-4. preview、commit、音画反馈和存档状态对每种行为一致；错误工具、无体力、满包、无存档都有清楚反馈。
-5. 地图切换、换日、save/load 过程中没有重复 Player/HUD/NPC、重复 signal、orphan Node 或未停止 tween/audio。
-6. 清除所有临时 debug key、测试 label、无用 placeholder summary；必要 DevHooks 默认关闭。
-7. 性能满足 Test Plan：100 动态实体稳定，20 次转场无增长，日志空闲不刷屏。
-8. 修复严格限制在回归根因，不借整合任务重写稳定模块；架构改变先更新文档。
+1. 新游戏无需 Debug 指令或鼠标即可完成：起床 -> farm -> Toolbar 选工具 -> 翻地 -> Itembar 选种子 -> 播种 -> Toolbar 选水壶 -> 浇水 -> 采集 -> 键盘整理背包 -> 次日成长 -> 成熟收获 -> NPC 观察 -> save/load。
+
+2. 整个首日流程只注入键盘 InputMap action；选择、使用、丢下、Toolbar/Itembar 切换及三容器交换不得依赖鼠标事件。
+3. 初始 seed、种子、体力、地图资源和作物成长天数平衡到 10-15 分钟开发验收可完成；正式时间倍率仍可配置。
+4. UI panel、工具 charging、SceneManager 和 GameManager 时间锁定不会死锁或提前解除。
+5. preview、commit、音画反馈和存档状态对每种行为一致；错误工具、无体力、满包、无存档都有清楚反馈。
+6. 地图切换、换日、save/load 过程中没有重复 Player/HUD/NPC、重复 signal、orphan Node 或未停止 tween/audio。
+7. 清除所有临时 debug key、测试 label、无用 placeholder summary；必要 DevHooks 默认关闭。
+8. 性能满足 Test Plan：100 动态 Item 稳定，20 次转场无增长，日志空闲不刷屏。
+9. 修复严格限制在回归根因，不借整合任务重写稳定模块；架构改变先更新文档。
 
 ## 自动化验收
 
 - 全部 unit/integration test 通过，零 skip 或每个 skip 有已批准环境原因。
 - first-day fixture E2E 可重复执行两次，状态摘要一致。
-- 20 次地图往返、100 次无效 action、10 次 save、2 次换日和 100 实体压力测试通过。
+- 20 次地图往返、100 次无效 action、10 次 save、2 次换日和 100 Item 压力测试通过。
 - project import/headless quit 无错误，editor/game logs 无新增错误/警告。
 
 ## godot-ai 验收

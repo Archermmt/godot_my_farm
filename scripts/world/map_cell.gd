@@ -45,11 +45,11 @@ func is_dropable() -> bool:
 
 
 func is_dug() -> bool:
-	return _state.dug
+	return has_flag(CellState.CellFlag.DUG)
 
 
-func is_watered(current_day: int) -> bool:
-	return _state.watered_on_day == current_day
+func is_watered() -> bool:
+	return has_flag(CellState.CellFlag.WATERED)
 
 
 func can_till() -> bool:
@@ -67,48 +67,48 @@ func can_drop() -> bool:
 func dig() -> Error:
 	if not can_till():
 		return ERR_UNAVAILABLE
-	_state.dug = true
+	add_flag(CellState.CellFlag.DUG)
 	return OK
 
 
-func water(current_day: int) -> Error:
-	if current_day < 0:
-		return ERR_INVALID_PARAMETER
+func water() -> Error:
 	if not can_water():
 		return ERR_UNAVAILABLE
-	_state.watered_on_day = current_day
+	add_flag(CellState.CellFlag.WATERED)
 	return OK
 
 
 func has_occupant() -> bool:
-	return not _state.entity_ids.is_empty()
+	return not _state.item_ids.is_empty()
 
 
-func has_entity(entity_id: StringName) -> bool:
-	return entity_id in _state.entity_ids
+func has_item(item_id: StringName) -> bool:
+	return item_id in _state.item_ids
 
 
-func add_entity_id(entity_id: StringName) -> Error:
-	if entity_id == &"":
+func add_item_id(item_id: StringName) -> Error:
+	if item_id == &"":
 		return ERR_INVALID_PARAMETER
-	if has_entity(entity_id):
+	if has_item(item_id):
 		return ERR_ALREADY_EXISTS
-	_state.entity_ids.append(entity_id)
+	_state.item_ids.append(item_id)
 	return OK
 
 
-func remove_entity_id(entity_id: StringName) -> Error:
-	var index := _state.entity_ids.find(entity_id)
+func remove_item_id(item_id: StringName) -> Error:
+	var index := _state.item_ids.find(item_id)
 	if index < 0:
 		return ERR_DOES_NOT_EXIST
-	_state.entity_ids.remove_at(index)
+	_state.item_ids.remove_at(index)
 	return OK
 
 
 func bind_state(cell_state: CellState) -> Error:
 	if cell_state == null or cell_state.cell != coordinates:
 		return ERR_INVALID_PARAMETER
-	cell_state.flags = flags()
+	var static_flags := flags() & ~(CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
+	var dynamic_flags := cell_state.flags & (CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
+	cell_state.flags = static_flags | dynamic_flags
 	_state = cell_state
 	return OK
 

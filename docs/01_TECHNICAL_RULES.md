@@ -40,18 +40,18 @@
 - 角色逻辑只有在至少两个角色类型真实复用、具有独立生命周期，或需要可替换实现时才拆分脚本；拆分前必须在对应任务卡说明复用对象和边界。子节点可以组织碰撞、Sprite、挂点和相机，但不得为了转发根脚本调用而额外挂脚本。
 - 可由开发者调节的角色、UI、特效和过场动画必须使用 Godot 标准 `AnimationPlayer`/`AnimationLibrary` 资源管理；脚本只选择动画名称并调用 `play()`、`stop()` 或 `seek()`，不得直接写 `Sprite2D.frame`、维护动画帧计数器或用 `_process` 手写动画时钟。
 - 纯程序化的位移、淡入淡出、弹性和数值过渡使用 `Tween`；当动画需要在 Animation 面板中编辑时，不得用 Tween 取代 AnimationPlayer。
-- 地图场景必须像 cabin 一样在根节点下按职责并列组织 TileMapLayer、动态实体、静态装饰、碰撞、出生点和传送口。地图根脚本直接管理自己的 TileMapLayer，不再增加只用于包裹 TileMapLayer 的 Grid 节点。
+- 地图场景必须像 cabin 一样在根节点下按职责并列组织 TileMapLayer、动态 Item、静态装饰、碰撞、出生点和传送口。地图根脚本直接管理自己的 TileMapLayer，不再增加只用于包裹 TileMapLayer 的 Grid 节点。
 - 地面道路等可行走 TileMapLayer 必须保持在角色渲染层级之下；同级地面层可通过节点顺序叠加，但不得使用高于 `ActorHost` 的 `z_index` 覆盖 Player。资源、边界和前景装饰需要遮挡角色时必须明确标注其前景层级。
-- 与某个组件强耦合的功能不需要独立成类；地图统一使用 `BaseMap` 负责坐标、边界、MapCell/Entity 运行时索引和实体 host 路由。MapCell 是每个格子的运行时行为对象；地图场景不创建无额外行为的根脚本。
-- `map_id`、尺寸、`Dictionary[Vector2i, MapCell]`、`cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 和 `entity_hosts: Dictionary[Node2D, EntityState.EntityType]` 放在 BaseMap。不得增加 farm/field/cabin 专属地图类或 crop 专属 host API。
+- 与某个组件强耦合的功能不需要独立成类；地图统一使用 `BaseMap` 负责坐标、边界、MapCell/Item 运行时索引和地图 Item host 路由。MapCell 是每个格子的运行时行为对象；地图场景不创建无额外行为的根脚本。
+- `map_id`、`Dictionary[Vector2i, MapCell]`、`cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 和 `item_hosts: Dictionary[Node2D, ItemMeta.WorldType]` 放在 BaseMap。地图尺寸必须通过 `get_map_size()` 从 BASE layer 的 used rect 获取，tile 尺寸必须通过 `get_tile_size()` 从 BASE layer 的 TileSet 获取，不得保存为属性或在地图场景中重复配置。不得增加 farm/field/cabin 专属地图类或 crop 专属 host API。
 - 地面、道路、墙体、水域、静态资源区等开发者需要编辑的 TileMap cell 必须使用 Godot TileMap 编辑器绘制并序列化在对应 `.tscn` 中。运行脚本不得 `clear()` 后重建静态地图，也不得用启动时代码替代场景内的 `tile_map_data`。
-- dug、watered、entity_ids 等可存档数据只保存在 CellState/EntityState DTO 中；MapCell/Entity 绑定并操作对应 DTO。不得再创建 Dug/Watered TileMapLayer 或其他重复状态投影。
+- DUG、WATERED、item_ids 等可存档数据只保存在 CellState/ItemState DTO 中；DUG 和 WATERED 必须使用 CellState.CellFlag，不得增加重复字段。MapCell/Item 绑定并操作对应 DTO。不得再创建 Dug/Watered TileMapLayer 或其他重复状态投影。
 
 ## 4. 场景规则
 
 - 场景按职责拆为可独立运行/实例化的 leaf scene，再由 parent scene 组合。
 - 运行逻辑只存在脚本；`.tscn` 保存节点、资源引用和配置，不保存业务数据快照。
-- 使用 `PackedScene` 实例组合 Player、WorldItem、Crop、NPC 和 UI；不要把实例展开复制到父场景。
+- 使用 `PackedScene` 实例组合 Player、WorldItem、Plant、NPC 和 UI；不要把实例展开复制到父场景。
 - godot-ai 可用时优先用其 scene/node/resource 工具进行语义化场景修改，避免手写 `.tscn` 的 sub-resource ID、UID 和连接段。
 - 通过工具生成/修改场景后必须 `scene_save`，然后重新读取 hierarchy 验证节点没有静默丢失。
 - 不直接编辑 `.godot/`、`.uid`、导入缓存或编辑器用户设置。
@@ -60,29 +60,32 @@
 ## 5. Node 与 Resource 的边界
 
 - Node 负责生命周期、输入、场景表现和 Godot 对象交互。
-- Resource 负责静态定义数据，例如物品、作物阶段、掉落表、NPC 日程和音频配置。
+- Resource 负责静态 Meta 数据，例如物品、作物阶段、掉落表、NPC 日程和音频配置。
 - RefCounted/纯 GDScript 状态对象负责运行时数据，例如物品堆、地块状态和存档 DTO。
-- 不把运行时可变数量写回 `.tres` 定义资源；加载后的定义视为只读。
+- `ItemMeta` 及其 `ToolMeta`、`HarvestableMeta`、`PlantMeta` 子类统一放在 `scripts/data/item/`；`GameCatalog.items` 是唯一 Item Meta 集合和 ID 命名空间。PlantMeta 继承 HarvestableMeta：所有 Plant 都可收获，但石头等 Harvestable 不属于 Plant。
+- Meta 是由 `.tres` 编辑、可被任意数量 ItemState 和 ItemStack 共享的只读元信息。不得把运行时可变数据写回 Meta，也不得把 Meta 字段复制进存档 State。
+- State 只保存每个实例的可变数据。`ItemState.meta_id` 是 ItemState 到 `ItemMeta.id` 的唯一连接；不得再保存静态类别或其他可从 Meta 获得的字段。序列化中的 `state_type` 只用于恢复具体 State 子类，不得代替 meta_id 或承载业务类别判断。
 - Resource 之间使用稳定 ID 关联，避免整个运行时状态通过循环 Resource 引用序列化。
-- 工厂负责 `ItemDefinition -> PackedScene` 实例化；业务系统不得散落字符串路径加载。
+- 工厂负责 `ItemMeta -> PackedScene` 实例化；业务系统不得散落字符串路径加载。
 
 ## 6. Autoload 规则
 
 只允许以下全局服务，增加新 Autoload 必须先更新架构文档：
 
+- 包含业务判断、状态变更或流程协调的 Autoload 必须使用 manager 命名：文件以 `_manager.gd` 结尾，Autoload 单例名以 `Manager` 结尾，脚本类型以 `ManagerService` 结尾。
+- 只有纯全局 holder、只读定义索引或事件总线可以使用职责名，不强制 manager 后缀；这类 Autoload 不得逐步混入业务操作。职责扩展到业务逻辑时必须同步改名。
+
 1. `EventBus`：只声明跨模块信号，不持有领域状态。
 2. `DataCatalog`：只读定义索引和启动校验。
-3. `GameState`：玩家状态、背包和各地图动态状态的唯一所有者。
-4. `TimeManager`：游戏日历、倍率、暂停和时间推进。
-5. `SceneManager`：地图切换、出生点和淡入淡出协调。
-6. `SaveManager`：版本化存取与迁移，不直接操作场景表现。
-7. `AudioManager`：音频总线和池化播放。
+3. `GameManager`：全局游戏状态、时间控制、整体快照和存档入口的唯一管理者；背包容器归 `PlayerState` 所有。
+4. `SceneManager`：地图切换、出生点和淡入淡出协调。
+5. `AudioManager`：音频总线和池化播放。
 
 Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对象时由场景在 `_ready` 注册并在 `_exit_tree` 注销，或通过信号传递一次性命令。
 
 ## 7. 事件与数据所有权
 
-- 每份可变数据只有一个权威写入者。例如金币与背包由 GameState 写，UI 只订阅；cell 行为直接通过 MapCell 修改，实体节点通过 BaseMap.entity_hosts 挂载。
+- 每份可变数据只有一个权威写入者。例如金币与背包由 `PlayerState` 写，`GameManager` 只持有整体玩家状态，UI 只订阅；cell 行为直接通过 MapCell 修改，地图 Item 节点通过 BaseMap.item_hosts 挂载。
 - Signal 用于通知和跨模块请求，不作为无类型的数据总线。参数必须有稳定类型和清楚语义。
 - 所有信号声明必须集中在 `EventBus`；领域服务、地图根节点和场景组件不得自行声明信号变量。模块内部需要通知时也通过 `EventBus` 的稳定事实信号，避免信号所有权分散。
 - 同一模块内部优先直接方法调用；不要把所有调用都绕到 `EventBus`。
@@ -95,7 +98,7 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 - 坐标转换只由 BaseMap 通过 cell_flags 中唯一的 BASE TileMapLayer 提供：世界坐标 -> layer local -> map，以及 map -> local -> world。
 - 所有农事层共享同一 tile size、transform 和 origin；T04 必须加入对齐检查。
 
-### 8.1 Map、Cell、Entity 核心关系
+### 8.1 Map、Cell、Item 核心关系
 
 运行时对象关系：
 
@@ -103,36 +106,44 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 BaseMap
 ├── cells: Dictionary[Vector2i, MapCell]
 │   └── MapCell -> 绑定同坐标 CellState
-├── entities: Dictionary[StringName, Entity]
-│   └── Entity -> 绑定同 ID EntityState
-└── entity_hosts: Dictionary[Node2D, EntityState.EntityType]
-    └── host -> 挂载该 Type 的 Entity
+├── items: Dictionary[StringName, Item]
+│   ├── ItemMeta -> ItemState -> Item
+│   ├── HarvestableMeta -> HarvestableState -> HarvestableItem
+│   └── PlantMeta -> PlantState -> PlantItem
+└── item_hosts: Dictionary[Node2D, ItemMeta.WorldType]
+    └── host -> 挂载该 WorldType 的地图 Item
 ```
 
 持久化状态关系：
 
 ```text
-GameState
+GameManager
+├── player: PlayerState
+│   ├── inventory: InventoryState
+│   ├── toolbar: ToolbarState
+│   └── itembar: ItembarState
 ├── maps: Dictionary[StringName, MapState]
 │   └── MapState
 │       ├── cells: Dictionary[Vector2i, CellState]
-│       └── entities: Dictionary[StringName, EntityState]
+│       └── items: Dictionary[StringName, ItemState]
 └── npcs: Dictionary[StringName, NpcState]
 ```
 
-- `BaseMap` 是当前已加载地图的运行时根和协调者，唯一管理 MapCell/Entity 运行时对象、坐标转换、静态 flag 重建、实体事务和 host 路由。
-- `MapState` 是地图卸载后仍存在的纯数据容器，只保存 CellState/EntityState DTO 和生成标记，不实现耕种、占用、实体增删移动或场景操作。
-- MapState 不得合并进 BaseMap。GameState 必须能在地图场景未实例化时创建、保存和恢复所有 MapState；地图切换释放 BaseMap 时不得影响未加载地图的 cells/entities。
-- `CellState` 是无业务方法的 DTO，保存 cell、flags、dug、watered_on_day、entity_ids，并声明存档使用的 `CellFlag`。MapCell 绑定同坐标 CellState，并提供 flag 查询、dig、water、drop/occupancy 等行为。
-- `EntityState` 是不继承的扁平 DTO，保存 instance_id、definition_id、type、cell、health、random_seed、flags 及当前实体类型需要的状态字段。不得为 crop、pickup、harvestable 建立 EntityState 子类。
-- `Entity` 是运行时 Node2D 基类并绑定 EntityState；BaseMap 根据 EntityState.type 创建 CropEntity 或其他 Entity 子类。instance_id 在整张 MapState 内唯一，EntityState.cell 必须指向包含其 ID 的 CellState。
-- `MapState.entities` 和 `MapState.cells` 是存档数据所有者；`BaseMap.entities` 和 `BaseMap.cells` 是运行时对象所有者。所有同步和关系校验由 BaseMap 负责。
-- `NpcState` 的唯一所有者是 `GameState.npcs`，其 `map_id/cell` 表示 NPC 当前所在地图和格子。NPC 可跨地图活动，因此不得写入 MapState.entities。
-- 仅实例化 `NpcState.map_id` 等于当前地图的 NPC；NPC 运行时 Entity 必须设为 `EntityState.EntityType.NPC` 并通过 BaseMap.add_entity() 挂入当前地图配置的 NPC host。NPC 状态仍由 GameState.npcs 持有。
-- 创建实体的事务顺序固定为：BaseMap 校验目标 MapCell/status -> 写入 EntityState 和 CellState.entity_ids -> 根据 type 创建 Entity -> 绑定 DTO -> 挂载 host。创建或挂载失败时必须回滚 DTO。
-- 移动实体必须通过 BaseMap.move_entity() 原子地修改源/目标 CellState.entity_ids、EntityState.cell 和 Entity 节点位置；失败时不得留下双重归属。
-- 删除实体必须通过 BaseMap.remove_entity() 同时删除 CellState 引用、MapState.entities DTO 和运行时 Entity，再结算掉落/事件。
-- 地图卸载时释放 BaseMap、MapCell 和 Entity；MapState、CellState、EntityState、NpcState 继续由 GameState 持有。地图恢复时由 BaseMap 重新创建并绑定运行时对象。
+`GameManager` 不再单独持有或代理 `InventoryState`、`ToolbarState`、`ItembarState`；所有玩家容器快照嵌套在 `snapshot["player"]` 中，由 `PlayerState` 负责容器状态事务与序列化。
+
+- `BaseMap` 是当前已加载地图的运行时根和协调者，唯一管理 MapCell/Item 运行时对象、坐标转换、静态 flag 重建、地图 Item 事务和 host 路由。
+- `MapState` 是地图卸载后仍存在的纯数据容器，只保存 CellState/ItemState DTO 和生成标记，不实现耕种、占用、Item 增删移动或场景操作。
+- MapState 不得合并进 BaseMap。GameManager 必须能在地图场景未实例化时创建、保存和恢复所有 MapState；地图切换释放 BaseMap 时不得影响未加载地图的 cells/items。
+- `CellState` 是无业务方法的 DTO，保存 cell、flags、item_ids，并声明存档使用的 `CellFlag`。DUG、WATERED 与静态 cell 属性都编码在 flags 中。MapCell 绑定同坐标 CellState，并提供 flag 查询、dig、water、drop/occupancy 等行为。
+- `ItemState` 是 State 基类，只保存 instance_id、meta_id、cell、random_seed、flags 等所有地图 Item 共有的可变字段。`HarvestableState` 保存 health，`PlantState` 继承 HarvestableState 并增加 growth_days、planted_on_day。新增 ItemMeta 子类若有专属可变数据，必须增加对应 State 子类，不得把字段继续堆入 ItemState。
+- `Item` 是运行时 Node2D 基类，并同时绑定 ItemState 和通过 meta_id 解析出的 ItemMeta。HarvestableItem 下转为 HarvestableState/HarvestableMeta，PlantItem 继承 HarvestableItem 并进一步下转为 PlantState/PlantMeta；专属逻辑只访问对应的强类型组合。instance_id 在整张 MapState 内唯一，ItemState.cell 必须指向包含其 ID 的 CellState。
+- Item State 代码统一放在 `scripts/state/item/`，ItemStack 与 Inventory/Toolbar/Itembar 状态统一放在 `scripts/state/inventory/`，运行时 Item 代码放在与 `scripts/world/` 同级的 `scripts/items/`，不得放回 `scripts/world/entity/`。Inventory 使用 ItemStack 引用 Meta ID，不把地图 Node 放进背包。
+- `MapState.items` 和 `MapState.cells` 是存档数据所有者；`BaseMap.items` 和 `BaseMap.cells` 是当前地图运行时对象所有者。所有同步和关系校验由 BaseMap 负责。
+- `NpcState` 的唯一所有者是 `GameManager.npcs`，其 `map_id/cell` 表示 NPC 当前所在地图和格子。NPC 是 Actor，不是 Item，不得写入 MapState.items 或通过 item_hosts 路由。
+- 创建地图 Item 的事务顺序固定为：BaseMap 校验目标 MapCell/status -> 用 meta_id 从 DataCatalog 解析 ItemMeta -> 校验 Meta/State 子类匹配 -> 写入 ItemState 和 CellState.item_ids -> 创建对应 Item 子类 -> 同时绑定强类型 State/Meta -> 按 `world_type()` 挂载 host。类型不匹配、解析、创建或挂载失败时必须回滚 DTO。
+- 移动地图 Item 必须通过 BaseMap.move_item() 原子地修改源/目标 CellState.item_ids、ItemState.cell 和 Item 节点位置；失败时不得留下双重归属。
+- 删除地图 Item 必须通过 BaseMap.remove_item() 同时删除 CellState 引用、MapState.items DTO 和运行时 Item，再结算掉落/事件。
+- 地图卸载时释放 BaseMap、MapCell 和地图 Item；MapState、CellState、ItemState、NpcState 继续由 GameManager 持有。地图恢复时由 BaseMap 重新创建并绑定运行时对象。
 
 ### 8.2 Cell Status 与坐标规则
 
@@ -141,20 +152,23 @@ GameState
 - BaseMap 的 `cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 是静态 cell flag 的唯一配置入口。每个 entry 表示该 TileMapLayer 的每个 used cell 都获得对应 flag；同一坐标出现在多个 layer 时按位 OR 叠加。
 - flag cell 集合必须直接绘制并序列化在对应 TileMapLayer 中；禁止用 Rect2i、Polygon、节点名称推断或启动时代码生成固定形状。只用于配置的 flag mask layer 可以不可见，但必须拥有 tile_map_data，并与坐标层保持 tile size、transform 和 origin 对齐。
 - 每张地图必须且只能配置一个 BASE layer；坐标转换、地图边界参考和基础可行走查询都由该 dictionary entry 决定。BLOCKED 是行为否决状态，可以与 BASE/DROPABLE 等同时存在；`is_walkable()`、`is_dropable()` 等查询必须显式排除 BLOCKED。
-- `MapState.cells: Dictionary[Vector2i, CellState]` 和 `MapState.entities: Dictionary[StringName, EntityState]` 保存卸载地图的数据；不得保存 Node。
-- `EntityState.EntityType` 是存档中的实体类别；Entity 是所有地图实体节点的运行时基类，只消费该类别。BaseMap.entity_hosts 的每个 host 只能对应一个唯一 EntityType；add_entity() 按 Entity.type 路由。
-- MapCell 通过绑定 CellState.entity_ids 查询占用；实体 DTO 从 MapState.entities 查询，实体节点从 BaseMap.entities 查询。
-- BaseMap 的实体工厂必须根据 EntityState.type 显式创建真实 Entity 子类，例如 CropEntity；不得根据 definition_id、节点名或脚本路径推断类型。
-- EntityState 及 CellState 放在 scripts/state/；Entity 基类和运行时子类放在 scripts/world/entity/。
-- 浇水使用 `watered_on_day: int`，而不是每天遍历清零布尔值。
+- `MapState.cells: Dictionary[Vector2i, CellState]` 和 `MapState.items: Dictionary[StringName, ItemState]` 保存卸载地图的数据；不得保存 Node。
+- `ItemMeta.WorldType` 是运行时地图表现与 host 的路由类别，不写入 ItemState。BaseMap.item_hosts 的每个 host 只能对应一个唯一 WorldType；add_item() 按绑定 Meta 的 `world_type()` 路由。
+- MapCell 通过绑定 CellState.item_ids 查询占用；Item DTO 从 MapState.items 查询，地图 Item 节点从 BaseMap.items 查询。
+- BaseMap 的 Item 工厂必须通过 ItemState.meta_id 解析 Meta，校验对应 State 子类，并显式创建匹配的 Item 子类；例如 PlantMeta/PlantState 对应 PlantItem。由于 Plant 继承 Harvestable，工厂判断顺序必须先 Plant、后 Harvestable。不得根据 ID 文本、节点名或脚本路径推断类型，也不得接受交叉组合。
+- ItemState 及其子类放在 scripts/state/item/，ItemStack 和 InventoryState/ToolbarState/ItembarState 放在 scripts/state/inventory/，CellState 放在 scripts/state/；Item 基类和运行时子类放在与 world 同级的 scripts/items/。
+- 浇水使用 `CellState.CellFlag.WATERED`；日推进逻辑消费前一天的浇水状态后清除该 flag。
 - 对角移动允许时做归一化；NPC 对角寻路不得穿过两个相邻阻挡格的夹角。
 
 ## 9. 输入和交互
 
 - 所有玩家输入必须注册到 InputMap；业务脚本只调用 `Input.is_action_*`。
-- 必需 action：`move_left/right/up/down`、`walk_modifier`、`primary_action`、`secondary_action`、`inventory_toggle`、`cancel`、`hotbar_1..hotbar_10`、`quick_save`、`quick_load`。
+- 必需 action：`move_left/right/up/down`、`walk_modifier`、`use_held`、`drop_held`、`toolbar_previous/toolbar_next`、`itembar_previous/itembar_next`、`inventory_toggle`、`inventory_swap`、`inventory_confirm`、`cancel`、`quick_save`、`quick_load`。
+- 正式玩法的选择、使用、丢下和背包整理必须可由纯键盘完成；业务逻辑不得读取鼠标位置、鼠标按钮或 drag/drop 事件。方向目标来自 Player facing，UI 导航来自语义化方向 action。
+- Toolbar 只管理工具，Itembar 只管理可选择非工具物品，Inventory 管理普通存储。三者交换必须经过类型校验和原子状态 API；UI 不得直接改数组。
+- Player 只有一个 `active_hand_source` 和一个 active ItemStack。切换 Toolbar 或 Itembar 会替换当前手持来源，不允许工具与物品同时激活、同时显示或同时提交行动。
 - UI 打开或场景切换时，通过明确的输入模式锁定世界交互；不能只靠某个节点恰好先消费事件。
-- 蓄力以状态机实现：idle -> charging -> committed/cancelled；释放鼠标后只提交一次。
+- 蓄力以状态机实现：idle -> charging -> committed/cancelled；释放 `use_held` 后只提交一次。
 - 目标预览和实际执行必须调用同一个 targeting 结果，避免显示有效但执行不同格。
 - 调试输入放在 `debug` feature flag 后，导出发行版默认关闭。
 

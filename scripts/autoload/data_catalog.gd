@@ -5,9 +5,7 @@ const CORE_CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
 
 var _catalog: GameCatalog = null
 var _validation_errors: Array[String] = []
-var _items: Dictionary[StringName, ItemDefinition] = {}
-var _crops: Dictionary[StringName, CropDefinition] = {}
-var _harvestables: Dictionary[StringName, HarvestableDefinition] = {}
+var _items: Dictionary[StringName, ItemMeta] = {}
 var _drop_tables: Dictionary[StringName, DropTable] = {}
 var _npc_schedules: Dictionary[StringName, NpcSchedule] = {}
 var _ready_for_game: bool = false
@@ -35,12 +33,8 @@ func initialize_from_catalog(catalog: GameCatalog, report_errors: bool = true) -
 	if not _validation_errors.is_empty():
 		_report_errors(report_errors)
 		return false
-	for item: ItemDefinition in catalog.items:
+	for item: ItemMeta in catalog.items:
 		_items[item.id] = item
-	for crop: CropDefinition in catalog.crops:
-		_crops[crop.id] = crop
-	for harvestable: HarvestableDefinition in catalog.harvestables:
-		_harvestables[harvestable.id] = harvestable
 	for table: DropTable in catalog.drop_tables:
 		_drop_tables[table.id] = table
 	for schedule: NpcSchedule in catalog.npc_schedules:
@@ -60,34 +54,34 @@ func validation_errors() -> Array[String]:
 
 
 func summary() -> String:
-	return "items=%d crops=%d harvestables=%d drops=%d schedules=%d" % [
+	return "items=%d plants=%d harvestables=%d drops=%d schedules=%d" % [
 		_items.size(),
-		_crops.size(),
-		_harvestables.size(),
+		_count_meta_type(PlantMeta),
+		_count_meta_type(HarvestableMeta),
 		_drop_tables.size(),
 		_npc_schedules.size(),
 	]
 
 
-func get_item(id: StringName) -> ItemDefinition:
-	var definition: ItemDefinition = _items.get(id) as ItemDefinition
-	if definition == null:
+func get_item(id: StringName) -> ItemMeta:
+	var meta: ItemMeta = _items.get(id) as ItemMeta
+	if meta == null:
 		push_error("[DataCatalog] unknown item id: %s" % id)
-	return definition
+	return meta
 
 
-func get_crop(id: StringName) -> CropDefinition:
-	var definition: CropDefinition = _crops.get(id) as CropDefinition
-	if definition == null:
-		push_error("[DataCatalog] unknown crop id: %s" % id)
-	return definition
+func get_plant(id: StringName) -> PlantMeta:
+	var meta: PlantMeta = _items.get(id) as PlantMeta
+	if meta == null:
+		push_error("[DataCatalog] unknown plant id: %s" % id)
+	return meta
 
 
-func get_harvestable(id: StringName) -> HarvestableDefinition:
-	var definition: HarvestableDefinition = _harvestables.get(id) as HarvestableDefinition
-	if definition == null:
+func get_harvestable(id: StringName) -> HarvestableMeta:
+	var meta: HarvestableMeta = _items.get(id) as HarvestableMeta
+	if meta == null:
 		push_error("[DataCatalog] unknown harvestable id: %s" % id)
-	return definition
+	return meta
 
 
 func get_drop_table(id: StringName) -> DropTable:
@@ -108,8 +102,8 @@ func has_item(id: StringName) -> bool:
 	return _items.has(id)
 
 
-func has_crop(id: StringName) -> bool:
-	return _crops.has(id)
+func has_plant(id: StringName) -> bool:
+	return _items.get(id) is PlantMeta
 
 
 func item_count() -> int:
@@ -120,11 +114,17 @@ func _clear() -> void:
 	_catalog = null
 	_validation_errors.clear()
 	_items.clear()
-	_crops.clear()
-	_harvestables.clear()
 	_drop_tables.clear()
 	_npc_schedules.clear()
 	_ready_for_game = false
+
+
+func _count_meta_type(meta_script: Script) -> int:
+	var count := 0
+	for meta: ItemMeta in _items.values():
+		if is_instance_of(meta, meta_script):
+			count += 1
+	return count
 
 
 func _report_errors(enabled: bool) -> void:

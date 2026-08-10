@@ -8,13 +8,11 @@ static func validate(catalog: GameCatalog) -> Array[String]:
 		return ["catalog: resource is null"]
 
 	var item_ids := _collect_ids(catalog.items, "item", errors)
-	var crop_ids := _collect_ids(catalog.crops, "crop", errors)
-	var harvestable_ids := _collect_ids(catalog.harvestables, "harvestable", errors)
 	var drop_table_ids := _collect_ids(catalog.drop_tables, "drop_table", errors)
 	var schedule_ids := _collect_ids(catalog.npc_schedules, "npc_schedule", errors)
-	var _unused_ids := [harvestable_ids, schedule_ids]
+	var _unused_ids := [schedule_ids]
 
-	for item: ItemDefinition in catalog.items:
+	for item: ItemMeta in catalog.items:
 		if item == null:
 			continue
 		if item.stack_limit <= 0:
@@ -23,9 +21,13 @@ static func validate(catalog: GameCatalog) -> Array[String]:
 			errors.append("item %s buy_price must be non-negative" % item.id)
 		if item.sell_price < 0:
 			errors.append("item %s sell_price must be non-negative" % item.id)
-		if item.item_type == ItemDefinition.ItemType.SEED:
-			if item.related_crop_id == &"" or not crop_ids.has(item.related_crop_id):
-				errors.append("item %s related_crop_id missing crop %s" % [item.id, item.related_crop_id])
+		if item is ToolMeta and item.item_type != ItemMeta.ItemType.TOOL:
+			errors.append("tool %s item_type must be TOOL" % item.id)
+		if item is PlantMeta:
+			_validate_harvestable(item as PlantMeta, drop_table_ids, errors)
+			_validate_plant(item as PlantMeta, item_ids, drop_table_ids, errors)
+		elif item is HarvestableMeta:
+			_validate_harvestable(item as HarvestableMeta, drop_table_ids, errors)
 
 	for table: DropTable in catalog.drop_tables:
 		if table == null:
@@ -43,39 +45,6 @@ static func validate(catalog: GameCatalog) -> Array[String]:
 				errors.append("drop_table %s entries[%d].chance invalid" % [table.id, index])
 			if entry.weight <= 0:
 				errors.append("drop_table %s entries[%d].weight must be positive" % [table.id, index])
-
-	for crop: CropDefinition in catalog.crops:
-		if crop == null:
-			continue
-		if crop.seed_item_id == &"" or not item_ids.has(crop.seed_item_id):
-			errors.append("crop %s seed_item_id missing item %s" % [crop.id, crop.seed_item_id])
-		if crop.produce_item_id == &"" or not item_ids.has(crop.produce_item_id):
-			errors.append("crop %s produce_item_id missing item %s" % [crop.id, crop.produce_item_id])
-		if crop.harvest_drop_table_id != &"" and not drop_table_ids.has(crop.harvest_drop_table_id):
-			errors.append("crop %s harvest_drop_table_id missing drop_table %s" % [crop.id, crop.harvest_drop_table_id])
-		if crop.stages.is_empty():
-			errors.append("crop %s stages must not be empty" % crop.id)
-		var previous_day: int = -1
-		for index: int in crop.stages.size():
-			var stage: GrowthStageDefinition = crop.stages[index]
-			if stage == null:
-				errors.append("crop %s stages[%d] is null" % [crop.id, index])
-				continue
-			if stage.start_day <= previous_day:
-				errors.append("crop %s stages[%d].start_day must increase" % [crop.id, index])
-			previous_day = stage.start_day
-			if stage.max_health <= 0:
-				errors.append("crop %s stages[%d].max_health must be positive" % [crop.id, index])
-			if stage.drop_table_id != &"" and not drop_table_ids.has(stage.drop_table_id):
-				errors.append("crop %s stages[%d].drop_table_id missing drop_table %s" % [crop.id, index, stage.drop_table_id])
-
-	for harvestable: HarvestableDefinition in catalog.harvestables:
-		if harvestable == null:
-			continue
-		if harvestable.max_health <= 0:
-			errors.append("harvestable %s max_health must be positive" % harvestable.id)
-		if harvestable.drop_table_id != &"" and not drop_table_ids.has(harvestable.drop_table_id):
-			errors.append("harvestable %s drop_table_id missing drop_table %s" % [harvestable.id, harvestable.drop_table_id])
 
 	for schedule: NpcSchedule in catalog.npc_schedules:
 		if schedule == null:
@@ -103,6 +72,40 @@ static func validate(catalog: GameCatalog) -> Array[String]:
 	return errors
 
 
+static func _validate_plant(plant: PlantMeta, item_ids: Dictionary, drop_table_ids: Dictionary, errors: Array[String]) -> void:
+	if plant.seed_item_id != &"":
+		var seed_meta := item_ids.get(plant.seed_item_id, null) as ItemMeta
+		if seed_meta == null:
+			errors.append("plant %s seed_item_id missing item %s" % [plant.id, plant.seed_item_id])
+		elif seed_meta.item_type != ItemMeta.ItemType.SEED:
+			errors.append("plant %s seed_item_id must reference SEED item %s" % [plant.id, plant.seed_item_id])
+	if plant.stages.is_empty():
+		errors.append("plant %s stages must not be empty" % plant.id)
+	var previous_day: int = -1
+	for index: int in plant.stages.size():
+		var stage: Dictionary = plant.stages[index]
+		if not PlantMeta.is_stage_struct(stage):
+			errors.append("plant %s stages[%d] has invalid structure" % [plant.id, index])
+			continue
+		var start_day := int(stage.get("start_day", 0))
+		var max_health := int(stage.get("max_health", 0))
+		var drop_table_id := stage.get("drop_table_id", &"") as StringName
+		if start_day <= previous_day:
+			errors.append("plant %s stages[%d].start_day must increase" % [plant.id, index])
+		previous_day = start_day
+		if max_health <= 0:
+			errors.append("plant %s stages[%d].max_health must be positive" % [plant.id, index])
+		if drop_table_id != &"" and not drop_table_ids.has(drop_table_id):
+			errors.append("plant %s stages[%d].drop_table_id missing drop_table %s" % [plant.id, index, drop_table_id])
+
+
+static func _validate_harvestable(harvestable: HarvestableMeta, drop_table_ids: Dictionary, errors: Array[String]) -> void:
+	if harvestable.max_health <= 0:
+		errors.append("harvestable %s max_health must be positive" % harvestable.id)
+	if harvestable.drop_table_id != &"" and not drop_table_ids.has(harvestable.drop_table_id):
+		errors.append("harvestable %s drop_table_id missing drop_table %s" % [harvestable.id, harvestable.drop_table_id])
+
+
 static func _collect_ids(resources: Array, kind: String, errors: Array[String]) -> Dictionary:
 	var ids: Dictionary = {}
 	for index: int in resources.size():
@@ -116,5 +119,5 @@ static func _collect_ids(resources: Array, kind: String, errors: Array[String]) 
 			continue
 		if ids.has(id_value):
 			errors.append("%s duplicate id %s" % [kind, id_value])
-		ids[id_value] = true
+		ids[id_value] = resource
 	return ids

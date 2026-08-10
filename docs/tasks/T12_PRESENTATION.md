@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- 完善 HUD、Clock、PlayerStatus、Hotbar、InventoryPanel、Tooltip、Toast、TransitionOverlay。
+- 完善 HUD、Clock、PlayerStatus、Toolbar、Itembar、Player 头顶选择提示、InventoryPanel、Tooltip、Toast、TransitionOverlay。
 - Theme Resource 与 UI layout。
 - AudioDefinition/catalog、AudioManager pool 和地图 ambient/music 切换。
 - 收获、破坏、树倒、拾取、浇水等轻量 effect scenes。
@@ -18,11 +18,11 @@
 
 ## 实现要求
 
-1. HUD 显示生命、体力、金币、日期/星期/季节/时间；变化由 GameState/TimeManager signal 驱动。
-2. Hotbar、背包、tooltip 延续 T05 数据边界，增加完整键鼠状态、focus、disabled/invalid 反馈。
-3. Panel 打开时世界输入与时间按设计暂停，Escape 关闭最上层 panel；过场层阻止 UI/world 点击穿透。
+1. HUD 显示生命、体力、金币、日期/星期/季节/时间；变化由 GameManager signal 驱动。
+2. Toolbar、Itembar、背包、tooltip 延续 T05 数据边界，完善纯键盘 focus、待交换、disabled/invalid 和唯一 active source 反馈。
+3. Panel 打开时世界输入与时间按设计暂停，Escape 先取消待交换、再关闭最上层 panel；过场层阻止 UI/world 输入穿透。
 4. Theme 在 `640x360` 和 `960x540` 保持文字完整；不得出现嵌套装饰卡片、过度圆角或遮挡世界的巨型标题。
-5. Hotbar 自动换边有迟滞且动画不改变布局尺寸；Tooltip clamp 在安全区内。
+5. Player 头顶 Toolbar/Itembar 提示使用固定尺寸，在选择后短暂显示且不遮挡角色；HUD 的当前手持状态常驻可读。Tooltip/详情区域 clamp 在安全区内。
 6. AudioManager 使用 Music/Ambient/SFX/UI bus 和可复用 player pool；脚步/碰撞等高频音效节流，地图 ambient 平滑切换。
 7. 每个 action result 映射一次对应反馈；失败使用轻量 invalid 反馈，不播放成功声音。
 8. Effect 有最大生命周期并自动回收/销毁；多格工具可合并反馈，避免几十个 AudioStreamPlayer/粒子同时创建。
@@ -38,7 +38,7 @@
 
 ## godot-ai 验收
 
-完整走过移动、工具、采集、拾取、背包、地图转场和四个时段。截默认/小窗口 HUD、hotbar 顶底、背包 tooltip、夜间画面；读取 monitor 和日志，确认无 UI overflow、audio pool exhaustion 或残留 effects。
+仅用键盘完整走过移动、Toolbar/Itembar 切换、采集、拾取、背包焦点交换、地图转场和四个时段。截默认/小窗口 HUD、Player 头顶两种 bar 提示、背包三容器焦点与 tooltip、夜间画面；读取 monitor 和日志，确认无 UI overflow、audio pool exhaustion 或残留 effects。
 
 ## 不做
 
@@ -48,4 +48,3 @@
 ## 完成记录
 
 STATUS 记录视口截图、音频/特效实例峰值、run_id 和日志；总表 T12 completed。
-

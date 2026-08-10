@@ -1,6 +1,25 @@
 extends ProjectTestCase
 
 
+func test_gameplay_selection_and_inventory_actions_are_keyboard_only() -> void:
+	for action: StringName in [
+		&"use_held",
+		&"drop_held",
+		&"toolbar_previous",
+		&"toolbar_next",
+		&"itembar_previous",
+		&"itembar_next",
+		&"inventory_toggle",
+		&"inventory_swap",
+		&"inventory_confirm",
+	]:
+		assert_true(InputMap.has_action(action), "missing InputMap action: %s" % action)
+		for event: InputEvent in InputMap.action_get_events(action):
+			assert_true(event is InputEventKey, "%s contains non-keyboard input" % action)
+	for removed_action: StringName in [&"primary_action", &"secondary_action", &"hotbar_1", &"hotbar_10"]:
+		assert_true(not InputMap.has_action(removed_action), "legacy input action still registered: %s" % removed_action)
+
+
 func test_input_direction_normalizes_diagonal_and_preserves_zero() -> void:
 	var diagonal := FarmPlayer.normalized_direction(Vector2(1.0, 1.0))
 	assert_true(is_equal_approx(diagonal.length(), 1.0))

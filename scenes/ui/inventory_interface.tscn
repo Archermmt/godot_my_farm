@@ -1,0 +1,144 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="1_ui"]
+
+[node name="InventoryInterface" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_ui")
+
+[node name="HeldStatus" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 198.0
+offset_bottom = 40.0
+color = Color(0.0352941, 0.0901961, 0.0862745, 0.9)
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="HeldStatus"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.917647, 0.94902, 0.866667, 1)
+theme_override_font_sizes/font_size = 11
+text = "TOOLS  |  HOE"
+vertical_alignment = 1
+
+[node name="InventoryPanel" type="ColorRect" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 20.0
+offset_top = 28.0
+offset_right = 620.0
+offset_bottom = 340.0
+color = Color(0.027451, 0.0705882, 0.0666667, 0.97)
+mouse_filter = 1
+
+[node name="Title" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 10.0
+offset_right = 330.0
+offset_bottom = 34.0
+theme_override_colors/font_color = Color(0.945098, 0.776471, 0.294118, 1)
+theme_override_font_sizes/font_size = 18
+text = "PACK & HAND"
+
+[node name="ToolbarLabel" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 46.0
+offset_right = 100.0
+offset_bottom = 65.0
+theme_override_colors/font_color = Color(0.886275, 0.643137, 0.278431, 1)
+theme_override_font_sizes/font_size = 10
+text = "TOOLBAR  Q / E"
+
+[node name="ToolbarSlots" type="HBoxContainer" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 42.0
+offset_right = 408.0
+offset_bottom = 67.0
+theme_override_constants/separation = 3
+
+[node name="ItembarLabel" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 82.0
+offset_right = 130.0
+offset_bottom = 101.0
+theme_override_colors/font_color = Color(0.45098, 0.678431, 0.341176, 1)
+theme_override_font_sizes/font_size = 10
+text = "ITEMBAR  Z / C"
+
+[node name="ItembarSlots" type="HBoxContainer" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 78.0
+offset_right = 598.0
+offset_bottom = 103.0
+theme_override_constants/separation = 3
+
+[node name="InventoryLabel" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 120.0
+offset_right = 130.0
+offset_bottom = 139.0
+theme_override_colors/font_color = Color(0.47451, 0.780392, 0.741176, 1)
+theme_override_font_sizes/font_size = 10
+text = "INVENTORY"
+
+[node name="InventorySlots" type="GridContainer" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 116.0
+offset_right = 598.0
+offset_bottom = 172.0
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+columns = 10
+
+[node name="DetailBand" type="ColorRect" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 194.0
+offset_right = 582.0
+offset_bottom = 254.0
+color = Color(0.0705882, 0.152941, 0.145098, 1)
+mouse_filter = 2
+
+[node name="DetailLabel" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 202.0
+offset_right = 570.0
+offset_bottom = 246.0
+theme_override_colors/font_color = Color(0.862745, 0.909804, 0.827451, 1)
+theme_override_font_sizes/font_size = 11
+text = "TOOLBAR 01  |  Hoe  |  Tills farmable soil."
+autowrap_mode = 2
+vertical_alignment = 1
+
+[node name="ModeLabel" type="Label" parent="InventoryPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 272.0
+offset_right = 580.0
+offset_bottom = 298.0
+theme_override_colors/font_color = Color(0.713726, 0.8, 0.741176, 1)
+theme_override_font_sizes/font_size = 10
+text = "X MARK/SWAP   F HOLD   ESC CLOSE"
+horizontal_alignment = 1

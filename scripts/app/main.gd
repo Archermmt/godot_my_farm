@@ -21,8 +21,8 @@ func _ready() -> void:
 	if not DataCatalog.is_ready_for_game():
 		_show_boot_error(DataCatalog.validation_errors())
 		return
-	if not GameState.is_initialized():
-		_show_boot_error(["GameState did not create a new game"])
+	if not GameManager.is_initialized():
+		_show_boot_error(["GameManager did not create a new game"])
 		return
 	var register_error: Error = SceneManager.register_hosts(
 		map_host,
@@ -37,18 +37,21 @@ func _ready() -> void:
 	if player_error != OK:
 		_show_boot_error(["Player registration failed: %s" % error_string(player_error)])
 		return
-	player.set_facing(GameState.player.facing)
+	if player.bind_state(GameManager.player) != OK:
+		_show_boot_error(["Player state binding failed"])
+		return
+	player.set_facing(player.state.facing)
 
-	var map_error: Error = await SceneManager.load_initial_map(GameState.player.map_id, GameState.player.spawn_id)
+	var map_error: Error = await SceneManager.load_initial_map(GameManager.player.map_id, GameManager.player.spawn_id)
 	if map_error != OK:
 		_show_boot_error(["Initial map load failed: %s" % error_string(map_error)])
 		return
-	TimeManager.start()
+	GameManager.start()
 	status_dot.color = Color("77cc59")
-	status_label.text = "T04  WORLD READY"
+	status_label.text = "T05  INVENTORY READY"
 	service_panel.visible = false
 	bootstrap_screen.visible = false
-	print("[T04] world ready | map=%s player_count=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
+	print("[T05] inventory ready | map=%s player_count=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
 		SceneManager.current_map_id(),
 		get_tree().get_nodes_in_group("player").size(),
 		player.run_speed,
@@ -64,7 +67,7 @@ func _exit_tree() -> void:
 
 
 func _show_boot_error(errors: Array[String]) -> void:
-	TimeManager.stop()
+	GameManager.stop()
 	status_dot.color = Color("e05a4f")
 	status_label.text = "T02  STARTUP BLOCKED"
 	service_panel.color = Color(0.18, 0.045, 0.04, 0.94)

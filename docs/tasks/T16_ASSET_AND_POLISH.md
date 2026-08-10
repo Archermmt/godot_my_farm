@@ -41,7 +41,7 @@
 
 ## godot-ai 验收
 
-逐张地图、四时段、Player/NPC 动画、6 工具、作物阶段、采集效果、背包/HUD 在两视口截图。检查 pixel blur、错误裁切、透明边、y-sort、遮挡、文字和地标；连续移动/工具输入验证动画不是静态截图假象。
+逐张地图、四时段、Player/NPC 动画、6 工具、作物阶段、采集效果、Player 头顶 Toolbar/Itembar、背包三容器焦点和 HUD 当前手持状态在两视口截图。检查 pixel blur、错误裁切、透明边、y-sort、遮挡、文字和地标；连续键盘移动/工具输入验证动画不是静态截图假象。
 
 ## 不做
 
@@ -51,4 +51,3 @@
 ## 完成记录
 
 STATUS 记录用户批准方案、总成本、license 清单、资源 smoke 结果、run_id 和视觉对照；总表 T16 completed。
-

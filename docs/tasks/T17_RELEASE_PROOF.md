@@ -22,7 +22,7 @@
 3. 检查 project settings、主场景、InputMap、Autoload、bus layout、export include/exclude、窗口缩放和 debug feature。
 4. 导出包不含 docs 参考仓库、本机绝对路径、测试存档、临时帧、godot-ai server 或开发插件运行产物。
 5. 在导出包或等价 release run 中 smoke：启动、移动、一次农事、save/load、退出；不能只验证编辑器运行。
-6. 最终证明使用固定 seed/起始状态，真实连续展示移动、选择工具、翻地/播种/浇水、采集/拾取、背包和次日成长/转场中的至少一个。
+6. 最终证明使用固定 seed/起始状态，仅用键盘真实连续展示移动、Toolbar/Itembar 选择与头顶高亮、翻地/播种/浇水、采集/拾取、方向焦点背包交换和次日成长/转场中的至少一个。
 7. 录制帧率固定、全窗内容可见；录制后回看并确认非空、不卡死、非单帧循环、无 debug overlay 和严重音画问题。
 8. README 明确本项目是基于机制参考的原创 Godot 重建，并标明核心参考提交；不声称复制/官方移植。
 
@@ -47,9 +47,9 @@ godot --headless --path . --export-release "Windows Desktop" build/my_farm.exe
 ## 发布清单
 
 - [ ] 全测试通过，无未解释 skip。
-- [ ] 三地图、两 NPC、6 工具、作物闭环、背包、时间、存档可用。
+- [ ] 三地图、两 NPC、6 工具、Toolbar/Itembar、纯键盘背包、唯一手持、作物闭环、时间、存档可用。
 - [ ] 两视口无模糊、遮挡、越界和错误文字。
-- [ ] 20 次转场/10 次保存/100 实体稳定。
+- [ ] 20 次转场/10 次保存/100 Item 稳定。
 - [ ] `assets/licenses/ASSETS.md` 完整。
 - [ ] 导出包可启动并完成 smoke。
 - [ ] 最终视频已回看，路径可访问。
@@ -58,4 +58,3 @@ godot --headless --path . --export-release "Windows Desktop" build/my_farm.exe
 ## 完成记录
 
 STATUS 写 Godot/version、export preset/产物、全测试摘要、最终 run_id、日志、截图/视频绝对路径和残余风险；总表 T17 completed，项目里程碑 M4 达成。
-

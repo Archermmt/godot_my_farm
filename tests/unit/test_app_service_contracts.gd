@@ -10,6 +10,9 @@ func test_event_bus_declares_only_confirmed_signal_surface() -> void:
 		&"time_advanced",
 		&"day_advanced",
 		&"inventory_changed",
+		&"container_changed",
+		&"bar_selection_changed",
+		&"active_hand_changed",
 		&"interaction_committed",
 		&"save_completed",
 		&"load_completed",
@@ -39,11 +42,11 @@ func test_scene_manager_requires_explicit_hosts() -> void:
 
 
 func test_save_and_audio_unavailable_operations_return_errors() -> void:
-	var save_manager := SaveManagerService.new()
+	var game_manager := GameManagerService.new()
 	var audio_manager := AudioManagerService.new()
-	assert_equal(save_manager.save_slot(0), ERR_UNAVAILABLE)
-	assert_equal(save_manager.load_slot(0), ERR_UNAVAILABLE)
+	assert_equal(game_manager.save_slot(0), ERR_UNAVAILABLE)
+	assert_equal(game_manager.load_slot(0), ERR_UNAVAILABLE)
 	assert_equal(audio_manager.play_event(&"ui_confirm"), ERR_UNAVAILABLE)
 	assert_equal(audio_manager.stop_event(&"ui_confirm"), ERR_UNAVAILABLE)
-	save_manager.free()
+	game_manager.free()
 	audio_manager.free()

@@ -108,10 +108,10 @@ func _instantiate_map(map_id: StringName) -> BaseMap:
 func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> Error:
 	if map == null or map.map_id != map_id:
 		return ERR_INVALID_DATA
-	var game_state := _game_state()
-	if game_state == null:
+	var game_manager := _game_manager()
+	if game_manager == null or _player.state == null:
 		return ERR_UNCONFIGURED
-	var state: MapState = game_state.maps.get(map_id, null) as MapState
+	var state: MapState = game_manager.maps.get(map_id, null) as MapState
 	if state == null:
 		return ERR_DOES_NOT_EXIST
 	var error := map.validate_alignment()
@@ -126,9 +126,9 @@ func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> E
 	_player.global_position = spawn
 	var world_bounds := map.map_bounds_world()
 	_player.set_camera_limits(Rect2i(world_bounds.position, world_bounds.size))
-	game_state.player.map_id = map_id
-	game_state.player.spawn_id = spawn_id
-	game_state.player.cell = map.world_to_cell(spawn)
+	_player.state.map_id = map_id
+	_player.state.spawn_id = spawn_id
+	_player.state.cell = map.world_to_cell(spawn)
 	return OK
 
 func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
@@ -139,7 +139,7 @@ func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
 	else:
 		error = _player.lock_input(TRANSITION_LOCK)
 		if error == OK:
-			error = _time_manager().pause(TRANSITION_LOCK)
+			error = _game_manager().pause(TRANSITION_LOCK)
 	if error != OK:
 		if next_map != null:
 			next_map.queue_free()
@@ -163,12 +163,12 @@ func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
 		old_map.queue_free()
 	_event_bus().map_changed.emit(map_id)
 	await _fade(0.0)
-	_time_manager().resume(TRANSITION_LOCK)
+	_game_manager().resume(TRANSITION_LOCK)
 	_player.unlock_input(TRANSITION_LOCK)
 	_transitioning = false
 
 func _finish_failed(map_id: StringName, error: Error) -> void:
-	_time_manager().resume(TRANSITION_LOCK)
+	_game_manager().resume(TRANSITION_LOCK)
 	if _player != null:
 		_player.unlock_input(TRANSITION_LOCK)
 	_transitioning = false
@@ -177,11 +177,8 @@ func _finish_failed(map_id: StringName, error: Error) -> void:
 func _event_bus() -> EventBusService:
 	return get_tree().root.get_node_or_null("EventBus") as EventBusService
 
-func _game_state() -> GameStateService:
-	return get_tree().root.get_node_or_null("GameState") as GameStateService
-
-func _time_manager() -> TimeManagerService:
-	return get_tree().root.get_node_or_null("TimeManager") as TimeManagerService
+func _game_manager() -> GameManagerService:
+	return get_tree().root.get_node_or_null("GameManager") as GameManagerService
 
 func _fade(alpha: float) -> void:
 	if _transition_overlay == null:

@@ -2,7 +2,7 @@
 
 ## 目标
 
-把 Player、背包、时间、全部 MapState、作物、动态实体和 NPC 写入版本化单槽 JSON，并能在运行中安全读取和重建当前地图。
+把 Player、Inventory、Toolbar、Itembar、唯一手持来源、时间、全部 MapState、作物、动态 Item 和 NPC 写入版本化单槽 JSON，并能在运行中安全读取和重建当前地图。
 
 ## 依赖
 
@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- 完成 SaveManager、所有状态 DTO 和 schema migration 框架。
+- 完成 GameManager 存档入口、所有状态 DTO 和 schema migration 框架。
 - `user://saves/slot_0.json` 原子写入、备份/错误提示。
 - quick_save/quick_load action 接入，默认 UI toast。
 - save/load 单元、集成和损坏文件测试。
@@ -18,12 +18,12 @@
 ## 实现要求
 
 1. 根结构遵循 [../02_ARCHITECTURE.md](../02_ARCHITECTURE.md)，`schema_version=1`，包含 saved_at/game_version。
-2. 保存前要求当前 BaseMap 将 cells/entities 同步到对应 MapState，NPC 将位置同步到全局 GameState.npcs；snapshot 为深副本。
+2. 保存前要求当前 BaseMap 将 cells/items 同步到对应 MapState，NPC 将位置同步到全局 GameManager.npcs；snapshot 为深副本。
 3. 写入同目录临时文件，flush/close 成功后再替换正式文件；已有正式文件可保留一个 `.bak`。
 4. 保存期间阻止重复保存；失败发结构化错误和 UI 提示，不声称成功。
 5. 读取流程为 parse -> schema validate -> migrate -> 构造临时状态 -> deep validate -> 整体 replace。任何失败都保留当前运行状态。
 6. 未知字段忽略、缺省字段有明确策略；高于支持版本拒绝加载且不覆盖原文件。
-7. 加载成功后 SceneManager 按存档 map/spawn/position 重建，HUD/光照/Hotbar/NPC 同步；Player/Autoload 不重复。
+7. 加载成功后 SceneManager 按存档 map/spawn/position 重建，HUD/光照/Toolbar/Itembar/active hand/NPC 同步；Player/Autoload 不重复。
 8. quick_load 在无存档时只提示；场景 transition/interaction transaction 中拒绝或排队，不并发破坏状态。
 9. 测试使用独立 `user://tests/...` 路径或注入存储，不覆盖用户 slot_0。
 
@@ -33,7 +33,7 @@
 - JSON 类型正确，没有 NodePath、instance ID、UID、Texture 或 `Vector2(...)` 字符串。
 - 损坏 JSON、截断文件、缺字段、未知字段、旧版本迁移、未来版本拒绝。
 - 模拟临时写失败，正式文件仍可读；连续保存 10 次临时文件不累积。
-- 加载失败前后的 GameState 深度等价；加载成功后 Player/Map/NPC instance 唯一。
+- 加载失败前后的 GameManager 深度等价；加载成功后 Player/Map/NPC instance 唯一。
 
 ## godot-ai 验收
 

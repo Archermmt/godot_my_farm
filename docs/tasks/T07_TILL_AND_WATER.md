@@ -17,8 +17,8 @@
 
 ## 实现要求
 
-1. Hoe 仅作用于 static diggable、未 dug、无 occupant 的格；重复翻地为明确无效。
-2. WaterCan 仅作用于 dug 格；写入当前绝对 day index 的 `watered_on_day`。同日重复浇水不重复耗体力。
+1. Hoe 仅作用于 static diggable、没有 DUG flag、无 occupant 的格；成功后写入 `CellState.CellFlag.DUG`，重复翻地为明确无效。
+2. WaterCan 仅作用于带 DUG flag 的格；成功后写入 `CellState.CellFlag.WATERED`。同日重复浇水不重复耗体力。
 3. 多格行动先收集全部有效目标，再计算体力；体力不足时整次失败，地块和体力都不变。
 4. 成功事务顺序：状态提交 -> TileMap 投影 -> 体力扣除 -> facts signal -> audio/effect。投影失败必须报告并可由状态重建。
 5. action 返回结构化结果：changed cells、skipped reasons、stamina spent；UI 不解析日志判断结果。
@@ -30,7 +30,7 @@
 - 可挖/不可挖/已有占用/重复操作。
 - 单格和多格的 changed 数、体力消耗、signal 次数。
 - 体力恰好、少 1、为 0 三种边界，失败时状态深度等价。
-- watered_on_day round-trip，另一天查询不再视为当天浇水但历史值保留。
+- DUG/WATERED flags round-trip；日推进完成生长结算后清除 WATERED。
 - 从 MapCell 绑定的 CellState 重建动态表现且状态一致。
 
 ## godot-ai 验收

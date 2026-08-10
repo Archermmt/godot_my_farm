@@ -17,6 +17,9 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.get_node("AnimationPlayer") is AnimationPlayer)
 	assert_true(player.get_node("Visual/Sprite") is Sprite2D)
 	assert_true(player.get_node("Hands") is Node2D)
+	assert_true(player.get_node("Hands/HeldVisual") is Node2D)
+	assert_true(player.get_node("SelectionPopup") is Control)
+	assert_true(player.get_node("SelectionTimer") is Timer)
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
 	var camera: Camera2D = player.get_node("Camera2D") as Camera2D
 	assert_true(camera.enabled)
@@ -42,4 +45,9 @@ func test_main_actor_host_contains_exactly_one_player() -> void:
 	assert_equal(actor_host.get_child_count(), 1)
 	assert_true(actor_host.get_child(0) is FarmPlayer)
 	assert_true(actor_host.get_child(0).is_in_group("player"))
+	var inventory_ui := main.get_node("UILayer/InventoryInterface") as InventoryUI
+	assert_true(inventory_ui != null)
+	assert_true(inventory_ui.get_node("InventoryPanel/ToolbarSlots") is HBoxContainer)
+	assert_true(inventory_ui.get_node("InventoryPanel/ItembarSlots") is HBoxContainer)
+	assert_true(inventory_ui.get_node("InventoryPanel/InventorySlots") is GridContainer)
 	main.free()

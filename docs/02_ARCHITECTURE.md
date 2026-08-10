@@ -10,19 +10,19 @@ Godot 实现同时修正 Unity 原型中职责过宽、场景树搜索和内存�
 
 ```text
 输入与表现层
-InputMap / HUD / InventoryUI / Cursor / Animation / Audio / Effects
+InputMap / HUD / ToolbarUI / ItembarUI / InventoryUI / Cursor / Animation / Audio / Effects
                          |
                          v
 场景领域层
-Player / BaseMap / MapCell / Entity / InteractionController / WorldItem / NPC / ScenePort
+Player / BaseMap / MapCell / Item / InteractionController / NPC / ScenePort
                          |
                          v
 应用服务层
-SceneManager / TimeManager / ItemFactory / SaveManager / AudioManager
+SceneManager / ItemFactory / AudioManager
                          |
                          v
 状态与定义层
-GameState / MapState / CellState / EntityState / InventoryState / DataCatalog / *.tres
+GameManager / MapState / CellState / ItemState / InventoryState / DataCatalog / *.tres
 ```
 
 依赖只能向下。下层通过返回值或 `EventBus` 的事实信号通知上层，不得反向引用 HUD、Player 或具体地图节点。
@@ -35,7 +35,7 @@ res://
 ├── assets/
 │   ├── art/
 │   │   ├── characters/
-│   │   ├── crops/
+│   │   ├── plants/
 │   │   ├── items/
 │   │   ├── tiles/
 │   │   ├── ui/
@@ -45,7 +45,7 @@ res://
 │   └── licenses/
 ├── data/
 │   ├── items/
-│   ├── crops/
+│   ├── plants/
 │   ├── drop_tables/
 │   ├── npc_schedules/
 │   └── catalogs/
@@ -53,25 +53,26 @@ res://
 │   ├── app/main.tscn
 │   ├── actors/{player,npcs}/
 │   ├── maps/{farm,field,cabin}/
+│   ├── items/{plants,pickups,harvestables}/
 │   ├── world/
 │   │   ├── interaction_cursor.tscn
 │   │   ├── scene_port.tscn
-│   │   ├── pickups/
-│   │   └── harvestables/
 │   ├── ui/{hud,inventory,tooltips,transition}/
 │   └── effects/
 ├── scripts/
 │   ├── autoload/
 │   ├── data/
+│   │   └── item/{item_meta,tool_meta,harvestable_meta,plant_meta}.gd
 │   ├── state/
-│   │   └── entity/
-│   │       ├── entity_state.gd
-│   │       └── crop_entity_state.gd
+│   │   └── item/{item_state,harvestable_state,plant_state}.gd
 │   ├── actors/
+│   ├── items/
+│   │   ├── item.gd
+│   │   ├── plant_item.gd
+│   │   └── harvestable_item.gd
 │   ├── world/
 │   │   ├── base_map.gd
 │   │   ├── map_cell.gd
-│   │   ├── entity/entity.gd
 │   │   └── scene_port.gd
 │   ├── interaction/
 │   ├── ui/
@@ -110,9 +111,9 @@ Main (Node)
 
 1. Autoload 按 [01_TECHNICAL_RULES.md](./01_TECHNICAL_RULES.md) 的顺序初始化。
 2. `DataCatalog` 加载并校验所有定义 ID 和交叉引用；失败则停止进入游戏并输出明确错误。
-3. `GameState` 创建新游戏状态，或由 `SaveManager` 整体替换为验证后的存档状态。
+3. `GameManager` 创建新游戏状态，或由自身存档 API 整体替换为验证后的存档状态。
 4. `Main` 实例化持久 Player、HUD，向 SceneManager 注册 `MapHost`、Player 和 TransitionOverlay。
-5. `SceneManager` 加载状态中的当前地图；每张地图由自己的根脚本注册 TileMapLayer、ScenePort、出生点和动态实体容器。
+5. `SceneManager` 加载状态中的当前地图；每张地图由自己的根脚本注册 TileMapLayer、ScenePort、出生点和地图 Item 容器。
 6. SceneManager 恢复地图动态状态并将 Player 放到出生点，完成淡入后解除输入和时间暂停。
 
 ## 5. Autoload 职责
@@ -130,7 +131,6 @@ signal time_advanced(unit: int, before: Dictionary, delta: int)
 signal day_advanced(previous_day: int, current_day: int)
 signal inventory_changed(owner_id: StringName)
 signal selected_item_changed(item_id: StringName, amount: int)
-signal player_stats_changed()
 signal interaction_committed(action_id: StringName, cells: Array[Vector2i])
 signal save_completed(slot: int)
 signal load_completed(slot: int)
@@ -141,28 +141,30 @@ signal load_completed(slot: int)
 ### 5.2 DataCatalog
 
 - 扫描明确配置的 catalog Resource，不做运行时目录猜测。
-- 建立 `StringName -> ItemDefinition/CropDefinition/DropTable/NpcSchedule` 只读索引。
+- 建立 `StringName -> ItemMeta/PlantMeta/DropTable/NpcSchedule` 只读索引。
 - 启动时检查 ID 唯一、场景/贴图引用存在、种子与作物互相匹配、掉落数量合法。
 - 提供 `get_item(id)` 等窄 API，未知 ID 返回 `null` 并记录错误。
 
-### 5.3 GameState
+### 5.3 GameManager
 
 唯一持有：
 
-- `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币。
-- `InventoryState`：背包、快捷栏、当前选择。
-- `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内实体状态。
+- `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币，以及其归属的 `InventoryState`、`ToolbarState`、`ItembarState`。
+- `PlayerState.active_hand_source`：当前唯一手持来源（NONE/TOOLBAR/ITEMBAR）。
+- `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内 Item 状态。
 - `Dictionary[StringName, NpcState]`：跨地图 NPC 的全局状态；`map_id/cell` 表示当前位置。
 - 新游戏种子、当前存档槽和游戏版本元数据。
 
-GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
+GameManager 不实例化节点、不加载 PackedScene、不渲染 UI。
+`GameManager` 不提供玩家容器的代理 API；运行时命令由 `FarmPlayer` 调用自身绑定的 `PlayerState`，UI 通过已注册 Player 读取和修改容器。
 
-### 5.4 TimeManager
+### 5.4 GameManager 的时间与存档职责
 
-- 持有 `CalendarState`，按倍率将现实秒转换为游戏分钟。
+- 持有 `CalendarState`、时间倍率、运行状态和 reason-based pause set。
 - 时间暂停使用 reason token/set，例如 `scene_transition`、`inventory`、`dialogue`，避免多个系统互相覆盖布尔值。
-- 按跨越的边界依次发出 minute/hour/day/month/year 事件。
-- 午夜规则只由一个流程推进，禁止 Player 和 TimeManager 同时递归触发换日。
+- `snapshot()` 保存游戏领域状态，`time_snapshot()` 保存时间状态，`build_snapshot()` 组合完整存档 DTO。
+- `replace_build_snapshot()` 负责验证并整体恢复游戏与时间状态；`save_slot()`/`load_slot()` 是统一存档入口。
+- 午夜规则只由 GameManager 的时间流程推进，禁止 Player 和其他服务重复递归触发换日。
 
 ### 5.5 SceneManager
 
@@ -171,13 +173,7 @@ GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
 - 忽略重复切图请求；加载失败时保留原地图并解锁。
 - ScenePort 只发出请求，不自行 free 或加载场景。
 
-### 5.6 SaveManager
-
-- 对 GameState 和 TimeManager 的纯字典快照进行版本化保存。
-- 负责 I/O、模式校验、迁移、临时文件替换和错误报告。
-- 加载成功后调用 GameState 的整体替换 API，再由 SceneManager 重建当前地图。
-
-### 5.7 AudioManager
+### 5.6 AudioManager
 
 - 管理 Music/Ambient/SFX/UI bus 和复用的 AudioStreamPlayer 池。
 - 通过稳定音频事件 ID 查定义，不允许领域代码到处硬编码资源路径。
@@ -185,41 +181,35 @@ GameState 不实例化节点、不加载 PackedScene、不渲染 UI。
 
 ## 6. 静态定义模型
 
-### 6.1 ItemDefinition
+### 6.1 ItemMeta
 
-建议字段：
+所有 Item Meta 共用 `GameCatalog.items` 集合和同一个 ID 命名空间。共同字段：
 
 ```text
 id: StringName
 display_name: String
 description: String
 item_type: enum
-icon: Texture2D
-world_scene: PackedScene
-held_scene: PackedScene
 stack_limit: int
 buy_price: int
 sell_price: int
 use_kind: enum
-tool_kind: enum
-base_stamina_cost: int
-animation_tags: Array[StringName]
 ```
 
-`use_kind` 决定送往 GridToolAction、HarvestToolAction、SeedAction、FoodAction 或 DropAction。`tool_kind` 用于可采集对象匹配。数据中不保存 Callable。
+`use_kind` 决定送往 GridToolAction、HarvestToolAction、SeedAction、FoodAction 或 DropAction。`ToolMeta` 继承 ItemMeta，并额外保存 `tool_kind` 和 `base_stamina_cost`，供可采集对象匹配及 Toolbar 类型校验。数据中不保存 Callable。
 
-### 6.2 CropDefinition
+### 6.2 HarvestableMeta 与 PlantMeta
 
 ```text
-id / seed_item_id / produce_item_id
-crop_scene
-stages: Array[GrowthStageDefinition]
+id / seed_item_id
+stages: Array[Dictionary]  # PlantMeta.make_stage() 生成的阶段结构
 requires_water: bool
-harvest_tool: enum
-harvest_drop_table_id
+required_tool: enum
+max_health: int
+drop_table_id
 ```
 
-每个 GrowthStageDefinition 包含开始成长日、表现资源、生命值、状态标签和可选掉落表。树木与普通障碍物可复用 `HarvestableDefinition`，而不是假装都是 Crop。
+HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。PlantMeta 继承 HarvestableMeta，额外提供成长阶段、浇水需求和可选 seed_item_id；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。seed_item_id 为空表示不能由玩家播种。每个阶段结构由 `PlantMeta.make_stage()` 创建并由 CatalogValidator 校验。
 
 ### 6.3 DropTable
 
@@ -231,46 +221,58 @@ harvest_drop_table_id
 
 ## 7. 运行时状态模型
 
-### 7.1 InventoryState
+### 7.1 Inventory、Toolbar、Itembar 与唯一手持状态
 
-`ItemStack` 只保存 `item_id` 和 `amount`。背包与快捷栏是固定长度 `Array[ItemStack]`；拖拽交换、合并、拆分和增减都通过 InventoryState API 完成，并在一次事务后发一个变化事件。
+`ItemStack` 只保存 `item_id` 和 `amount`。Inventory、Toolbar 和 Itembar 都使用固定长度槽位，但有不同接收规则：Toolbar 只接受工具，Itembar 只接受可选择非工具物品，Inventory 接受可存储物品。跨容器交换、合并、拆分和增减都通过原子状态 API 完成，并在一次事务后发一个变化事件。
 
-不在背包中保存 WorldItem Node、Texture 或 ItemDefinition 副本。
+Toolbar 与 Itembar 各自保存 selected index；PlayerState 只保存一个 `active_hand_source`。任何 bar 选择操作都会把 active source 切到该 bar，Hands、HUD 和 InteractionController 始终读取同一个 active ItemStack，禁止双持。
+
+InventoryPanel 使用唯一键盘 focus 和两段式交换：方向 action 移动焦点，第一次 `inventory_swap` 标记源格，第二次在目标格提交 swap/merge；`cancel` 先撤销待交换状态。UI 不实现鼠标点击、drag data 或 drop handler。
+
+不在背包中保存 WorldItem Node、Texture 或 ItemMeta 副本。
 
 ### 7.2 MapCell
 
 `BaseMap` 为边界内每个坐标创建 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。configure_state 后每个 MapCell 绑定 MapState.cells 中同坐标的 CellState。MapCell 是行走、耕种、浇水、放置和占用的运行时入口；静态 flag 从 authored TileMapLayer 叠加重建并写入 DTO。
 
-MapCell 不继承 Node，不持有 TileMapLayer 或实体节点。它只通过绑定的 CellState 读写数据，所有业务判断保留在 MapCell。
+MapCell 不继承 Node，不持有 TileMapLayer 或 Item 节点。它只通过绑定的 CellState 读写数据，所有业务判断保留在 MapCell。
 
-### 7.3 CellState 与 EntityState
+### 7.3 CellState 与 ItemState
 
 ```text
 cell: Vector2i               # 字典 key，序列化时写 x/y
 status: int                  # 当前地图配置的格子能力
-dug: bool
-watered_on_day: int
-entity_ids: Array[StringName] # 同格实体稳定 ID 引用
+flags: int (包含 DUG、WATERED)
+item_ids: Array[StringName]   # 同格地图 Item 稳定 ID 引用
 ```
 
-MapState 分别持有 CellState 和 EntityState。两个 State 都是无运行时操作的 DTO；MapCell/Entity 绑定 DTO 后提供行为与场景表现。TileMapLayer 和 Sprite 只是投影。
+MapState 分别持有 CellState 和 ItemState。两个 State 都是无运行时操作的 DTO；MapCell/Item 绑定 DTO 后提供行为与场景表现。TileMapLayer 和 Sprite 只是投影。
 
-EntityState 是单一扁平 DTO，保存 instance_id、definition_id、type、cell、health、random_seed、flags，以及 seed_item_id、growth_days、planted_on_day 等当前实体数据。EntityState 不派生子类；BaseMap 根据 type 创建 CropEntity 等运行时节点。
+ItemState 是 State 基类，只保存 instance_id、meta_id、cell、random_seed、flags 等共有可变数据。HarvestableState 增加 health；PlantState 继承 HarvestableState，再增加 growth_days、planted_on_day。各 State 仍是纯 DTO，不复制 item_type、seed_item_id 等 Meta 字段。
+
+`meta_id` 是 State 到 Meta 的唯一连接。DataCatalog 用它从 `GameCatalog.items` 解析共享只读 ItemMeta；`state_type` 只作为 JSON 恢复 ItemState 子类的序列化判别字段。BaseMap 必须验证 ItemMeta/ItemState 子类匹配，再创建对应运行时 Item 并根据 `ItemMeta.world_type()` 选择 host。一个 ItemMeta 可以同时被多个同类 ItemState 和 ItemStack 引用，保存时只写 ID，不复制或序列化 `.tres` Meta。
+
+```text
+静态信息              动态实例信息             运行时主体
+ItemMeta          -> ItemState          -> Item
+HarvestableMeta   -> HarvestableState   -> HarvestableItem
+PlantMeta         -> PlantState         -> PlantItem
+```
 
 ### 7.4 MapState
 
 ```text
 map_id
 cells                        # Vector2i -> CellState
-entities                     # instance_id -> EntityState
+items                        # instance_id -> ItemState
 generator_initialized
 ```
 
-MapState 只保存 cells/entities DTO，不持有 NPC，也不实现实体事务或场景操作。地图加载时 BaseMap 绑定 CellState，并按 EntityState.type 创建运行时 Entity。手工放置的静态装饰不写入存档。
+MapState 只保存 cells/items DTO，不持有 NPC，也不实现 Item 事务或场景操作。地图加载时 BaseMap 绑定 CellState，通过 ItemState.meta_id 解析 Meta 后创建运行时 Item。手工放置的静态装饰不写入存档。
 
-MapState 与 BaseMap 不合并：MapState 是可在无场景树时创建和反序列化的纯数据容器，BaseMap 是随地图切换实例化和释放的 Node2D，并拥有当前地图的 MapCell/Entity 运行时对象。
+MapState 与 BaseMap 不合并：MapState 是可在无场景树时创建和反序列化的纯数据容器，BaseMap 是随地图切换实例化和释放的 Node2D，并拥有当前地图的 MapCell/Item 运行时对象。
 
-NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 NPC 运行时 Entity，并以 `EntityState.EntityType.NPC` 经 `BaseMap.add_entity()` 挂载到该地图的 entity host。
+NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 Actor 节点。NPC 不是 Item，不进入 MapState.items 或 BaseMap.item_hosts。
 
 ## 8. 场景领域组件
 
@@ -279,9 +281,9 @@ NPC 的持久化唯一所有者是 `GameState.npcs`。NpcState 自带 `map_id/ce
 - `player.gd` 挂在 CharacterBody2D 根节点，集中处理 InputMap、移动碰撞、输入锁、朝向、动画选择、相机边界和角色专属交互。
 - Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点；`AnimationPlayer` 直接引用 `Visual/Sprite`，动画帧和时间存放在 `AnimationLibrary` 资源中。
 - 不为同一个 Player 按 Input/Motor/Visual/Interaction 的概念名称建立一组只被 Player 使用的转发组件。只有产生跨角色复用或独立生命周期后才提取共享脚本。
-- Player 不直接修改 CellState.entity_ids、MapState.entities、背包字典或时间；通过 BaseMap/MapCell 领域 API 请求。
+- Player 不直接修改 CellState.item_ids、MapState.items、背包字典或时间；通过 BaseMap/MapCell/PlayerState/GameManager 领域 API 请求。
 
-### 8.2 BaseMap、MapCell 与动态实体
+### 8.2 BaseMap、MapCell 与地图 Item
 
 地图根场景参考 cabin 的并列职责结构。Grid 的直接子节点只能是 TileMapLayer：
 
@@ -293,9 +295,9 @@ Farm (BaseMap)
 ├── RoadStatusLayer (TileMapLayer, status mask)
 ├── ResourceStatusLayer (TileMapLayer, status mask)
 ├── BoundaryStatusLayer (TileMapLayer, status mask)
-├── MapEntities (Node2D)
-│   ├── Crops (Node2D, y_sort_enabled)
-│   └── Entities (Node2D, y_sort_enabled)
+├── MapItems (Node2D)
+│   ├── Plants (Node2D, y_sort_enabled)
+│   └── Items (Node2D, y_sort_enabled)
 ├── InteractionCursor (Node2D)
 ├── Landmarks
 ├── StaticCollision
@@ -303,27 +305,27 @@ Farm (BaseMap)
 └── Ports
 ```
 
-`BaseMap` 负责所有地图的身份、尺寸、坐标转换、边界、MapCell/Entity 运行时字典、状态绑定、cell_flags、entity_hosts 和 TileMapLayer 对齐。每个 flag layer 只映射一个 CellState.CellFlag，同坐标通过多个 layer 组合 flag；三张地图都直接挂 BaseMap。
+`BaseMap` 负责所有地图的身份、坐标转换、边界、MapCell/Item 运行时字典、状态绑定、cell_flags、item_hosts 和 TileMapLayer 对齐。`get_map_size()` 从 BASE layer 的 used rect 获取地图尺寸，`get_tile_size()` 从 BASE layer 的 TileSet 获取 tile 尺寸；每个 flag layer 只映射一个 CellState.CellFlag，同坐标通过多个 layer 组合 flag；三张地图都直接挂 BaseMap。
 
 Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 flag mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 flag，不创建动态状态 TileMapLayer。
 
-Entity 是运行时 Node2D 基类并声明 Type 枚举。BaseMap 根据 EntityState.type 创建 Entity/CropEntity，绑定 DTO 后通过 entity_hosts 挂入对应 host，不再维护 crop_root/entity_root 等专属路径。
+Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 通过 ItemState.meta_id 查询 DataCatalog，验证 Meta/State 子类组合后创建 Item、HarvestableItem 或 PlantItem，再按 `ItemMeta.world_type()` 通过 item_hosts 挂入对应 host。运行时子类保存下转后的强类型引用，专属逻辑不从基类 State 猜测字段。
 
-与某个地图强耦合的网格和实体功能统一放在地图根脚本中，不再抽出 `MapGrid` 或 `MapEntityManager`。Field/Cabin 将各自的 Ground/Road/Resource/Boundary 或 Floor/Wall 直接作为 BaseMap 根节点子节点，不创建无额外行为的地图脚本；地图树中不得添加仅用于包装 TileMapLayer 的 Grid 节点。
+与某个地图强耦合的网格和地图 Item 生命周期统一放在地图根脚本中，不再抽出 `MapGrid` 或独立 ItemManager。Field/Cabin 将各自的 Ground/Road/Resource/Boundary 或 Floor/Wall 直接作为 BaseMap 根节点子节点，不创建无额外行为的地图脚本；地图树中不得添加仅用于包装 TileMapLayer 的 Grid 节点。
 
 ### 8.3 Targeting 与行动
 
 统一链路：
 
 ```text
-选中 ItemStack
- -> 构建 InteractionContext(player, pointer, facing, charge, amount)
+唯一 active ItemStack（Toolbar 或 Itembar）
+ -> 构建 InteractionContext(player, facing, charge, amount)
  -> 对应 UseAction.preview(context)
  -> Array[TargetCandidate]（有序、含有效原因）
  -> Cursor 渲染同一结果
  -> UseAction.commit(context, preview_result)
  -> 校验体力/数量仍足够
- -> 原子修改 MapCell/GameState
+ -> 原子修改 MapCell/GameManager
  -> EventBus 事实事件 + 音画反馈
 ```
 
@@ -334,22 +336,21 @@ Entity 是运行时 Node2D 基类并声明 Type 枚举。BaseMap 根据 EntitySt
 Godot 不要求复制 C# 的每层继承，但保留等价职责：
 
 ```text
-WorldEntity (Node2D)
-├── PickupEntity (Area2D)
-└── HarvestableEntity (StaticBody2D/Area2D)
-    ├── PlantEntity
-    │   └── CropEntity
-    ├── TreeEntity
-    └── ObstacleEntity
+Item (Node2D)
+├── PickupItem (Area2D)
+└── HarvestableItem (StaticBody2D/Area2D)
+    ├── PlantItem
+    ├── TreeWorldItem
+    └── ObstacleItem
 ```
 
-共享行为优先组合为 Health/Harvest/Drop/Pickup 组件，避免深继承。Tree 的倒向和 stump 转换可以是 TreeEntity 专属策略。
+共享行为优先组合为 Health/Harvest/Drop/Pickup 组件，避免深继承。Tree 的倒向和 stump 转换可以是 TreeWorldItem 专属策略。
 
 ### 8.5 NPC
 
-- `NpcScheduleController` 根据 TimeManager 选择当前/下个日程。
+- `NpcScheduleController` 根据 GameManager 的 CalendarState 选择当前/下个日程。
 - `NpcNavigator` 使用 Godot 内建 `AStarGrid2D`，从当前 BaseMap 的阻挡和道路权重构建网格。
-- NPC 跨地图时把状态写入 GameState；只有位于当前地图的 NPC 需要可见实例。
+- NPC 跨地图时把状态写入 GameManager；只有位于当前地图的 NPC 需要可见实例。
 - 日程状态以游戏分钟为基准，加载存档后直接重建到正确位置，不要求重放所有历史路径。
 
 ## 9. 关键时序
@@ -357,9 +358,9 @@ WorldEntity (Node2D)
 ### 9.1 工具使用
 
 ```text
-secondary pressed -> InteractionController enters charging
+use_held pressed -> InteractionController enters charging
 time held -> charge level changes -> preview refreshes
-secondary released -> verify selected stack + stamina + targets
+use_held released -> verify active stack + stamina + targets
 -> commit action -> update state -> play animation/audio/effect
 -> consume stamina/items -> return idle
 ```
@@ -369,18 +370,18 @@ secondary released -> verify selected stack + stamina + targets
 ### 9.2 换日
 
 ```text
-TimeManager reaches day boundary
+GameManager reaches day boundary
 -> snapshot previous day
 -> advance calendar once
 -> day_advanced(previous, current)
--> CropSystem: previous day watered ? growth_days += 1
+-> PlantSystem: previous day watered ? growth_days += 1
 -> generators/NPC schedules update
 -> PlayerState reset health/energy
 -> SceneManager sends player to cabin wake spawn
 -> UI and light refresh
 ```
 
-作物判断 `watered_on_day == previous_day`，无需全图清理 watered bool。
+作物在 day_advanced 时读取 `CellState.CellFlag.WATERED`，完成当日生长结算后清除该 flag。
 
 ### 9.3 场景切换
 
@@ -396,10 +397,12 @@ TimeManager reaches day boundary
   "game_version": "0.1.0",
   "saved_at": "ISO-8601",
   "time": {"year": 1, "month": 0, "day": 0, "hour": 6, "minute": 0},
-  "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500},
-  "inventory": {"selected_hotbar": 0, "hotbar": [], "backpack": []},
+  "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500, "active_hand_source": "toolbar"},
+  "inventory": {"slots": []},
+  "toolbar": {"selected_index": 0, "slots": []},
+  "itembar": {"selected_index": 0, "slots": []},
   "maps": [
-    {"map_id": "farm", "generator_initialized": false, "cells": [], "entities": []}
+    {"map_id": "farm", "generator_initialized": false, "cells": [], "items": []}
   ],
   "npcs": [
     {"npc_id": "npc_villager", "map_id": "farm", "cell": {"x": 12, "y": 8}}
@@ -419,4 +422,4 @@ TimeManager reaches day boundary
 - 是否出现绕过 MapCell 的平行坐标字典？若是，合并到 `BaseMap.cells` 和 MapCell API。
 - TileMapLayer 是否被当作动态权威状态？若是，改为从 MapCell 投影。
 - preview 与 commit 是否重复计算目标？若是，复用同一结果。
-- 地图切换是否会创建第二个 Player/TimeManager？若是，修正主场景边界。
+- 地图切换是否会创建第二个 Player 或重置 GameManager 时间状态？若是，修正主场景边界。

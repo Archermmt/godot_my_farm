@@ -23,7 +23,7 @@
 4. 对角移动不可切阻挡拐角；NPC 使用 delta 移动、稳定朝向和 walk/idle 状态。
 5. 日程时间到达时构建路径；游戏加载到事件中段时允许放置到可解释的估计位置，不要求重放全天每帧。
 6. 跨地图通过 portal graph 更新 NpcState；仅当前地图实例可见，离场状态不丢且不需要隐藏的物理节点持续运行。
-7. GameState.npcs 以 npc_id 保持全局唯一；SceneManager 仅重建 NpcState.map_id 对应当前地图的 NPC，并以 EntityState.EntityType.NPC 通过 BaseMap.add_entity() 挂入 NPC host。地图往返和 save/load 不重复实例。
+7. GameManager.npcs 以 npc_id 保持全局唯一；SceneManager 仅重建 NpcState.map_id 对应当前地图的 NPC Actor。NPC 不使用 ItemState、MapState.items 或 BaseMap.item_hosts；地图往返和 save/load 不重复实例。
 8. 路径不可达时 NPC 留在最近安全位置、记录一次 warning，并在下一日程/地图变化时重试，不死循环。
 
 ## 自动化验收

@@ -6,7 +6,7 @@
 
 > 当前处于核心玩法开发阶段。仓库中的场景和美术仍包含开发夹具与原创占位资源；正式地图、TileMap 和农田网格从 T04 开始接入。
 
-![当前地图 TileMap 夹具](./screenshots/t04/farm.png)
+![T05 纯键盘背包、工具栏与物品栏](./screenshots/t05/inventory.png)
 
 ## 当前进度
 
@@ -17,8 +17,9 @@
 | T02 | Autoload、应用启动、全局服务和新游戏状态 | 已完成 |
 | T03 | 玩家移动、碰撞、四向动画、相机与输入锁 | 已完成 |
 | T04 | 地图、TileMap、农田网格与场景切换 | 已完成 |
+| T05 | 纯键盘背包、Toolbar、Itembar 与唯一手持物 | 已完成 |
 
-最新验证结果：**49 tests / 307 assertions**，三地图序列化 TileMap cells、坐标/flags、主场景启动和 `cabin -> farm -> cabin` 场景往返均通过。
+最新验证结果：**63 tests / 3936 assertions**。纯键盘栏位选择和背包交换、唯一手持物、容器类型约束、输入/时间锁、三地图往返、玩家碰撞与主场景启动均通过。
 
 - [完整任务路线](./docs/TASKS.md)
 - [当前开发状态与验收记录](./docs/STATUS.md)
@@ -26,12 +27,14 @@
 
 ## 已实现能力
 
-- 7 个有明确职责的 Autoload：EventBus、DataCatalog、GameState、TimeManager、SceneManager、SaveManager、AudioManager。
+- 5 个有明确职责的游戏 Autoload：EventBus、DataCatalog、GameManager、SceneManager、AudioManager；GameManager 统一持有游戏状态、时间和存档入口。
 - 12 个物品定义、1 种作物及 4 个成长阶段、3 个采集物、4 张掉落表和 1 份 NPC 日程定义。
-- 可 JSON round-trip 的玩家、背包、日历、地图、农田、作物、世界实体和 NPC 状态模型。
+- 可 JSON round-trip 的玩家、背包、日历、地图、农田、作物、世界 Item 和 NPC 状态模型。
 - 固定容量背包的堆叠、添加、移除、交换、合并和跨容器交换逻辑。
+- 6 格 Toolbar、10 格 Itembar 和 20 格 Inventory；支持 Q/E、Z/C 循环选择、方向焦点、X 两段式交换/合并及非法交换回滚，全流程不依赖鼠标。
+- Player 同一时间只持有一个工具或物品，并以单个 HeldVisual、头顶选择提示和 HUD 同步呈现当前选择。
 - 单一 `player.gd` 根控制器：InputMap、跑步/慢走、对角归一化、碰撞、四向朝向、输入锁和 Camera2D limits；动画由 `AnimationPlayer` + `AnimationLibrary` 管理。
-- `farm`、`field`、`cabin` 三张原创 TileMapLayer 地图；TileMapLayer 直接由各自地图根节点管理，通用逻辑集中在最小基类 `BaseMap`，并由 `FarmMap`、`FieldMap`、`CabinMap` 分别扩展，`MapEntities` 仅作为普通实体容器。
+- `farm`、`field`、`cabin` 三张原创 TileMapLayer 地图；TileMapLayer 直接由各自地图根节点管理，通用逻辑集中在 `BaseMap`，`MapItems` 作为当前地图 Item 容器，通用 Item 代码位于与 world 同级的 `scripts/items/`。
 - 静态地图 cell 直接保存在各地图 `.tscn` 中，可使用 Godot TileMap 编辑器查看和修改；运行时只重建 Dug/Watered 等动态投影。
 - 原生 GDScript 测试运行器、碰撞 fixture、godot-ai 输入序列和运行截图验收链路。
 
@@ -70,12 +73,12 @@ Main
       ↓
 场景领域：Player / BaseMap / FarmMap / WorldItem / NPC / ScenePort
       ↓
-应用服务：SceneManager / TimeManager / SaveManager / AudioManager
+应用服务：SceneManager / AudioManager
       ↓
-状态与定义：GameState / MapState / InventoryState / DataCatalog / *.tres
+状态与定义：GameManager / MapState / InventoryState / DataCatalog / *.tres
 ```
 
-状态、场景和表现分离：GameState 不持有 Node，地图只管理当前空间，持久 Player 由 Main 所有，地图切换由 SceneManager 以事务方式协调。
+状态、场景和表现分离：GameManager 不持有 Node，地图只管理当前空间，持久 Player 由 Main 所有，地图切换由 SceneManager 以事务方式协调。
 
 详细设计见 [总体技术架构](./docs/02_ARCHITECTURE.md) 和 [参考项目映射](./docs/03_REFERENCE_MAPPING.md)。
 
@@ -119,8 +122,11 @@ godot --editor --path .
 |---|---|
 | 移动 | `W` `A` `S` `D` |
 | 慢走 | 按住 `Shift` |
-| 主行动 | 鼠标左键，后续任务接入 |
-| 次行动 | 鼠标右键，后续任务接入 |
+| 使用/蓄力 | `Space`（`use_held`，T06 接入） |
+| 丢下物品 | `G`（`drop_held`，T09 接入） |
+| 工具选择 | `Q` / `E`（T05 接入） |
+| 物品选择 | `Z` / `C`（T05 接入） |
+| 背包 | `P` 打开，方向键/WASD 导航，`X` 交换，`F` 确认（T05 接入） |
 
 ## 测试
 

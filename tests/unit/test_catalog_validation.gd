@@ -7,9 +7,10 @@ func test_core_catalog_loads_and_is_valid() -> void:
 	var catalog: GameCatalog = load(CATALOG_PATH) as GameCatalog
 	assert_true(catalog != null)
 	assert_equal(CatalogValidator.validate(catalog), [])
-	assert_equal(catalog.items.size(), 12)
-	assert_equal(catalog.crops.size(), 1)
-	assert_equal(catalog.harvestables.size(), 3)
+	assert_equal(catalog.items.size(), 15)
+	assert_true(catalog.items[7] is PlantMeta)
+	assert_true(catalog.items[7] is HarvestableMeta)
+	assert_equal(_count_type(catalog.items, HarvestableMeta), 4)
 	assert_equal(catalog.drop_tables.size(), 4)
 	assert_equal(catalog.npc_schedules.size(), 1)
 
@@ -20,7 +21,7 @@ func test_empty_and_duplicate_ids_are_reported() -> void:
 	var errors: Array[String] = CatalogValidator.validate(catalog)
 	assert_true(_contains(errors, "item[0].id"))
 	catalog = _valid_minimal_catalog()
-	var duplicate := ItemDefinition.new()
+	var duplicate := ItemMeta.new()
 	duplicate.id = &"material_test"
 	catalog.items.append(duplicate)
 	errors = CatalogValidator.validate(catalog)
@@ -29,7 +30,7 @@ func test_empty_and_duplicate_ids_are_reported() -> void:
 
 func test_invalid_stack_and_prices_are_reported() -> void:
 	var catalog := _valid_minimal_catalog()
-	var item: ItemDefinition = catalog.items[0]
+	var item: ItemMeta = catalog.items[0]
 	item.stack_limit = 0
 	item.buy_price = -1
 	item.sell_price = -2
@@ -54,32 +55,35 @@ func test_invalid_drop_range_and_reference_are_reported() -> void:
 	assert_true(_contains(errors, "drop_test entries[0].weight"))
 
 
-func test_crop_stage_order_and_cross_references_are_reported() -> void:
+func test_plant_stage_order_and_cross_references_are_reported() -> void:
 	var catalog := _valid_minimal_catalog()
-	var crop: CropDefinition = catalog.crops[0]
-	crop.seed_item_id = &"missing_seed"
-	crop.produce_item_id = &"missing_produce"
-	crop.harvest_drop_table_id = &"missing_drop"
-	crop.stages[1].start_day = 0
-	crop.stages[1].drop_table_id = &"missing_stage_drop"
+	var plant := catalog.items[1] as PlantMeta
+	plant.seed_item_id = &"missing_seed"
+	plant.drop_table_id = &"missing_drop"
+	plant.stages[1]["start_day"] = 0
+	plant.stages[1]["drop_table_id"] = &"missing_stage_drop"
 	var errors: Array[String] = CatalogValidator.validate(catalog)
-	assert_true(_contains(errors, "crop_test seed_item_id"))
-	assert_true(_contains(errors, "crop_test produce_item_id"))
-	assert_true(_contains(errors, "crop_test harvest_drop_table_id"))
-	assert_true(_contains(errors, "crop_test stages[1].start_day"))
-	assert_true(_contains(errors, "crop_test stages[1].drop_table_id"))
+	assert_true(_contains(errors, "plant_test seed_item_id"))
+	assert_true(_contains(errors, "plant_test drop_table_id"))
+	assert_true(_contains(errors, "plant_test stages[1].start_day"))
+	assert_true(_contains(errors, "plant_test stages[1].drop_table_id"))
 
 
-func test_seed_harvestable_and_schedule_references_are_reported() -> void:
+func test_plant_seed_reference_must_point_to_seed_item() -> void:
 	var catalog := _valid_minimal_catalog()
-	catalog.items[0].item_type = ItemDefinition.ItemType.SEED
-	catalog.items[0].related_crop_id = &"missing_crop"
-	catalog.harvestables[0].max_health = 0
-	catalog.harvestables[0].drop_table_id = &"missing_drop"
+	catalog.items[0].item_type = ItemMeta.ItemType.MATERIAL
+	var errors: Array[String] = CatalogValidator.validate(catalog)
+	assert_true(_contains(errors, "plant_test seed_item_id must reference SEED"))
+
+
+func test_harvestable_and_schedule_references_are_reported() -> void:
+	var catalog := _valid_minimal_catalog()
+	var harvestable := catalog.items[2] as HarvestableMeta
+	harvestable.max_health = 0
+	harvestable.drop_table_id = &"missing_drop"
 	catalog.npc_schedules[0].npc_id = &""
 	catalog.npc_schedules[0].events[0].map_id = &""
 	var errors: Array[String] = CatalogValidator.validate(catalog)
-	assert_true(_contains(errors, "material_test related_crop_id"))
 	assert_true(_contains(errors, "harvest_test max_health"))
 	assert_true(_contains(errors, "harvest_test drop_table_id"))
 	assert_true(_contains(errors, "schedule_test npc_id"))
@@ -87,9 +91,10 @@ func test_seed_harvestable_and_schedule_references_are_reported() -> void:
 
 
 func _valid_minimal_catalog() -> GameCatalog:
-	var item := ItemDefinition.new()
+	var item := ItemMeta.new()
 	item.id = &"material_test"
 	item.display_name = "Test Material"
+	item.item_type = ItemMeta.ItemType.SEED
 	item.stack_limit = 10
 
 	var entry := DropTableEntry.new()
@@ -98,18 +103,15 @@ func _valid_minimal_catalog() -> GameCatalog:
 	table.id = &"drop_test"
 	table.entries = [entry]
 
-	var stage_a := GrowthStageDefinition.new()
-	stage_a.start_day = 0
-	var stage_b := GrowthStageDefinition.new()
-	stage_b.start_day = 1
-	var crop := CropDefinition.new()
-	crop.id = &"crop_test"
-	crop.seed_item_id = item.id
-	crop.produce_item_id = item.id
-	crop.harvest_drop_table_id = table.id
-	crop.stages = [stage_a, stage_b]
+	var stage_a := PlantMeta.make_stage(0)
+	var stage_b := PlantMeta.make_stage(1)
+	var plant := PlantMeta.new()
+	plant.id = &"plant_test"
+	plant.seed_item_id = item.id
+	plant.drop_table_id = table.id
+	plant.stages = [stage_a, stage_b]
 
-	var harvestable := HarvestableDefinition.new()
+	var harvestable := HarvestableMeta.new()
 	harvestable.id = &"harvest_test"
 	harvestable.drop_table_id = table.id
 
@@ -122,9 +124,7 @@ func _valid_minimal_catalog() -> GameCatalog:
 	schedule.events = [event]
 
 	var catalog := GameCatalog.new()
-	catalog.items = [item]
-	catalog.crops = [crop]
-	catalog.harvestables = [harvestable]
+	catalog.items = [item, plant, harvestable]
 	catalog.drop_tables = [table]
 	catalog.npc_schedules = [schedule]
 	return catalog
@@ -135,3 +135,11 @@ func _contains(errors: Array[String], fragment: String) -> bool:
 		if fragment in error:
 			return true
 	return false
+
+
+func _count_type(items: Array[ItemMeta], meta_script: Script) -> int:
+	var count := 0
+	for item: ItemMeta in items:
+		if is_instance_of(item, meta_script):
+			count += 1
+	return count

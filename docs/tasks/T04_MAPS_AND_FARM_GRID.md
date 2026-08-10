@@ -46,9 +46,9 @@
 ## 完成记录
 
 - 状态：completed（2026-08-09，Asia/Shanghai；地图层级规则修订）。
-- 地图 registry：farm、field、cabin 全部使用 BaseMap；entity_hosts 按 EntityState.EntityType 配置 Crops/Entities 等节点。
-- `BaseMap` 提供公共坐标、MapCell 索引、layer-status dictionary、范围、实体入口和层对齐 API；地图子类不再声明 Rect2i 区域配置。MapCell 是每格的运行时领域对象，不是场景转发组件。
+- 地图 registry：farm、field、cabin 全部使用 BaseMap；item_hosts 按 ItemMeta.WorldType 配置 Plants/Harvestables/Items 等节点，ItemState 不保存重复类型。
+- `BaseMap` 提供公共坐标、MapCell 索引、layer-status dictionary、范围、地图 Item 入口和层对齐 API；地图子类不再声明 Rect2i 区域配置。MapCell 是每格的运行时领域对象，不是场景转发组件。
 - SceneManager 已实现初始地图加载、输入/时间锁、Tween 淡入淡出、MapHost 替换、失败保留原地图和重复请求拒绝；ScenePort 只提交一次请求。
 - 自动化：`49 tests / 307 assertions`；三张地图均包含序列化 `tile_map_data`，map transition fixture 完成 `cabin -> farm -> cabin`，往返后 Player 数量为 1。
 - 视觉证据：`screenshots/t04/cabin.png`、`screenshots/t04/farm.png`、`screenshots/t04/field.png`，均为 1280x720 Godot framebuffer。
-- 下一任务：T05 背包、快捷栏与手持物。
+- 下一任务：T05 背包、Toolbar、Itembar 与手持物。

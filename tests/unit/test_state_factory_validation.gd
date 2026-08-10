@@ -13,11 +13,18 @@ func test_inventory_rejects_invalid_nested_stack_and_selection() -> void:
 		"slots": [{"item_id": "material_wood", "amount": 2}],
 		"selected_index": 4,
 	}) == null)
+	assert_true(ToolbarState.from_dict({"owner_id": "itembar", "slots": [], "selected_index": 0}) == null)
+	assert_true(ItembarState.from_dict({"owner_id": "toolbar", "slots": [], "selected_index": 0}) == null)
 
 
 func test_player_and_calendar_reject_out_of_range_state() -> void:
 	assert_true(PlayerState.from_dict({"gold": -1}) == null)
 	assert_true(PlayerState.from_dict({"cell": {"x": "bad", "y": 0}}) == null)
+	assert_true(PlayerState.from_dict({
+		"map_id": "farm", "spawn_id": "default", "facing": "down",
+		"cell": {"x": 0, "y": 0}, "max_health": 100, "health": 100,
+		"max_stamina": 100, "stamina": 100, "gold": 0, "active_hand_source": 99,
+	}) == null)
 	assert_true(CalendarState.from_dict({"month": 13}) == null)
 	assert_true(CalendarState.from_dict({"minute": 60}) == null)
 
@@ -26,36 +33,61 @@ func test_map_rejects_invalid_nested_state_and_duplicate_ids() -> void:
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": false,
-		"cells": [{"cell": {"x": 0, "y": 0}, "flags": 1, "dug": false, "watered_on_day": 0, "entity_ids": ["crop_0_0"]}],
-		"entities": [{"type": EntityState.EntityType.CROP}],
-	}) == null, "MapState accepted malformed nested EntityState")
-	var entity: Dictionary = {
+		"cells": [{"cell": {"x": 0, "y": 0}, "flags": 1, "item_ids": ["crop_0_0"]}],
+		"items": [{"state_type": "plant", "meta_id": "", "instance_id": "crop_0_0", "cell": {"x": 0, "y": 0}, "health": 1, "random_seed": 0, "flags": [], "growth_days": 0, "planted_on_day": 1}],
+	}) == null, "MapState accepted malformed nested ItemState")
+	var item: Dictionary = {
+		"state_type": "harvestable",
 		"instance_id": "tree_001",
-		"definition_id": "tree",
-		"type": EntityState.EntityType.HARVESTABLE,
+		"meta_id": "tree",
 		"cell": {"x": 1, "y": 2},
 		"health": 1,
 		"random_seed": 0,
 		"flags": [],
-		"seed_item_id": "",
-		"growth_days": 0,
-		"planted_on_day": 1,
 	}
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": true,
-		"cells": [{"cell": {"x": 1, "y": 2}, "flags": 1, "dug": false, "watered_on_day": 0, "entity_ids": []}],
-		"entities": [entity, entity],
-	}) == null, "MapState accepted duplicate entity IDs")
+		"cells": [{"cell": {"x": 1, "y": 2}, "flags": 1, "item_ids": []}],
+		"items": [item, item],
+	}) == null, "MapState accepted duplicate item IDs")
 
 
-func test_entity_state_rejects_invalid_type() -> void:
-	assert_true(EntityState.from_dict({
+func test_item_state_rejects_missing_meta_id() -> void:
+	assert_true(ItemState.from_dict({
+		"state_type": "plant",
 		"instance_id": "crop_1_2",
-		"definition_id": "crop_parsnip",
-		"type": 999,
+		"meta_id": "",
 		"cell": {"x": 1, "y": 2},
 		"health": 1,
 		"random_seed": 0,
 		"flags": [],
-	}) == null, "EntityState accepted invalid type")
+		"growth_days": 0,
+		"planted_on_day": 1,
+	}) == null, "ItemState accepted missing meta id")
+
+
+func test_item_state_rejects_unknown_state_type() -> void:
+	assert_true(ItemState.from_dict({
+		"state_type": "unknown",
+		"instance_id": "item_1_2",
+		"meta_id": "material_wood",
+		"cell": {"x": 1, "y": 2},
+		"random_seed": 0,
+		"flags": [],
+	}) == null, "ItemState accepted unknown state type")
+
+
+func test_base_item_state_round_trip_preserves_base_type() -> void:
+	var state := ItemState.new()
+	state.instance_id = &"wood_pickup_1"
+	state.meta_id = &"material_wood"
+	state.cell = Vector2i(3, 4)
+	state.random_seed = 12
+	state.flags = [&"pickup"]
+	var restored := ItemState.from_dict(state.to_dict())
+	assert_true(restored != null)
+	assert_equal(restored.state_type(), ItemState.StateType.ITEM)
+	assert_equal(restored.instance_id, state.instance_id)
+	assert_equal(restored.cell, state.cell)
+	assert_equal(restored.flags, state.flags)

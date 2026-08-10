@@ -1,26 +1,18 @@
-class_name GameStateService
+class_name GameManagerService
 extends Node
 
-const INITIAL_TOOL_IDS: Array[StringName] = [
-	&"tool_hoe",
-	&"tool_watering_can",
-	&"tool_sickle",
-	&"tool_basket",
-	&"tool_pickaxe",
-	&"tool_axe",
-]
-const INITIAL_SEED_ID := &"seed_parsnip"
-const INITIAL_SEED_AMOUNT := 15
-const INITIAL_INVENTORY_CAPACITY := 20
 const DEFAULT_WORLD_SEED := 12031992
 
 var player: PlayerState = null
-var inventory: InventoryState = null
 var maps: Dictionary[StringName, MapState] = {}
 var npcs: Dictionary[StringName, NpcState] = {}
 var world_seed: int = 0
 var current_slot: int = -1
 var game_version: String = "0.1.0"
+var calendar: CalendarState = CalendarState.new()
+var time_scale: float = 60.0
+var _running: bool = false
+var _pause_reasons: Dictionary[StringName, bool] = {}
 
 var _catalog_service: DataCatalogService = null
 var _initialized: bool = false
@@ -31,7 +23,7 @@ func _ready() -> void:
 	if _catalog_service != null and _catalog_service.is_ready_for_game():
 		var error: Error = new_game(DEFAULT_WORLD_SEED)
 		if error != OK:
-			push_error("[GameState] failed to create default new game: %s" % error_string(error))
+			push_error("[GameManager] failed to create default new game: %s" % error_string(error))
 
 
 func configure(catalog_service: DataCatalogService) -> void:
@@ -43,24 +35,9 @@ func new_game(p_seed: int) -> Error:
 		return ERR_UNCONFIGURED
 
 	var next_player := PlayerState.new()
-	next_player.map_id = &"cabin"
-	next_player.spawn_id = &"wake"
-	next_player.cell = Vector2i(5, 4)
-	next_player.facing = &"down"
-	next_player.set_max_health(100)
-	next_player.set_health(100)
-	next_player.set_max_stamina(100)
-	next_player.set_stamina(100)
-	next_player.set_gold(500)
-
-	var next_inventory := InventoryState.new(INITIAL_INVENTORY_CAPACITY, &"player")
-	for item_id: StringName in INITIAL_TOOL_IDS:
-		var definition: ItemDefinition = _catalog_service.get_item(item_id)
-		if definition == null or not next_inventory.add_item(item_id, 1, definition.stack_limit):
-			return ERR_INVALID_DATA
-	var seed_definition: ItemDefinition = _catalog_service.get_item(INITIAL_SEED_ID)
-	if seed_definition == null or not next_inventory.add_item(INITIAL_SEED_ID, INITIAL_SEED_AMOUNT, seed_definition.stack_limit):
-		return ERR_INVALID_DATA
+	var player_error := next_player.initialize(_catalog_service)
+	if player_error != OK:
+		return player_error
 
 	var next_maps: Dictionary[StringName, MapState] = {}
 	for map_id: StringName in [&"farm", &"field", &"cabin"]:
@@ -69,19 +46,20 @@ func new_game(p_seed: int) -> Error:
 		next_maps[map_id] = map_state
 
 	player = next_player
-	inventory = next_inventory
 	maps = next_maps
 	npcs = {}
 	world_seed = p_seed
 	current_slot = -1
+	calendar = CalendarState.new()
+	_running = false
+	_pause_reasons.clear()
 	_initialized = true
-	EventBus.inventory_changed.emit(inventory.owner_id)
-	EventBus.player_stats_changed.emit()
-	print("[GameState] new game | seed=%d map=%s inventory=%d/%d" % [
+	EventBus.player_state_changed.emit(player)
+	print("[GameManager] new game | seed=%d map=%s inventory=%d/%d" % [
 		world_seed,
 		player.map_id,
-		used_inventory_slots(),
-		inventory.capacity(),
+		player.used_slot_count(),
+		player.inventory.capacity() + player.toolbar.capacity() + player.itembar.capacity(),
 	])
 	return OK
 
@@ -92,12 +70,56 @@ func is_initialized() -> bool:
 
 func reset() -> void:
 	player = null
-	inventory = null
 	maps.clear()
 	npcs.clear()
 	world_seed = 0
 	current_slot = -1
+	calendar = CalendarState.new()
+	_running = false
+	_pause_reasons.clear()
 	_initialized = false
+
+
+func start() -> void:
+	_running = true
+
+
+func stop() -> void:
+	_running = false
+
+
+func is_running() -> bool:
+	return _running
+
+
+func pause(reason: StringName) -> Error:
+	if reason == &"":
+		return ERR_INVALID_PARAMETER
+	_pause_reasons[reason] = true
+	return OK
+
+
+func resume(reason: StringName) -> Error:
+	if reason == &"":
+		return ERR_INVALID_PARAMETER
+	if not _pause_reasons.erase(reason):
+		return ERR_DOES_NOT_EXIST
+	return OK
+
+
+func is_paused() -> bool:
+	return not _pause_reasons.is_empty()
+
+
+func can_advance() -> bool:
+	return _running and not is_paused()
+
+
+func pause_reasons() -> Array[StringName]:
+	var reasons: Array[StringName] = []
+	reasons.assign(_pause_reasons.keys())
+	reasons.sort()
+	return reasons
 
 
 func snapshot() -> Dictionary:
@@ -120,10 +142,62 @@ func snapshot() -> Dictionary:
 		"world_seed": world_seed,
 		"current_slot": current_slot,
 		"player": player.to_dict(),
-		"inventory": inventory.to_dict(),
 		"maps": map_data,
 		"npcs": npc_data,
 	}.duplicate(true)
+
+
+func time_snapshot() -> Dictionary:
+	return {
+		"calendar": calendar.to_dict(),
+		"time_scale": time_scale,
+		"running": _running,
+		"pause_reasons": SerializationUtil.string_name_array_to_strings(pause_reasons()),
+	}.duplicate(true)
+
+
+func can_snapshot() -> bool:
+	return _initialized
+
+
+func build_snapshot() -> Dictionary:
+	if not can_snapshot():
+		return {}
+	return {
+		"game": snapshot(),
+		"time": time_snapshot(),
+	}.duplicate(true)
+
+
+func replace_build_snapshot(data: Dictionary) -> Error:
+	if not SerializationUtil.has_valid_dictionary(data, "game") or not SerializationUtil.has_valid_dictionary(data, "time"):
+		return ERR_INVALID_DATA
+	var time_data := data.get("time", {}) as Dictionary
+	var next_calendar := CalendarState.from_dict(time_data.get("calendar", {}) as Dictionary)
+	var raw_time_scale: Variant = time_data.get("time_scale", 60.0)
+	if next_calendar == null or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT) or float(raw_time_scale) <= 0.0 or not SerializationUtil.has_valid_bool(time_data, "running") or not SerializationUtil.has_valid_array(time_data, "pause_reasons"):
+		return ERR_INVALID_DATA
+	var next_pause_reasons: Dictionary[StringName, bool] = {}
+	for raw_reason: Variant in time_data.get("pause_reasons", []) as Array:
+		if typeof(raw_reason) != TYPE_STRING or String(raw_reason).is_empty():
+			return ERR_INVALID_DATA
+		next_pause_reasons[StringName(str(raw_reason))] = true
+	var game_error := replace_snapshot(data.get("game", {}) as Dictionary)
+	if game_error != OK:
+		return game_error
+	calendar = next_calendar
+	time_scale = float(time_data.get("time_scale", 60.0))
+	_running = bool(time_data.get("running", false))
+	_pause_reasons = next_pause_reasons
+	return OK
+
+
+func save_slot(_slot: int = 0) -> Error:
+	return ERR_UNAVAILABLE
+
+
+func load_slot(_slot: int = 0) -> Error:
+	return ERR_UNAVAILABLE
 
 
 func replace_snapshot(data: Dictionary) -> Error:
@@ -131,14 +205,15 @@ func replace_snapshot(data: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_int(data, "world_seed") or not SerializationUtil.has_valid_int(data, "current_slot"):
 		return ERR_INVALID_DATA
-	if not SerializationUtil.has_valid_dictionary(data, "player") or not SerializationUtil.has_valid_dictionary(data, "inventory"):
+	if not SerializationUtil.has_valid_dictionary(data, "player"):
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_array(data, "maps") or not SerializationUtil.has_valid_array(data, "npcs"):
 		return ERR_INVALID_DATA
 
 	var next_player := PlayerState.from_dict(data.get("player", {}) as Dictionary)
-	var next_inventory := InventoryState.from_dict(data.get("inventory", {}) as Dictionary)
-	if next_player == null or next_inventory == null:
+	if next_player == null:
+		return ERR_INVALID_DATA
+	if not _validate_player_containers(next_player):
 		return ERR_INVALID_DATA
 	var next_maps: Dictionary[StringName, MapState] = {}
 	for raw_map: Variant in data.get("maps", []) as Array:
@@ -160,17 +235,14 @@ func replace_snapshot(data: Dictionary) -> Error:
 		next_npcs[npc_state.npc_id] = npc_state
 
 	player = next_player
-	inventory = next_inventory
 	maps = next_maps
 	npcs = next_npcs
 	world_seed = int(data.get("world_seed", 0))
 	current_slot = int(data.get("current_slot", -1))
 	game_version = str(data.get("game_version", game_version))
 	_initialized = true
-	EventBus.inventory_changed.emit(inventory.owner_id)
-	EventBus.player_stats_changed.emit()
+	EventBus.player_state_changed.emit(player)
 	return OK
-
 
 func set_npc(state: NpcState) -> Error:
 	if state == null or state.npc_id == &"" or state.map_id == &"":
@@ -193,9 +265,9 @@ func startup_summary() -> String:
 	return "seed=%d map=%s units=%d slots=%d/%d hp=%d stamina=%d gold=%d" % [
 		world_seed,
 		player.map_id,
-		inventory.count_item(INITIAL_SEED_ID) + INITIAL_TOOL_IDS.size(),
-		used_inventory_slots(),
-		inventory.capacity(),
+		player.itembar.count_item(PlayerState.INITIAL_SEED_ID) + PlayerState.INITIAL_TOOL_IDS.size(),
+		player.used_slot_count(),
+		player.inventory.capacity() + player.toolbar.capacity() + player.itembar.capacity(),
 		player.health,
 		player.stamina,
 		player.gold,
@@ -203,10 +275,18 @@ func startup_summary() -> String:
 
 
 func used_inventory_slots() -> int:
-	if inventory == null:
-		return 0
-	var used: int = 0
-	for stack: ItemStack in inventory.slots:
-		if not stack.is_empty():
-			used += 1
-	return used
+	return player.used_inventory_slots() if player != null else 0
+
+
+func used_slot_count() -> int:
+	return player.used_slot_count() if player != null else 0
+
+
+func _validate_player_containers(next_player: PlayerState) -> bool:
+	for container_id: StringName in [&"inventory", &"toolbar", &"itembar"]:
+		var container := next_player.get_container(container_id)
+		for stack: ItemStack in container.slots:
+			var meta := _catalog_service.get_item(stack.item_id) if not stack.is_empty() else null
+			if not next_player.container_accepts_stack(container_id, stack, meta):
+				return false
+	return true

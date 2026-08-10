@@ -1,17 +1,17 @@
-[gd_resource type="Resource" load_steps=37 format=3]
+[gd_resource type="Resource" load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/game_catalog.gd" id="1_catalog"]
-[ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_item"]
-[ext_resource type="Script" path="res://scripts/data/growth_stage_definition.gd" id="3_stage"]
-[ext_resource type="Script" path="res://scripts/data/crop_definition.gd" id="4_crop"]
+[ext_resource type="Script" path="res://scripts/data/item/item_meta.gd" id="2_item"]
+[ext_resource type="Script" path="res://scripts/data/item/plant_meta.gd" id="4_plant"]
 [ext_resource type="Script" path="res://scripts/data/drop_table_entry.gd" id="5_entry"]
 [ext_resource type="Script" path="res://scripts/data/drop_table.gd" id="6_table"]
-[ext_resource type="Script" path="res://scripts/data/harvestable_definition.gd" id="7_harvestable"]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_meta.gd" id="7_harvestable"]
 [ext_resource type="Script" path="res://scripts/data/npc_schedule_event.gd" id="8_event"]
 [ext_resource type="Script" path="res://scripts/data/npc_schedule.gd" id="9_schedule"]
+[ext_resource type="Script" path="res://scripts/data/item/tool_meta.gd" id="10_tool"]
 
 [sub_resource type="Resource" id="ItemHoe"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_hoe"
 display_name = "Hoe"
 description = "Tills farmable soil."
@@ -20,10 +20,9 @@ use_kind = 1
 tool_kind = 1
 stack_limit = 1
 base_stamina_cost = 2
-animation_tags = Array[StringName]([&"tool", &"hoe"])
 
 [sub_resource type="Resource" id="ItemWateringCan"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_watering_can"
 display_name = "Watering Can"
 description = "Waters tilled soil."
@@ -32,10 +31,9 @@ use_kind = 1
 tool_kind = 2
 stack_limit = 1
 base_stamina_cost = 1
-animation_tags = Array[StringName]([&"tool", &"water"])
 
 [sub_resource type="Resource" id="ItemSickle"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_sickle"
 display_name = "Sickle"
 description = "Cuts grass and light plants."
@@ -44,10 +42,9 @@ use_kind = 2
 tool_kind = 3
 stack_limit = 1
 base_stamina_cost = 1
-animation_tags = Array[StringName]([&"tool", &"swing"])
 
 [sub_resource type="Resource" id="ItemBasket"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_basket"
 display_name = "Harvest Basket"
 description = "Harvests ripe produce."
@@ -56,10 +53,9 @@ use_kind = 2
 tool_kind = 4
 stack_limit = 1
 base_stamina_cost = 0
-animation_tags = Array[StringName]([&"tool", &"harvest"])
 
 [sub_resource type="Resource" id="ItemPickaxe"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_pickaxe"
 display_name = "Pickaxe"
 description = "Breaks stone."
@@ -68,10 +64,9 @@ use_kind = 2
 tool_kind = 5
 stack_limit = 1
 base_stamina_cost = 2
-animation_tags = Array[StringName]([&"tool", &"swing"])
 
 [sub_resource type="Resource" id="ItemAxe"]
-script = ExtResource("2_item")
+script = ExtResource("10_tool")
 id = &"tool_axe"
 display_name = "Axe"
 description = "Chops trees and stumps."
@@ -80,7 +75,6 @@ use_kind = 2
 tool_kind = 6
 stack_limit = 1
 base_stamina_cost = 2
-animation_tags = Array[StringName]([&"tool", &"swing"])
 
 [sub_resource type="Resource" id="ItemSeedParsnip"]
 script = ExtResource("2_item")
@@ -91,19 +85,6 @@ item_type = 1
 use_kind = 3
 stack_limit = 99
 buy_price = 20
-related_crop_id = &"crop_parsnip"
-animation_tags = Array[StringName]([&"seed"])
-
-[sub_resource type="Resource" id="ItemParsnip"]
-script = ExtResource("2_item")
-id = &"crop_parsnip"
-display_name = "Parsnip"
-description = "A crisp spring root."
-item_type = 3
-use_kind = 5
-stack_limit = 99
-buy_price = 50
-sell_price = 35
 
 [sub_resource type="Resource" id="ItemWood"]
 script = ExtResource("2_item")
@@ -198,49 +179,54 @@ script = ExtResource("6_table")
 id = &"drop_grass"
 entries = Array[ExtResource("5_entry")]([SubResource("DropGrassEntry")])
 
-[sub_resource type="Resource" id="StageSeed"]
-script = ExtResource("3_stage")
-start_day = 0
-max_health = 1
-visual_key = &"parsnip_seed"
-state_tags = Array[StringName]([&"sprout"])
-
-[sub_resource type="Resource" id="StageSprout"]
-script = ExtResource("3_stage")
-start_day = 2
-max_health = 1
-visual_key = &"parsnip_sprout"
-state_tags = Array[StringName]([&"growing"])
-
-[sub_resource type="Resource" id="StageLeaves"]
-script = ExtResource("3_stage")
-start_day = 4
-max_health = 2
-visual_key = &"parsnip_leaves"
-state_tags = Array[StringName]([&"growing"])
-
-[sub_resource type="Resource" id="StageMature"]
-script = ExtResource("3_stage")
-start_day = 6
-max_health = 2
-visual_key = &"parsnip_mature"
-state_tags = Array[StringName]([&"mature", &"harvestable"])
-drop_table_id = &"drop_parsnip"
-
-[sub_resource type="Resource" id="CropParsnip"]
-script = ExtResource("4_crop")
+[sub_resource type="Resource" id="ItemParsnip"]
+script = ExtResource("4_plant")
 id = &"crop_parsnip"
+display_name = "Parsnip"
+description = "A crisp spring root."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+buy_price = 50
+sell_price = 35
 seed_item_id = &"seed_parsnip"
-produce_item_id = &"crop_parsnip"
-stages = Array[ExtResource("3_stage")]([SubResource("StageSeed"), SubResource("StageSprout"), SubResource("StageLeaves"), SubResource("StageMature")])
+stages = Array[Dictionary]([{
+"drop_table_id": &"",
+"max_health": 1,
+"start_day": 0,
+"state_tags": Array[StringName]([&"sprout"]),
+"visual_key": &"parsnip_seed"
+}, {
+"drop_table_id": &"",
+"max_health": 1,
+"start_day": 2,
+"state_tags": Array[StringName]([&"growing"]),
+"visual_key": &"parsnip_sprout"
+}, {
+"drop_table_id": &"",
+"max_health": 2,
+"start_day": 4,
+"state_tags": Array[StringName]([&"growing"]),
+"visual_key": &"parsnip_leaves"
+}, {
+"drop_table_id": &"drop_parsnip",
+"max_health": 2,
+"start_day": 6,
+"state_tags": Array[StringName]([&"mature", &"harvestable"]),
+"visual_key": &"parsnip_mature"
+}])
 requires_water = true
-harvest_tool = 4
-harvest_drop_table_id = &"drop_parsnip"
+required_tool = 4
+max_health = 2
+drop_table_id = &"drop_parsnip"
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
 
 [sub_resource type="Resource" id="HarvestTree"]
 script = ExtResource("7_harvestable")
 id = &"tree"
 display_name = "Tree"
+item_type = 4
 required_tool = 6
 max_health = 5
 drop_table_id = &"drop_wood"
@@ -251,6 +237,7 @@ state_tags = Array[StringName]([&"tree"])
 script = ExtResource("7_harvestable")
 id = &"rock"
 display_name = "Rock"
+item_type = 4
 required_tool = 5
 max_health = 3
 drop_table_id = &"drop_stone"
@@ -261,6 +248,7 @@ state_tags = Array[StringName]([&"rock"])
 script = ExtResource("7_harvestable")
 id = &"grass"
 display_name = "Grass"
+item_type = 5
 required_tool = 3
 max_health = 1
 drop_table_id = &"drop_grass"
@@ -289,8 +277,6 @@ events = Array[ExtResource("8_event")]([SubResource("ScheduleEventFarm")])
 
 [resource]
 script = ExtResource("1_catalog")
-items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemParsnip"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood")])
-crops = Array[ExtResource("4_crop")]([SubResource("CropParsnip")])
-harvestables = Array[ExtResource("7_harvestable")]([SubResource("HarvestTree"), SubResource("HarvestRock"), SubResource("HarvestGrass")])
+items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemParsnip"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood"), SubResource("HarvestTree"), SubResource("HarvestRock"), SubResource("HarvestGrass")])
 drop_tables = Array[ExtResource("6_table")]([SubResource("DropParsnip"), SubResource("DropWood"), SubResource("DropStone"), SubResource("DropGrass")])
 npc_schedules = Array[ExtResource("9_schedule")]([SubResource("ScheduleVillager")])

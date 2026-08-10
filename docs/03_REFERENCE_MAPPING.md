@@ -33,27 +33,27 @@
 |---|---|---|
 | `EventHandler` static events | 跨系统事件 | `EventBus` Autoload typed signals |
 | `Singleton<T>` | 持久服务 | 窄职责 Autoload；场景对象用注册/注入 |
-| `ItemData [Serializable]` | 物品静态定义 | `ItemDefinition extends Resource` + `.tres` |
+| `ItemData [Serializable]` | 物品静态定义 | `ItemMeta extends Resource` + `.tres` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
-| `Item` | 物品通用状态/交互 | ItemDefinition + held/world scene 组件 |
+| `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
 | `Tool` | 体力和蓄力 | `UseAction`/`ToolAction` 策略 |
 | `GridTool` | 网格行动 | `GridToolAction` + MapCell transaction |
 | `ItemTool` | 对对象行动 | `HarvestToolAction` + Harvestable component |
-| `Seed` | 种植范围和消耗 | `SeedAction` + CropDefinition |
-| `Harvestable/LifePeriod` | 阶段、生命、掉落 | `HarvestableDefinition`/GrowthStage + component |
-| `Plant/Crop` | 地块植物与浇水成长 | `EntityState(type=CROP)` + CropEntity + day_advanced |
-| `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `TreeEntity` 专属状态/动画策略 |
-| `Pickable` | 吸附拾取 | `PickupEntity (Area2D)` |
-| `FieldGrid` | 单格标签与实体 | MapCell/CellState + BaseMap/MapState entities |
+| `Seed` | 种植范围和消耗 | `SeedAction` + PlantMeta |
+| `Harvestable/LifePeriod` | 阶段、生命、掉落 | `HarvestableMeta`/GrowthStage + component |
+| `Plant/Crop` | 地块植物与浇水成长 | `PlantMeta` + PlantState + PlantItem + day_advanced |
+| `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `HarvestableMeta` + TreeWorldItem 专属状态/动画策略 |
+| `Pickable` | 吸附拾取 | `PickupItem (Area2D)` |
+| `FieldGrid` | 单格标签与地图 Item | MapCell/CellState + BaseMap/MapState items |
 | `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_flags` + MapCell |
 | `FieldManager` | 网格、光标、工具执行 | `BaseMap` + TargetingService + InteractionController |
 | `Cursor` | 有效/无效目标反馈 | `InteractionCursor` scene |
 | `Generator` | 随机环境对象 | seeded `WorldGenerator` + MapState |
 | `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `InventoryState` 与 InventoryUI 分离 |
-| `ToolBar` | 快捷栏换边 | `HotbarUI` Control |
+| `ToolBar` | 快捷栏选择 | 分离的 `ToolbarUI`（工具）+ `ItembarUI`（非工具物品）+ Player 头顶选择提示 |
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
 | `PlayerStatus` | 生命/体力/金币与 UI | PlayerState + HUD 投影 |
-| `EnvManager/Clock` | 时间推进和显示 | TimeManager + ClockUI |
+| `EnvManager/Clock` | 时间推进和显示 | GameManager.CalendarState + ClockUI |
 | `SceneController` | additive scene/淡入淡出 | persistent Main + SceneManager + MapHost |
 | `ScenePort` | 地图触发器 | Area2D `ScenePort` 请求 SceneManager |
 | `ItemManager` | 定义索引、工厂、地图 item 内存 | DataCatalog + ItemFactory + MapState |
@@ -66,23 +66,23 @@
 
 ### 4.1 同一套地块查询驱动所有行动
 
-参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 Cursor。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套鼠标坐标逻辑。
+参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 Cursor。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套目标坐标逻辑；目标由 Player facing 计算，不再读取鼠标位置。
 
 ### 4.2 工具类别与目标能力匹配
 
-参考代码由 `ToolType` 与每个 LifePeriod 的 harvest data 决定有效工具和产出。Godot 版由 `tool_kind`、HarvestableDefinition 和 DropTable 实现，不把对象名写进工具脚本。
+参考代码由 `ToolType` 与每个 LifePeriod 的 harvest data 决定有效工具和产出。Godot 版由 `tool_kind`、HarvestableMeta 和 DropTable 实现，不把对象名写进工具脚本。
 
 ### 4.3 生命阶段是数据
 
-成长日、图像、生命和掉落必须来自 Resource 数据，不能把“第 3 天换 sprite”硬编码在 CropEntity。
+成长日、图像、生命和掉落必须来自 Resource 数据，不能把“第 3 天换 sprite”硬编码在 PlantItem。
 
 ### 4.4 玩家跨地图保持，地图动态状态恢复
 
-Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 MapState 的 cells/entities；NPC 状态持续保存在 GameState.npcs。再次进入时恢复作物、掉落、被砍树木，并按 NpcState.map_id 恢复当前地图 NPC；不能重新生成成初始地图。
+Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 MapState 的 cells/items；NPC 状态持续保存在 GameManager.npcs。再次进入时恢复作物、掉落、被砍树木，并按 NpcState.map_id 恢复当前地图 NPC；不能重新生成成初始地图。
 
 ### 4.5 时间事件驱动而非对象轮询
 
-作物、玩家状态、NPC 和光照订阅统一时间变化；Crop 不在每帧读取时钟判断成长。
+植物、玩家状态、NPC 和光照订阅统一时间变化；Plant 不在每帧读取时钟判断成长。
 
 ## 5. 有意改进而不是照抄的部分
 
@@ -90,12 +90,13 @@ Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 Ma
 |---|---|---|
 | Manager 经常按 tag/名称搜索场景树 | 显式注册、导出引用、窄 API | 防止换场景时绑定错误，便于测试 |
 | ItemData、行为、Prefab 路径部分靠名称约定 | Resource 直接引用 PackedScene，稳定 ID 索引 | 重命名安全，可在启动时校验 |
-| FieldLayer 同时承载表现、标签和存档 | CellState/EntityState 持久化，MapCell/Entity 运行，TileMapLayer 仅投影 | 存档、测试与重建更可靠 |
+| FieldLayer 同时承载表现、标签和存档 | CellState/ItemState 持久化，MapCell/Item 运行，TileMapLayer 仅投影 | 存档、测试与重建更可靠 |
 | Inventory Slot 同时持有数据和 UI | InventoryState 与 Control 分离 | UI 销毁不丢状态，便于存档 |
 | 工具应用可能跨多个对象逐个修改 | 先完整校验，再原子提交 | 避免体力/数量不足时只执行一半 |
 | Scene item 状态仅在进程内缓存 | MapState + 单槽版本化存档 | 支持真正退出/读取 |
 | NPC 手写路径搜索 | Godot `AStarGrid2D` | 使用内建成熟实现并保留道路 penalty |
 | 多个系统用 freeze bool | reason-based pause/input lock | 防止 UI、过场、工具互相提前解锁 |
+| 鼠标定向、右键蓄力、拖拽背包 | 纯键盘 facing 目标、use/drop action、方向焦点与交换键 | 满足当前项目的键盘优先交互要求，并便于后续手柄映射 |
 
 ## 6. 不应从参考项目推断的功能
 

@@ -28,7 +28,7 @@ godot --headless --path . --quit
 测试规则：
 
 - 每个 `test_*` 至少一个断言；环境不满足时显式 skip 并说明原因。
-- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、EntityState type/growth_days。
+- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、PlantState meta_id/growth_days。
 - 随机行为固定 seed，并断言边界与确定结果。
 - 测试结束清理 `user://` 下测试专用文件，不能覆盖真实 `slot_0.json`。
 - 测试套件之间不共享可变 Autoload 状态；每个套件 reset 或构造独立实例。
@@ -40,14 +40,14 @@ godot --headless --path . --quit
 | DataCatalog | ID 索引和交叉引用 | 重复 ID、缺失 crop/drop 引用 |
 | InventoryState | 堆叠、交换、合并、移除 | 满包、不足数量、越界 slot |
 | PlayerState | 体力/生命/金币上下限 | 负数和超过上限 |
-| CellState/MapCell | DTO round-trip、status、翻地、浇水日、entity_ids | 不可挖、重复 ID、坐标不匹配、占用冲突 |
+| CellState/MapCell | DTO round-trip、status、翻地、浇水日、item_ids | 不可挖、重复 ID、坐标不匹配、占用冲突 |
 | Targeting | 各蓄力范围和稳定顺序 | 地图边缘、阻挡、可用目标不足 |
 | Action transaction | 体力/物品/地块一起提交 | 任一条件失败时全部不变 |
-| EntityState/Entity | type 恢复、BaseMap 工厂、浇水后跨天成长 | 非法 type、host 缺失、重复 ID |
+| ItemMeta/ItemState/Item | State 子类恢复、Meta/State/Item 强类型绑定、BaseMap 工厂、浇水后跨天成长 | 未知 meta_id、未知 state_type、Meta/State/host 不匹配、重复 ID |
 | Harvest/DropTable | 工具匹配、生命、掉落 | 错工具、未死亡无掉落、min/max |
-| TimeManager | 分钟跨小时/日/月/年 | 大 delta、暂停 reason 叠加 |
+| GameManager 时间 | 分钟跨小时/日/月/年 | 大 delta、暂停 reason 叠加 |
 | NpcSchedule | 季节/星期过滤和 fallback | 无匹配、跨午夜、加载中间时刻 |
-| SaveManager DTO | round-trip 等价 | 坏 JSON、未知版本、缺字段 |
+| GameManager 存档 DTO | round-trip 等价 | 坏 JSON、未知版本、缺字段 |
 
 ## 4. 集成测试场景
 
@@ -61,15 +61,15 @@ godot --headless --path . --quit
 
 ### I03 种植到收获
 
-翻地、种种、浇水、推进多日、收获；检查种子数量、EntityState 阶段、产物、MapState DTO 和 BaseMap 运行时节点。
+翻地、播种、浇水、推进多日、收获；检查种子数量、ItemState 阶段、产物、MapState DTO 和 BaseMap 运行时节点。
 
 ### I04 掉落到背包
 
-破坏固定对象，生成固定掉落，Player 进入吸附半径；检查世界实体移除和 ItemStack 增加。满包时实体保留。
+破坏固定对象，生成固定掉落，Player 进入吸附半径；检查世界 Item 移除和 ItemStack 增加。满包时 Item 保留。
 
 ### I05 地图往返
 
-修改 farm 状态 -> 经 ScenePort 到 cabin -> 返回 farm；检查 Player 唯一、地块/实体状态未重置，GameState.npcs 中的 NPC 跨图位置正确且当前地图实例唯一，输入和时间锁已释放。
+修改 farm 状态 -> 经 ScenePort 到 cabin -> 返回 farm；检查 Player 唯一、地块/Item 状态未重置，GameManager.npcs 中的 NPC 跨图位置正确且当前地图实例唯一，输入和时间锁已释放。
 
 ### I06 换日
 
@@ -91,11 +91,11 @@ godot --headless --path . --quit
 |---|---|---|
 | E01 启动 | 从主场景进入小屋 | 非空、Player/HUD/时钟可见、无错误 |
 | E02 移动和碰撞 | 四方向、对角、Shift 慢走、撞墙 | 动画/朝向正确，无抖动/穿墙 |
-| E03 快捷栏 | 切换 6 工具和种子 | 高亮唯一、手持图匹配、栏不遮 Player |
+| E03 Toolbar/Itembar | 纯键盘切换 6 工具和种子 | Player 头顶对应 bar 高亮唯一、HUD/Hands 匹配、同一时间只有一个 active stack |
 | E04 农事 | 翻地、播种、浇水 | 三种光标、TileMap 对齐、行动反馈明确 |
 | E05 蓄力 | 按住到多级再释放 | 范围逐级扩大，只提交一次 |
 | E06 采集 | 斧/镐/镰刀作用匹配对象 | 错工具无效，正确工具有受击/掉落/吸附 |
-| E07 背包 | 打开、拖拽、交换、关闭 | 输入锁、tooltip 完整、无重叠 |
+| E07 背包 | 打开、方向焦点、两段式按键交换、关闭 | 三容器类型约束、数量守恒、输入锁、tooltip 完整、无重叠、无鼠标事件 |
 | E08 转场 | farm/field/cabin 往返 | 淡出入、无闪帧/重复 Player、状态保留 |
 | E09 换日成长 | 睡前到次日 | 光照/时钟变化，回小屋，作物阶段变化 |
 | E10 NPC | 观察两个时间点 | NPC 可见、路径合理、无穿障碍 |
@@ -115,21 +115,21 @@ godot --headless --path . --quit
 - TileMapLayer、光标、作物和掉落以同一格对齐。
 - Player/NPC/树木 y-sort 正确，没有跨层突然遮挡。
 - nearest filtering 生效，移动停止帧没有模糊边缘。
-- HUD、背包、tooltip、转场层次正确，文字不截断。
+- HUD、Player 头顶 Toolbar/Itembar、背包三容器焦点、tooltip、转场层次正确，文字不截断。
 - 状态颜色有足够对比，有效/无效目标不只靠色相区分。
 
 ## 7. 性能与稳定性
 
-首版目标：默认地图和 100 个动态实体下，开发机保持稳定 60 FPS。验收时通过 editor monitor 或 Godot profiler 观察：
+首版目标：默认地图和 100 个动态 Item 下，开发机保持稳定 60 FPS。验收时通过 editor monitor 或 Godot profiler 观察：
 
 - 每帧没有全树搜索和资源加载。
 - 空闲状态日志不持续增长。
-- 地图往返 20 次后 Player、HUD、TimeManager 和信号订阅数量不增长。
+- 地图往返 20 次后 Player、HUD、GameManager 时间状态和信号订阅数量不增长。
 - 同一格重复无效操作 100 次不创建隐藏节点或重复音频播放器。
 - 存档 10 次始终可读，临时文件不累积。
 
 ## 8. 最终证明
 
-T17 输出 15-20 秒连续证明片段或等价的连续截图序列，至少包含：移动 -> 选择工具 -> 翻地/播种/浇水 -> 采集掉落 -> 背包操作 -> 转场/换日后的成长结果。
+T17 输出 15-20 秒连续证明片段或等价的连续截图序列，至少包含：键盘移动 -> Toolbar/Itembar 选择 -> 翻地/播种/浇水 -> 采集掉落 -> 方向焦点背包交换 -> 转场/换日后的成长结果。
 
 录制前固定 seed 和起始存档，删除所有 debug overlay，使用真实主场景。录制后必须回看，确认不是空帧、卡死、单帧循环、UI 遮挡或音画严重不同步。证明文件路径和运行日志写入 `STATUS.md`。
