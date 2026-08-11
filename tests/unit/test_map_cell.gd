@@ -8,12 +8,12 @@ func test_flag_queries_are_owned_by_map_cell() -> void:
 	assert_true(not cell.is_diggable())
 	cell.add_flag(CellState.CellFlag.DIGGABLE)
 	assert_true(cell.is_diggable())
-	assert_true(cell.can_till())
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.HOE), &"")
 	cell.add_flag(CellState.CellFlag.DROPABLE)
 	assert_true(cell.can_drop())
 	cell.add_flag(CellState.CellFlag.BLOCKED)
 	assert_true(not cell.is_walkable())
-	assert_true(not cell.can_till())
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.HOE), &"blocked")
 	assert_true(not cell.can_drop())
 	cell.remove_flag(CellState.CellFlag.BLOCKED)
 	assert_true(cell.is_walkable())
@@ -21,14 +21,15 @@ func test_flag_queries_are_owned_by_map_cell() -> void:
 
 func test_map_cell_owns_dynamic_state() -> void:
 	var cell := MapCell.new(Vector2i(3, 2), CellState.CellFlag.BASE | CellState.CellFlag.DIGGABLE)
-	assert_equal(cell.dig(), OK)
-	assert_equal(cell.water(), OK)
+	assert_equal(cell.use_tool(ToolMeta.ToolKind.HOE), OK)
+	assert_equal(cell.use_tool(ToolMeta.ToolKind.WATERING_CAN), OK)
 	assert_true(cell.is_dug())
 	assert_true(cell.is_watered())
 	assert_true(cell.has_flag(CellState.CellFlag.DUG | CellState.CellFlag.WATERED))
-	assert_true(not cell.can_till())
-	assert_true(cell.can_water())
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.HOE), &"already_dug")
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.WATERING_CAN), &"already_watered")
 	cell.remove_flag(CellState.CellFlag.WATERED)
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.WATERING_CAN), &"")
 	assert_true(not cell.is_watered())
 
 
@@ -36,7 +37,7 @@ func test_occupancy_prevents_tilling() -> void:
 	var cell := MapCell.new(Vector2i.ZERO, CellState.CellFlag.DIGGABLE)
 	assert_equal(cell.add_item_id(&"rock_001"), OK)
 	assert_true(cell.has_occupant())
-	assert_true(not cell.can_till())
+	assert_equal(cell.tool_rejection_reason(ToolMeta.ToolKind.HOE), &"occupied")
 
 
 func test_map_cell_rejects_invalid_or_duplicate_item_id() -> void:

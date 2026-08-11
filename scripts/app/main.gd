@@ -48,10 +48,10 @@ func _ready() -> void:
 		return
 	GameManager.start()
 	status_dot.color = Color("77cc59")
-	status_label.text = "T05  INVENTORY READY"
+	status_label.text = "T07  FARM TOOLS READY"
 	service_panel.visible = false
 	bootstrap_screen.visible = false
-	print("[T05] inventory ready | map=%s player_count=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
+	print("[T07] farm tools ready | map=%s player_count=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
 		SceneManager.current_map_id(),
 		get_tree().get_nodes_in_group("player").size(),
 		player.run_speed,

@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T06 统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md)（completed）。
-- 下一任务：T07 翻地与浇水。
+- 当前任务：[T07 翻地与浇水](./tasks/T07_TILL_AND_WATER.md)（completed）。
+- 下一任务：[T08 播种、作物与成长](./tasks/T08_CROPS.md)。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
@@ -27,7 +27,8 @@
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
 - T05 已实现 6 格 Toolbar、10 格 Itembar 与 20 格 Inventory。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
 - 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
-- T06 已建立统一 `InteractionContext`；Player 场景持有并直接控制唯一的 `InteractionCursor`，由 Cursor 统一维护蓄力状态、计算并绘制 CellState preview。Cursor 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。本阶段只发出 `interaction_committed` 事实，不修改农田或消费资源。
+- T06 已建立统一 `InteractionCursor`；Player 场景持有并直接控制唯一的 Cursor，Cursor 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview。Cursor 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
+- T07 已实现运行时 `Tool` 与结构化 `ToolUseResult`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
 
 ## 环境记录
 
@@ -39,6 +40,8 @@
 
 ## 最近一次验证
 
+- 日期：2026-08-11（Asia/Shanghai）。
+- T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、Cursor 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
 - 日期：2026-08-10（Asia/Shanghai）。
 - T05 自动化：资源 import、runner、键盘背包 fixture、地图往返 fixture、玩家碰撞 fixture、主场景 quit 和 `git diff --check` 全部 exit 0；runner 为 63 tests / 3936 assertions。
 - T05 键盘流程：`InventoryKeyboardTest` 验证 Toolbar/Itembar 切换、Player 头顶提示、唯一 HeldVisual、空栏清手、非法 tool -> Itembar 回滚、Toolbar/Itembar -> Inventory 交换以及锁释放，输出 `PASS | toolbar/itembar/head-ui/swap/locks`。

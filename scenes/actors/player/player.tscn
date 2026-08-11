@@ -1,7 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://ctuq8r0y26w3g"]
 
-[ext_resource type="Script" path="res://scripts/actors/player.gd" id="1_player"]
-[ext_resource type="Texture2D" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
+[ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actors/player.gd" id="1_player"]
+[ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
 [ext_resource type="AnimationLibrary" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
 [ext_resource type="PackedScene" path="res://scenes/world/interaction_cursor.tscn" id="7_cursor"]
 
@@ -9,48 +9,45 @@
 radius = 6.0
 height = 14.0
 
-[node name="Player" type="CharacterBody2D" groups=["player"]]
-collision_layer = 1
-collision_mask = 1
+[node name="Player" type="CharacterBody2D" unique_id=420612843 groups=["player"]]
 script = ExtResource("1_player")
-run_speed = 96.0
-walk_speed = 48.0
 
-[node name="Shadow" type="Polygon2D" parent="."]
+[node name="Shadow" type="Polygon2D" parent="." unique_id=747648563]
 position = Vector2(0, -2)
-polygon = PackedVector2Array(-8, -2, -5, -4, 5, -4, 8, -2, 5, 0, -5, 0)
 color = Color(0.0392157, 0.0627451, 0.0588235, 0.42)
+polygon = PackedVector2Array(-8, -2, -5, -4, 5, -4, 8, -2, 5, 0, -5, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1099933518]
 position = Vector2(0, -7)
 shape = SubResource("CapsulePlayer")
 
-[node name="Visual" type="Node2D" parent="."]
+[node name="Visual" type="Node2D" parent="." unique_id=142939104]
 
-[node name="Sprite" type="Sprite2D" parent="Visual"]
-position = Vector2(0, -16)
+[node name="Sprite" type="Sprite2D" parent="Visual" unique_id=149319971]
 texture_filter = 1
+position = Vector2(0, -16)
 texture = ExtResource("5_sprite")
 hframes = 6
 vframes = 4
+frame = 8
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-libraries = {&"": ExtResource("6_animations")}
-autoplay = "idle_down"
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=207226228]
+libraries/ = ExtResource("6_animations")
+autoplay = &"idle_down"
 
-[node name="Hands" type="Node2D" parent="."]
+[node name="Hands" type="Node2D" parent="." unique_id=194835694]
 position = Vector2(0, -15)
 
-[node name="HeldVisual" type="Node2D" parent="Hands"]
+[node name="HeldVisual" type="Node2D" parent="Hands" unique_id=1385201383]
 visible = false
 z_index = 2
 position = Vector2(8, 2)
 
-[node name="Swatch" type="Polygon2D" parent="Hands/HeldVisual"]
-polygon = PackedVector2Array(-5, -7, 5, -7, 5, 7, -5, 7)
+[node name="Swatch" type="Polygon2D" parent="Hands/HeldVisual" unique_id=1020998425]
 color = Color(0.882353, 0.643137, 0.278431, 1)
+polygon = PackedVector2Array(-5, -7, 5, -7, 5, 7, -5, 7)
 
-[node name="Label" type="Label" parent="Hands/HeldVisual"]
+[node name="Label" type="Label" parent="Hands/HeldVisual" unique_id=7563226]
 offset_left = -6.0
 offset_top = -7.0
 offset_right = 6.0
@@ -61,27 +58,28 @@ text = "HO"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="SelectionPopup" type="Control" parent="."]
+[node name="SelectionPopup" type="Control" parent="." unique_id=720045240]
 visible = false
 z_index = 20
-layout_mode = 0
+layout_mode = 3
+anchors_preset = 0
 offset_left = -94.0
 offset_top = -78.0
 offset_right = 94.0
 offset_bottom = -40.0
 mouse_filter = 2
 
-[node name="Background" type="ColorRect" parent="SelectionPopup"]
+[node name="Background" type="ColorRect" parent="SelectionPopup" unique_id=47223222]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.0352941, 0.0901961, 0.0862745, 0.94)
 mouse_filter = 2
+color = Color(0.0352941, 0.0901961, 0.0862745, 0.94)
 
-[node name="Title" type="Label" parent="SelectionPopup/Background"]
+[node name="Title" type="Label" parent="SelectionPopup/Background" unique_id=848154447]
 layout_mode = 0
 offset_left = 6.0
 offset_top = 2.0
@@ -92,7 +90,7 @@ theme_override_font_sizes/font_size = 8
 text = "TOOLS  Hoe"
 horizontal_alignment = 1
 
-[node name="Slots" type="HBoxContainer" parent="SelectionPopup/Background"]
+[node name="Slots" type="HBoxContainer" parent="SelectionPopup/Background" unique_id=1859731803]
 layout_mode = 0
 offset_left = 5.0
 offset_top = 17.0
@@ -101,20 +99,16 @@ offset_bottom = 34.0
 theme_override_constants/separation = 1
 alignment = 1
 
-[node name="SelectionTimer" type="Timer" parent="."]
+[node name="SelectionTimer" type="Timer" parent="." unique_id=1270161843]
 wait_time = 1.25
 one_shot = true
 
-[node name="InteractionOrigin" type="Marker2D" parent="."]
+[node name="InteractionOrigin" type="Marker2D" parent="." unique_id=101471676]
 position = Vector2(0, 8)
 
-[node name="InteractionCursor" parent="." instance=ExtResource("7_cursor")]
+[node name="InteractionCursor" parent="." unique_id=218021092 instance=ExtResource("7_cursor")]
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1862161815]
 position = Vector2(0, -8)
-position_smoothing_enabled = false
-rotation_smoothing_enabled = false
 process_callback = 0
-enabled = true
-limit_smoothed = false
 editor_draw_limits = true

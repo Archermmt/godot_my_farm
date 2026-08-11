@@ -52,29 +52,43 @@ func is_watered() -> bool:
 	return has_flag(CellState.CellFlag.WATERED)
 
 
-func can_till() -> bool:
-	return is_diggable() and not is_dug() and not has_occupant()
-
-
-func can_water() -> bool:
-	return is_diggable() and is_dug()
-
-
 func can_drop() -> bool:
 	return is_dropable() and not has_occupant()
 
 
-func dig() -> Error:
-	if not can_till():
-		return ERR_UNAVAILABLE
-	add_flag(CellState.CellFlag.DUG)
-	return OK
+func tool_rejection_reason(tool_kind: ToolMeta.ToolKind) -> StringName:
+	match tool_kind:
+		ToolMeta.ToolKind.HOE:
+			if has_flag(CellState.CellFlag.BLOCKED):
+				return &"blocked"
+			if not has_flag(CellState.CellFlag.DIGGABLE):
+				return &"not_diggable"
+			if is_dug():
+				return &"already_dug"
+			if has_occupant():
+				return &"occupied"
+			return &""
+		ToolMeta.ToolKind.WATERING_CAN:
+			if has_flag(CellState.CellFlag.BLOCKED):
+				return &"blocked"
+			if not is_dug():
+				return &"not_dug"
+			if is_watered():
+				return &"already_watered"
+			return &""
+	return &"unsupported_tool"
 
 
-func water() -> Error:
-	if not can_water():
+func use_tool(tool_kind: ToolMeta.ToolKind) -> Error:
+	if tool_rejection_reason(tool_kind) != &"":
 		return ERR_UNAVAILABLE
-	add_flag(CellState.CellFlag.WATERED)
+	match tool_kind:
+		ToolMeta.ToolKind.HOE:
+			add_flag(CellState.CellFlag.DUG)
+		ToolMeta.ToolKind.WATERING_CAN:
+			add_flag(CellState.CellFlag.WATERED)
+		_:
+			return ERR_UNAVAILABLE
 	return OK
 
 

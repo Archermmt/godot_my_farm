@@ -30,7 +30,7 @@ var health: int = 100
 var max_stamina: int = 100
 var stamina: int = 100
 var gold: int = 0
-var active_hand_source: ActiveHandSource = ActiveHandSource.TOOLBAR
+var active_hand_source: ActiveHandSource = ActiveHandSource.NONE
 var inventory: InventoryState = InventoryState.new(INVENTORY_CAPACITY, &"inventory")
 var toolbar: ToolbarState = ToolbarState.new(TOOLBAR_CAPACITY)
 var itembar: ItembarState = ItembarState.new(ITEMBAR_CAPACITY)
@@ -46,7 +46,7 @@ func initialize(catalog: DataCatalogService) -> Error:
 	set_max_stamina(100)
 	set_stamina(100)
 	set_gold(500)
-	active_hand_source = ActiveHandSource.TOOLBAR
+	active_hand_source = ActiveHandSource.NONE
 	inventory = InventoryState.new(INVENTORY_CAPACITY, &"inventory")
 	toolbar = ToolbarState.new(TOOLBAR_CAPACITY)
 	itembar = ItembarState.new(ITEMBAR_CAPACITY)
@@ -102,7 +102,7 @@ func active_stack() -> ItemStack:
 			return toolbar.selected_stack()
 		ActiveHandSource.ITEMBAR:
 			return itembar.selected_stack()
-	return null
+	return ItemStack.new()
 
 
 func select_bar_relative(source: ActiveHandSource, offset: int) -> Error:

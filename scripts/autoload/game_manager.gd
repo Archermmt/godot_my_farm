@@ -15,19 +15,21 @@ var _running: bool = false
 var _pause_reasons: Dictionary[StringName, bool] = {}
 
 var _catalog_service: DataCatalogService = null
+var _event_bus_service: EventBusService = null
 var _initialized: bool = false
 
 
 func _ready() -> void:
-	configure(get_tree().root.get_node_or_null("DataCatalog") as DataCatalogService)
+	configure(DataCatalog, EventBus)
 	if _catalog_service != null and _catalog_service.is_ready_for_game():
 		var error: Error = new_game(DEFAULT_WORLD_SEED)
 		if error != OK:
 			push_error("[GameManager] failed to create default new game: %s" % error_string(error))
 
 
-func configure(catalog_service: DataCatalogService) -> void:
+func configure(catalog_service: DataCatalogService, event_bus_service: EventBusService = null) -> void:
 	_catalog_service = catalog_service
+	_event_bus_service = event_bus_service
 
 
 func new_game(p_seed: int) -> Error:
@@ -54,7 +56,8 @@ func new_game(p_seed: int) -> Error:
 	_running = false
 	_pause_reasons.clear()
 	_initialized = true
-	_event_bus().player_state_changed.emit(player)
+	if _event_bus_service != null:
+		_event_bus_service.player_state_changed.emit(player)
 	print("[GameManager] new game | seed=%d map=%s inventory=%d/%d" % [
 		world_seed,
 		player.map_id,
@@ -241,7 +244,8 @@ func replace_snapshot(data: Dictionary) -> Error:
 	current_slot = int(data.get("current_slot", -1))
 	game_version = str(data.get("game_version", game_version))
 	_initialized = true
-	_event_bus().player_state_changed.emit(player)
+	if _event_bus_service != null:
+		_event_bus_service.player_state_changed.emit(player)
 	return OK
 
 func set_npc(state: NpcState) -> Error:
@@ -290,8 +294,3 @@ func _validate_player_containers(next_player: PlayerState) -> bool:
 			if not next_player.container_accepts_stack(container_id, stack, meta):
 				return false
 	return true
-
-
-func _event_bus() -> EventBusService:
-	var tree := Engine.get_main_loop() as SceneTree
-	return tree.root.get_node_or_null("EventBus") as EventBusService if tree != null else null

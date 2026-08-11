@@ -9,10 +9,18 @@ var cells: Dictionary[Vector2i, MapCell] = {}
 var items: Dictionary[StringName, Item] = {}
 var interaction_revision: int = 0
 var _map_state: MapState = null
+var _cell_state_projection: Node2D = null
+var _catalog_service: DataCatalogService = null
 @onready var spawn_points: Node2D = $SpawnPoints
 
 func _ready() -> void:
+	configure_services(DataCatalog)
 	_build_cells()
+	_ensure_cell_state_projection()
+
+
+func configure_services(catalog_service: DataCatalogService) -> void:
+	_catalog_service = catalog_service
 
 func configure_state(map_state: MapState) -> Error:
 	if map_state == null or map_state.map_id != map_id:
@@ -42,7 +50,7 @@ func configure_state(map_state: MapState) -> Error:
 	var restored_items: Array[Item] = []
 	for item_id: StringName in map_state.items:
 		var item_state: ItemState = map_state.items[item_id]
-		var catalog := _data_catalog()
+		var catalog := _catalog_service
 		if item_state == null or item_state.instance_id != item_id or catalog == null or not catalog.has_item(item_state.meta_id):
 			return ERR_INVALID_DATA
 		var item_meta := catalog.get_item(item_state.meta_id)
@@ -66,7 +74,7 @@ func configure_state(map_state: MapState) -> Error:
 			_clear_items()
 			return add_error
 	interaction_revision += 1
-	return OK
+	return rebuild_cell_state_projection()
 
 func validate_alignment() -> Error:
 	var container := tilemap_container()
@@ -156,7 +164,7 @@ func add_item_state(item_state: ItemState) -> Error:
 		return ERR_INVALID_PARAMETER
 	if _map_state.items.has(item_state.instance_id) or items.has(item_state.instance_id):
 		return ERR_ALREADY_EXISTS
-	var catalog := _data_catalog()
+	var catalog := _catalog_service
 	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return ERR_INVALID_PARAMETER
@@ -270,6 +278,38 @@ func is_walkable(cell: Vector2i) -> bool:
 	var map_cell := get_cell(cell)
 	return map_cell != null and map_cell.is_walkable()
 
+
+func commit_cell_changes(changed_cells: Array[Vector2i]) -> Error:
+	if changed_cells.is_empty():
+		return ERR_INVALID_PARAMETER
+	for coordinates: Vector2i in changed_cells:
+		if not cells.has(coordinates):
+			return ERR_DOES_NOT_EXIST
+	interaction_revision += 1
+	return rebuild_cell_state_projection()
+
+
+func clear_watered() -> Array[Vector2i]:
+	var changed: Array[Vector2i] = []
+	for coordinates: Vector2i in cells:
+		var cell: MapCell = cells[coordinates]
+		if cell.is_watered():
+			cell.remove_flag(CellState.CellFlag.WATERED)
+			changed.append(coordinates)
+	if not changed.is_empty():
+		commit_cell_changes(changed)
+	return changed
+
+
+func rebuild_cell_state_projection() -> Error:
+	if get_tile_size() == Vector2i.ZERO:
+		return ERR_UNCONFIGURED
+	_ensure_cell_state_projection()
+	if _cell_state_projection == null:
+		return ERR_CANT_CREATE
+	_cell_state_projection.queue_redraw()
+	return OK
+
 func spawn_position(spawn_id: StringName) -> Vector2:
 	if spawn_points != null:
 		var marker := spawn_points.get_node_or_null(String(spawn_id)) as Marker2D
@@ -291,8 +331,37 @@ func _build_cells() -> void:
 				map_cell.add_flag(flag)
 
 
+func _ensure_cell_state_projection() -> void:
+	if is_instance_valid(_cell_state_projection):
+		return
+	_cell_state_projection = get_node_or_null("CellStateProjection") as Node2D
+	if _cell_state_projection == null:
+		_cell_state_projection = Node2D.new()
+		_cell_state_projection.name = "CellStateProjection"
+		_cell_state_projection.z_index = 0
+		add_child(_cell_state_projection)
+	if not _cell_state_projection.draw.is_connected(_draw_cell_state_projection):
+		_cell_state_projection.draw.connect(_draw_cell_state_projection)
+
+
+func _draw_cell_state_projection() -> void:
+	if _cell_state_projection == null:
+		return
+	var tile_size := Vector2(get_tile_size())
+	var inset := Vector2(2, 2)
+	for coordinates: Vector2i in cells:
+		var cell: MapCell = cells[coordinates]
+		if not cell.is_dug():
+			continue
+		var center := _cell_state_projection.to_local(cell_to_world_center(coordinates))
+		var rect := Rect2(center - tile_size * 0.5 + inset, tile_size - inset * 2.0)
+		_cell_state_projection.draw_rect(rect, Color("714a32", 0.72), true)
+		if cell.is_watered():
+			_cell_state_projection.draw_rect(rect.grow(-3.0), Color("4f91a8", 0.58), true)
+
+
 func _create_item(item_state: ItemState) -> Item:
-	var catalog := _data_catalog()
+	var catalog := _catalog_service
 	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return null
@@ -325,7 +394,3 @@ func _clear_items() -> void:
 		if is_instance_valid(item):
 			item.free()
 	items.clear()
-
-
-func _data_catalog() -> DataCatalogService:
-	return get_tree().root.get_node_or_null("DataCatalog") as DataCatalogService

@@ -16,8 +16,13 @@ func _run() -> void:
 	await process_frame
 	var player: Variant = scene_manager.registered_player()
 	var ui: Variant = main.get_node("UILayer/InventoryInterface")
-	if player == null or ui == null or player.active_stack().item_id != &"tool_hoe":
-		_fail("initial toolbar/held state failed")
+	if player == null or ui == null or player.state.active_hand_source != PlayerState.ActiveHandSource.NONE or not player.active_stack().is_empty() or player.held_visual.visible:
+		_fail("initial empty-hand state failed")
+		return
+	await _tap(&"toolbar_next")
+	await _tap(&"toolbar_previous")
+	if player.active_stack().item_id != &"tool_hoe" or not player.held_visual.visible:
+		_fail("toolbar activation failed")
 		return
 	await _tap(&"toolbar_next")
 	if player.state.toolbar.selected_index != 1 or player.active_stack().item_id != &"tool_watering_can" or not player.selection_popup.visible or not player.held_visual.visible:

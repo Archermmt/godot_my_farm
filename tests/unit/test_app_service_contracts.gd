@@ -14,6 +14,9 @@ func test_event_bus_declares_only_confirmed_signal_surface() -> void:
 		&"bar_selection_changed",
 		&"active_hand_changed",
 		&"interaction_committed",
+		&"cells_tool_used",
+		&"cell_projection_failed",
+		&"request_tool_feedback",
 		&"save_completed",
 		&"load_completed",
 	]:

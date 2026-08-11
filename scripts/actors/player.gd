@@ -14,6 +14,10 @@ var walking: bool = false
 var state: PlayerState = null
 
 var _lock_reasons: Dictionary[StringName, bool] = {}
+var _event_bus_service: EventBusService = null
+var _catalog_service: DataCatalogService = null
+var _scene_manager_service: SceneManagerService = null
+var _audio_manager_service: AudioManagerService = null
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var camera: Camera2D = $Camera2D
@@ -29,16 +33,29 @@ var _lock_reasons: Dictionary[StringName, bool] = {}
 
 func _ready() -> void:
 	assert(walk_speed < run_speed, "walk_speed must be lower than run_speed")
+	configure(EventBus, DataCatalog, SceneManager, AudioManager)
 	_play_animation()
 	selection_timer.timeout.connect(_hide_selection_popup)
-	var event_bus: Variant = _event_bus()
-	if event_bus != null and not event_bus.bar_selection_changed.is_connected(_on_bar_selection_changed):
-		event_bus.bar_selection_changed.connect(_on_bar_selection_changed)
-	if event_bus != null and not event_bus.active_hand_changed.is_connected(_on_active_hand_changed):
-		event_bus.active_hand_changed.connect(_on_active_hand_changed)
-	if event_bus != null and not event_bus.player_state_changed.is_connected(_on_player_state_changed):
-		event_bus.player_state_changed.connect(_on_player_state_changed)
 	_refresh_held_visual()
+
+
+func configure(
+	event_bus_service: EventBusService,
+	catalog_service: DataCatalogService,
+	scene_manager_service: SceneManagerService,
+	audio_manager_service: AudioManagerService
+) -> void:
+	_event_bus_service = event_bus_service
+	_catalog_service = catalog_service
+	_scene_manager_service = scene_manager_service
+	_audio_manager_service = audio_manager_service
+	interaction_cursor.configure(event_bus_service)
+	if _event_bus_service != null and not _event_bus_service.bar_selection_changed.is_connected(_on_bar_selection_changed):
+		_event_bus_service.bar_selection_changed.connect(_on_bar_selection_changed)
+	if _event_bus_service != null and not _event_bus_service.active_hand_changed.is_connected(_on_active_hand_changed):
+		_event_bus_service.active_hand_changed.connect(_on_active_hand_changed)
+	if _event_bus_service != null and not _event_bus_service.player_state_changed.is_connected(_on_player_state_changed):
+		_event_bus_service.player_state_changed.connect(_on_player_state_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -220,8 +237,7 @@ func _refresh_held_visual() -> void:
 	if stack == null or stack.is_empty():
 		held_visual.visible = false
 		return
-	var catalog: Variant = _data_catalog()
-	var meta: ItemMeta = catalog.get_item(stack.item_id) as ItemMeta if catalog != null else null
+	var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
 	if meta == null:
 		held_visual.visible = false
 		return
@@ -250,8 +266,7 @@ func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
 		label.add_theme_font_size_override("font_size", 7)
 		label.add_theme_color_override("font_color", Color("142c2b") if index == container.selected_index else Color("e9f0df"))
 		if stack != null and not stack.is_empty():
-			var catalog: Variant = _data_catalog()
-			var meta: ItemMeta = catalog.get_item(stack.item_id) as ItemMeta if catalog != null else null
+			var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
 			label.text = _short_label(meta.display_name) if meta != null else "?"
 		else:
 			label.text = "-"
@@ -260,8 +275,7 @@ func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
 	var selected := container.selected_stack()
 	var selected_name := "Empty"
 	if selected != null and not selected.is_empty():
-		var catalog: Variant = _data_catalog()
-		var selected_meta: ItemMeta = catalog.get_item(selected.item_id) as ItemMeta if catalog != null else null
+		var selected_meta: ItemMeta = _catalog_service.get_item(selected.item_id) if _catalog_service != null else null
 		selected_name = selected_meta.display_name if selected_meta != null else String(selected.item_id)
 	selection_title.text = "%s  %s" % ["TOOLS" if source == PlayerState.ActiveHandSource.TOOLBAR else "ITEMS", selected_name]
 	selection_popup.visible = true
@@ -288,18 +302,6 @@ func _short_label(display_name: String) -> String:
 	if words.size() >= 2:
 		return (words[0].left(1) + words[1].left(1)).to_upper()
 	return display_name.left(2).to_upper()
-
-
-func _event_bus() -> Variant:
-	return get_tree().root.get_node_or_null("EventBus")
-
-
-func _data_catalog() -> Variant:
-	return get_tree().root.get_node_or_null("DataCatalog")
-
-
-func _scene_manager() -> SceneManagerService:
-	return get_tree().root.get_node_or_null("SceneManager") as SceneManagerService
 
 
 func bind_state(next_state: PlayerState) -> Error:
@@ -348,23 +350,22 @@ func exchange_container_slots(source_id: StringName, source_index: int, target_i
 		return ERR_INVALID_PARAMETER
 	var source_stack := source.get_slot(source_index)
 	var target_stack := target.get_slot(target_index)
-	var catalog: Variant = _data_catalog()
-	var source_meta: ItemMeta = catalog.get_item(source_stack.item_id) if catalog != null and source_stack != null and not source_stack.is_empty() else null
-	var target_meta: ItemMeta = catalog.get_item(target_stack.item_id) if catalog != null and target_stack != null and not target_stack.is_empty() else null
+	var source_meta: ItemMeta = _catalog_service.get_item(source_stack.item_id) if _catalog_service != null and source_stack != null and not source_stack.is_empty() else null
+	var target_meta: ItemMeta = _catalog_service.get_item(target_stack.item_id) if _catalog_service != null and target_stack != null and not target_stack.is_empty() else null
 	var error := state.exchange_container_slots(source_id, source_index, target_id, target_index, source_meta, target_meta)
 	if error == OK:
-		_event_bus().container_changed.emit(source_id)
+		_event_bus_service.container_changed.emit(source_id)
 		if source_id != target_id:
-			_event_bus().container_changed.emit(target_id)
-		_event_bus().active_hand_changed.emit(int(state.active_hand_source), active_stack().item_id if active_stack() != null and not active_stack().is_empty() else &"", active_stack().amount if active_stack() != null and not active_stack().is_empty() else 0)
+			_event_bus_service.container_changed.emit(target_id)
+		_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active_stack().item_id if active_stack() != null and not active_stack().is_empty() else &"", active_stack().amount if active_stack() != null and not active_stack().is_empty() else 0)
 	return error
 
 
 func _emit_selection_changed() -> void:
 	var container := state.get_container("toolbar" if state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR else "itembar")
-	_event_bus().bar_selection_changed.emit(int(state.active_hand_source), container.selected_index)
+	_event_bus_service.bar_selection_changed.emit(int(state.active_hand_source), container.selected_index)
 	var stack := state.active_stack()
-	_event_bus().active_hand_changed.emit(int(state.active_hand_source), stack.item_id if stack != null and not stack.is_empty() else &"", stack.amount if stack != null and not stack.is_empty() else 0)
+	_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), stack.item_id if stack != null and not stack.is_empty() else &"", stack.amount if stack != null and not stack.is_empty() else 0)
 
 
 func _on_player_state_changed(next_state: PlayerState) -> void:
@@ -378,32 +379,19 @@ func _begin_interaction() -> void:
 	var stack := state.active_stack()
 	if stack == null or stack.is_empty():
 		return
-	var catalog: DataCatalogService = _data_catalog()
-	var meta: ItemMeta = catalog.get_item(stack.item_id) if catalog != null else null
-	var scene_manager := _scene_manager()
-	var map: BaseMap = scene_manager.current_map() if scene_manager != null else null
+	var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
+	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
 	if meta == null or map == null:
 		return
 	var player_cell := map.world_to_cell(global_position)
 	state.cell = player_cell
-	var context := InteractionContext.new(
-		state.map_id,
-		player_cell,
-		state.facing,
-		0,
-		stack.item_id,
-		stack.amount,
-		state.stamina,
-		map.interaction_revision
-	)
-	interaction_cursor.begin(context, map, meta)
+	interaction_cursor.begin(state, map, meta)
 
 
 func _sync_state_cell() -> void:
 	if state == null:
 		return
-	var scene_manager := _scene_manager()
-	var map: BaseMap = scene_manager.current_map() if scene_manager != null else null
+	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
 	if map == null:
 		return
 	var current_cell := map.world_to_cell(global_position)
@@ -416,7 +404,25 @@ func _sync_state_cell() -> void:
 
 func _release_interaction() -> void:
 	if interaction_cursor != null:
-		interaction_cursor.release()
+		var error := interaction_cursor.release()
+		if error == OK and interaction_cursor.last_tool_result != null:
+			var result := interaction_cursor.last_tool_result
+			var stamina_spent := result.stamina_spent
+			if stamina_spent > 0 and state != null:
+				state.set_stamina(state.stamina - stamina_spent)
+			_emit_tool_result(result)
+
+
+func _emit_tool_result(result: ToolUseResult) -> void:
+	if result == null or _event_bus_service == null:
+		return
+	_event_bus_service.cells_tool_used.emit(result.tool_kind, result.changed_cells, result.stamina_spent)
+	if result.projection_error != OK:
+		_event_bus_service.cell_projection_failed.emit(result.changed_cells, result.projection_error)
+	var event_id := &"till" if result.tool_kind == ToolMeta.ToolKind.HOE else &"water"
+	_event_bus_service.request_tool_feedback.emit(event_id, result.changed_cells)
+	if _audio_manager_service != null:
+		_audio_manager_service.play_event(event_id)
 
 
 func _cancel_interaction() -> void:

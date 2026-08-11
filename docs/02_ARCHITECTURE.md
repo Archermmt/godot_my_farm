@@ -132,6 +132,8 @@ signal day_advanced(previous_day: int, current_day: int)
 signal inventory_changed(owner_id: StringName)
 signal selected_item_changed(item_id: StringName, amount: int)
 signal interaction_committed(action_id: StringName, cells: Array[Vector2i])
+signal cells_tool_used(tool_kind: ToolMeta.ToolKind, cells: Array[Vector2i], stamina_spent: int)
+signal request_tool_feedback(event_id: StringName, cells: Array[Vector2i])
 signal save_completed(slot: int)
 signal load_completed(slot: int)
 ```
@@ -141,6 +143,7 @@ signal load_completed(slot: int)
 ### 5.2 DataCatalog
 
 - 扫描明确配置的 catalog Resource，不做运行时目录猜测。
+- Autoload 依赖在初始化时显式注入并缓存；Player、BaseMap、ScenePort 等场景 Node 只在入口解析一次。Tool 等 RefCounted 领域对象不访问 SceneTree、EventBus 或 AudioManager，只返回 `ToolUseResult`，由 Player 统一发出工具事实和反馈。
 - 建立 `StringName -> ItemMeta/PlantMeta/DropTable/NpcSchedule` 只读索引。
 - 启动时检查 ID 唯一、场景/贴图引用存在、种子与作物互相匹配、掉落数量合法。
 - 提供 `get_item(id)` 等窄 API，未知 ID 返回 `null` 并记录错误。
@@ -319,8 +322,7 @@ Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 
 
 ```text
 唯一 active ItemStack（Toolbar 或 Itembar）
- -> 构建 InteractionContext(player, facing, charge, amount)
- -> InteractionCursor.begin(context, map, item/tool)
+ -> InteractionCursor.begin(PlayerState, map, item/tool)
  -> InteractionCursor 计算目标、维护蓄力状态并绘制 preview
  -> Array[CellState]（有序预览视图，InteractionFlag 标记 VALID/INVALID/ENTITY）
  -> 具体 Item/Tool 提交 preview_result
@@ -328,6 +330,8 @@ Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 
  -> 原子修改 MapCell/GameManager
  -> EventBus 事实事件 + 音画反馈
 ```
+
+Hoe 和 WateringCan 使用运行时 `Tool` 执行多格事务，并返回 `ToolUseResult`。Tool 只调用 MapCell 的 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，Cursor preview 复用同一查询入口。InteractionCursor.begin 直接接收 PlayerState，从中读取 cell、facing、active stack 和 stamina；地图 revision 在 Cursor 内部从 BaseMap 保存为事务快照。Tool 只接收快照体力值并在结果中返回 `stamina_spent`，由 Player 在成功提交后修改 PlayerState。成功后 BaseMap 增加 interaction revision 并让 `CellStateProjection` 从 MapCell 重绘；投影不拥有状态，删除或加载地图后都可从 CellState 重建。
 
 范围顺序必须确定：从起始格开始，按面向方向的行列顺序扩展。预览不得重新随机；提交使用预览中已确定的对象 ID。
 
@@ -397,7 +401,7 @@ GameManager reaches day boundary
   "game_version": "0.1.0",
   "saved_at": "ISO-8601",
   "time": {"year": 1, "month": 0, "day": 0, "hour": 6, "minute": 0},
-  "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500, "active_hand_source": "toolbar"},
+  "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500, "active_hand_source": "none"},
   "inventory": {"slots": []},
   "toolbar": {"selected_index": 0, "slots": []},
   "itembar": {"selected_index": 0, "slots": []},

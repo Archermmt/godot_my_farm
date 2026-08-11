@@ -59,6 +59,17 @@ func test_farm_coordinate_round_trip_and_cell_flags() -> void:
 	assert_equal(farm.get_cells_in_rect(Rect2i(3, 8, 2, 2)).size(), 4)
 	map.free()
 
+
+func test_farm_diggable_ground_uses_a_distinct_visible_tile() -> void:
+	var farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
+	var layer := farm.get_node("TileMaps/DiggableLayer") as TileMapLayer
+	assert_true(layer.visible)
+	for coordinates: Vector2i in layer.get_used_cells():
+		assert_equal(layer.get_cell_source_id(coordinates), 0)
+		assert_equal(layer.get_cell_atlas_coords(coordinates), Vector2i(4, 0))
+	assert_equal(layer.get_cell_source_id(Vector2i.ZERO), -1)
+	farm.free()
+
 func test_dynamic_cell_state_is_not_tilemap_authority() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
 	var map := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
@@ -66,11 +77,46 @@ func test_dynamic_cell_state_is_not_tilemap_authority() -> void:
 	var state: MapState = GameManager.maps[&"farm"]
 	assert_true(map.configure_state(state) == OK)
 	var map_cell := map.get_cell(Vector2i(5, 9))
-	assert_equal(map_cell.dig(), OK)
-	assert_equal(map_cell.water(), OK)
+	assert_equal(map_cell.use_tool(ToolMeta.ToolKind.HOE), OK)
+	assert_equal(map_cell.use_tool(ToolMeta.ToolKind.WATERING_CAN), OK)
 	assert_true(map_cell.has_flag(CellState.CellFlag.DUG))
 	assert_true(map_cell.is_watered())
 	map.free()
+
+
+func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	var farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
+	scene_tree.root.add_child(farm)
+	var map_state := MapState.new()
+	map_state.map_id = &"farm"
+	assert_equal(farm.configure_state(map_state), OK)
+	var player_state := PlayerState.new()
+	player_state.set_stamina(10)
+	var coordinates := Vector2i(8, 10)
+	var hoe_result := Tool.new(DataCatalog.get_item(&"tool_hoe") as ToolMeta).use(farm, [coordinates], player_state.stamina)
+	assert_true(hoe_result.succeeded())
+	assert_equal(hoe_result.projection_error, OK)
+	player_state.set_stamina(player_state.stamina - hoe_result.stamina_spent)
+	var water_result := Tool.new(DataCatalog.get_item(&"tool_watering_can") as ToolMeta).use(farm, [coordinates], player_state.stamina)
+	assert_true(water_result.succeeded())
+	assert_equal(water_result.projection_error, OK)
+	assert_true(map_state.cells[coordinates].flags & CellState.CellFlag.DUG)
+	assert_true(map_state.cells[coordinates].flags & CellState.CellFlag.WATERED)
+	var projection := farm.get_node_or_null("CellStateProjection") as Node2D
+	assert_true(projection != null)
+	assert_equal(projection.z_index, 0)
+
+	var serialized := JSON.parse_string(JSON.stringify(map_state.to_dict())) as Dictionary
+	var restored_state := MapState.from_dict(serialized)
+	var restored_farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
+	scene_tree.root.add_child(restored_farm)
+	assert_equal(restored_farm.configure_state(restored_state), OK)
+	assert_true(restored_farm.get_cell(coordinates).is_dug())
+	assert_true(restored_farm.get_cell(coordinates).is_watered())
+	assert_true(restored_farm.get_node_or_null("CellStateProjection") is Node2D)
+	restored_farm.free()
+	farm.free()
 
 func test_base_map_restores_and_operates_on_state_dtos() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree

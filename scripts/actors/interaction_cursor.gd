@@ -1,7 +1,7 @@
 class_name InteractionCursor
 extends Node2D
 
-enum State {
+enum InteractionState {
 	IDLE,
 	CHARGING,
 	COMMITTED,
@@ -16,89 +16,107 @@ const FACING_VECTORS := {
 	&"right": Vector2i(1, 0),
 }
 
-var state: State = State.IDLE
+var state: InteractionState = InteractionState.IDLE
 var charge_level: int = 0
 var charge_elapsed: float = 0.0
 var preview: Array[CellState] = []
-var context: InteractionContext = null
+var player_state: PlayerState = null
+var last_tool_result: ToolUseResult = null
 
 var _map: BaseMap = null
 var _meta: ItemMeta = null
+var _map_revision: int = 0
 var _commit_emitted := false
+var _event_bus_service: EventBusService = null
 
 
-func begin(next_context: InteractionContext, map: BaseMap, meta: ItemMeta) -> Error:
-	if state == State.CHARGING:
+func configure(event_bus_service: EventBusService) -> void:
+	_event_bus_service = event_bus_service
+
+
+func begin(next_player_state: PlayerState, map: BaseMap, meta: ItemMeta) -> Error:
+	if state == InteractionState.CHARGING:
 		return ERR_BUSY
-	if next_context == null or map == null or meta == null:
+	if next_player_state == null or map == null or meta == null:
 		return ERR_INVALID_PARAMETER
-	context = next_context
+	player_state = next_player_state
 	_map = map
 	_meta = meta
+	_map_revision = map.interaction_revision
 	charge_level = 0
 	charge_elapsed = 0.0
 	_commit_emitted = false
-	state = State.CHARGING
+	last_tool_result = null
+	state = InteractionState.CHARGING
 	_refresh_preview()
 	return OK
 
 
 func update(delta: float) -> void:
-	if state != State.CHARGING:
+	if state != InteractionState.CHARGING:
 		return
 	charge_elapsed += maxf(0.0, delta)
 	var next_level := _level_for_elapsed()
 	if next_level == charge_level:
 		return
 	charge_level = next_level
-	context = _context_with(context.player_cell)
 	_refresh_preview()
 
 
 func move_origin(next_cell: Vector2i) -> Error:
-	if state != State.CHARGING or context == null or _map == null:
+	if state != InteractionState.CHARGING or player_state == null or _map == null:
 		return ERR_UNAVAILABLE
 	if not _map.contains_cell(next_cell):
 		return ERR_INVALID_PARAMETER
-	if next_cell == context.player_cell:
+	if next_cell == player_state.cell:
 		return OK
-	context = _context_with(next_cell)
+	player_state.cell = next_cell
 	_refresh_preview()
 	return OK
 
 
 func release() -> Error:
-	if state != State.CHARGING:
+	if state != InteractionState.CHARGING:
 		return ERR_UNAVAILABLE
-	if _map == null or context == null or _map.interaction_revision != context.map_revision:
+	if _map == null or player_state == null or _map.interaction_revision != _map_revision:
 		cancel()
 		return ERR_INVALID_DATA
-	state = State.COMMITTED
+	state = InteractionState.COMMITTED
 	var valid_cells: Array[Vector2i] = []
-	for cell_state: CellState in preview:
-		if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
-			valid_cells.append(cell_state.cell)
+	if _meta is ToolMeta and (_meta as ToolMeta).tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]:
+		var target_cells: Array[Vector2i] = []
+		for cell_state: CellState in preview:
+			target_cells.append(cell_state.cell)
+		last_tool_result = Tool.new(_meta as ToolMeta).use(_map, target_cells, player_state.stamina)
+		if last_tool_result.error != OK:
+			var tool_error := last_tool_result.error
+			_clear_to_idle()
+			return tool_error
+		valid_cells = last_tool_result.changed_cells.duplicate()
+	else:
+		for cell_state: CellState in preview:
+			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
+				valid_cells.append(cell_state.cell)
 	if valid_cells.is_empty():
 		cancel()
 		return ERR_UNAVAILABLE
 	if not _commit_emitted:
 		_commit_emitted = true
-		var event_bus := _event_bus()
-		if event_bus != null:
-			event_bus.interaction_committed.emit(_action_id(), valid_cells)
+		if _event_bus_service != null:
+			_event_bus_service.interaction_committed.emit(_action_id(), valid_cells)
 	_clear_to_idle()
 	return OK
 
 
 func cancel() -> void:
-	if state == State.IDLE:
+	if state == InteractionState.IDLE:
 		return
-	state = State.CANCELLED
+	state = InteractionState.CANCELLED
 	_clear_to_idle()
 
 
 func is_charging() -> bool:
-	return state == State.CHARGING
+	return state == InteractionState.CHARGING
 
 
 func _refresh_preview() -> void:
@@ -108,19 +126,20 @@ func _refresh_preview() -> void:
 
 func _build_preview() -> Array[CellState]:
 	var result: Array[CellState] = []
-	if context == null or _map == null or _meta == null:
+	if player_state == null or _map == null or _meta == null:
 		return result
-	if context.stack_item_id == &"" or context.stack_amount <= 0 or context.stamina <= 0:
+	var stack := player_state.active_stack()
+	if stack == null or stack.is_empty() or player_state.stamina <= 0:
 		return result
 	var dimensions := _dimensions(charge_level)
-	var target_cells := _target_cells(context.player_cell, context.facing, dimensions.x, dimensions.y)
+	var target_cells := _target_cells(player_state.cell, player_state.facing, dimensions.x, dimensions.y)
 	var in_bounds: Array[Vector2i] = []
 	for cell: Vector2i in target_cells:
 		if _map.contains_cell(cell):
 			in_bounds.append(cell)
 	target_cells = in_bounds
 	if _meta.use_kind == ItemMeta.UseKind.SEED:
-		target_cells = target_cells.slice(0, mini(target_cells.size(), context.stack_amount))
+		target_cells = target_cells.slice(0, mini(target_cells.size(), stack.amount))
 	for cell: Vector2i in target_cells:
 		var map_cell := _map.get_cell(cell)
 		var source_state := map_cell.cell_state()
@@ -133,19 +152,6 @@ func _build_preview() -> Array[CellState]:
 			preview_state.interaction_flags |= CellState.InteractionFlag.ENTITY
 		result.append(preview_state)
 	return result
-
-
-func _context_with(player_cell: Vector2i) -> InteractionContext:
-	return InteractionContext.new(
-		context.map_id,
-		player_cell,
-		context.facing,
-		charge_level,
-		context.stack_item_id,
-		context.stack_amount,
-		context.stamina,
-		context.map_revision
-	)
 
 
 func _level_for_elapsed() -> int:
@@ -188,7 +194,7 @@ func _cell_accepts(cell: MapCell) -> bool:
 		return false
 	match _meta.use_kind:
 		ItemMeta.UseKind.GRID_TOOL:
-			return cell.can_till() or cell.can_water()
+			return Tool.new(_meta as ToolMeta).rejection_reason(cell) == &"" if _meta is ToolMeta else false
 		ItemMeta.UseKind.SEED, ItemMeta.UseKind.DROP:
 			return cell.can_drop()
 		ItemMeta.UseKind.HARVEST_TOOL:
@@ -210,22 +216,15 @@ func _action_id() -> StringName:
 
 
 func _clear_to_idle() -> void:
-	state = State.IDLE
+	state = InteractionState.IDLE
 	charge_level = 0
 	charge_elapsed = 0.0
 	preview.clear()
-	context = null
+	player_state = null
 	_map = null
 	_meta = null
 	_commit_emitted = false
 	queue_redraw()
-
-
-func _event_bus() -> EventBusService:
-	var tree := Engine.get_main_loop() as SceneTree
-	return tree.root.get_node_or_null("EventBus") as EventBusService if tree != null else null
-
-
 func _draw() -> void:
 	if _map == null:
 		return
