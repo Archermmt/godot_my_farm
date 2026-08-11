@@ -36,17 +36,17 @@
 | `ItemData [Serializable]` | 物品静态定义 | `ItemMeta extends Resource` + `.tres` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
-| `Tool` | 体力和蓄力 | `UseAction`/`ToolAction` 策略 |
-| `GridTool` | 网格行动 | `GridToolAction` + MapCell transaction |
-| `ItemTool` | 对对象行动 | `HarvestToolAction` + Harvestable component |
-| `Seed` | 种植范围和消耗 | `SeedAction` + PlantMeta |
+| `Tool` | 体力和蓄力 | Tool 运行时类型 + InteractionCursor |
+| `GridTool` | 网格行动 | 具体 Tool + MapCell transaction |
+| `ItemTool` | 对对象行动 | 具体 Tool + HarvestableItem |
+| `Seed` | 种植范围和消耗 | Item 使用逻辑 + PlantMeta |
 | `Harvestable/LifePeriod` | 阶段、生命、掉落 | `HarvestableMeta`/GrowthStage + component |
 | `Plant/Crop` | 地块植物与浇水成长 | `PlantMeta` + PlantState + PlantItem + day_advanced |
 | `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `HarvestableMeta` + TreeWorldItem 专属状态/动画策略 |
 | `Pickable` | 吸附拾取 | `PickupItem (Area2D)` |
 | `FieldGrid` | 单格标签与地图 Item | MapCell/CellState + BaseMap/MapState items |
 | `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_flags` + MapCell |
-| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + TargetingService + InteractionController |
+| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + InteractionCursor |
 | `Cursor` | 有效/无效目标反馈 | `InteractionCursor` scene |
 | `Generator` | 随机环境对象 | seeded `WorldGenerator` + MapState |
 | `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `InventoryState` 与 InventoryUI 分离 |

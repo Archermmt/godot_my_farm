@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=4]
+
+[ext_resource type="Script" path="res://scripts/interaction/interaction_cursor.gd" id="1_cursor"]
+
+[node name="InteractionCursor" type="Node2D"]
+top_level = true
+z_index = 5
+script = ExtResource("1_cursor")

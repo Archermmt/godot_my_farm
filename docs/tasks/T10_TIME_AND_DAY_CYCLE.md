@@ -21,7 +21,7 @@
 2. year/month/day/week_day/hour/minute 边界依次推进，30 天/月、12 月/年，季节从 month 派生；测试大 delta。
 3. 到 23:00 只发起一次 end-day。体力或生命归零也请求同一协调流程，不能递归/重复加天。
 4. 换日顺序遵循架构：记录 previous -> 日历加一天 -> crop/generator/NPC 更新 -> Player 恢复 -> SceneManager 到 cabin -> 06:00 醒来。
-5. 工具/播种/采集使用统一 PlayerState.consume_energy；不足时行动原子失败。FoodAction 可恢复体力但不超过上限。
+5. 工具/播种/采集使用统一 PlayerState.consume_energy；不足时行动原子失败。Food Item 可恢复体力但不超过上限。
 6. inventory、scene_transition 等 pause reason 阻止时间 tick；解除顺序正确。
 7. LightSchedule 数据定义时段颜色/能量，室外用 CanvasModulate/Light2D，室内使用独立 profile；时间跳跃后直接采样正确状态。
 8. 受控推进时间只在 debug feature/test fixture 开启，不作为发行快捷键。

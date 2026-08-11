@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T05 背包、Toolbar、Itembar 与手持物](./tasks/T05_INVENTORY_TOOLBAR_ITEMBAR.md)（completed）。
-- 下一任务：[T06 统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md)。
+- 当前任务：[T06 统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md)（completed）。
+- 下一任务：T07 翻地与浇水。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
@@ -27,6 +27,7 @@
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
 - T05 已实现 6 格 Toolbar、10 格 Itembar 与 20 格 Inventory。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
 - 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
+- T06 已建立统一 `InteractionContext`；Player 场景持有并直接控制唯一的 `InteractionCursor`，由 Cursor 统一维护蓄力状态、计算并绘制 CellState preview。Cursor 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。本阶段只发出 `interaction_committed` 事实，不修改农田或消费资源。
 
 ## 环境记录
 

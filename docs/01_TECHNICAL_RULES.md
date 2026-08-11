@@ -40,12 +40,12 @@
 - 角色逻辑只有在至少两个角色类型真实复用、具有独立生命周期，或需要可替换实现时才拆分脚本；拆分前必须在对应任务卡说明复用对象和边界。子节点可以组织碰撞、Sprite、挂点和相机，但不得为了转发根脚本调用而额外挂脚本。
 - 可由开发者调节的角色、UI、特效和过场动画必须使用 Godot 标准 `AnimationPlayer`/`AnimationLibrary` 资源管理；脚本只选择动画名称并调用 `play()`、`stop()` 或 `seek()`，不得直接写 `Sprite2D.frame`、维护动画帧计数器或用 `_process` 手写动画时钟。
 - 纯程序化的位移、淡入淡出、弹性和数值过渡使用 `Tween`；当动画需要在 Animation 面板中编辑时，不得用 Tween 取代 AnimationPlayer。
-- 地图场景必须像 cabin 一样在根节点下按职责并列组织 TileMapLayer、动态 Item、静态装饰、碰撞、出生点和传送口。地图根脚本直接管理自己的 TileMapLayer，不再增加只用于包裹 TileMapLayer 的 Grid 节点。
-- 地面道路等可行走 TileMapLayer 必须保持在角色渲染层级之下；同级地面层可通过节点顺序叠加，但不得使用高于 `ActorHost` 的 `z_index` 覆盖 Player。资源、边界和前景装饰需要遮挡角色时必须明确标注其前景层级。
+- 每张地图根节点下必须有且只有一个名为 `TileMaps` 的 Node2D，所有 TileMapLayer 都必须作为它的直接子节点集中管理；动态 Item、静态装饰、碰撞、出生点和传送口仍与 TileMaps 在地图根下并列。TileMaps 必须保持零位移、零旋转和单位缩放，不得用额外 Grid/LayerGroup 节点继续分层包装。
+- 地面道路等可行走 TileMapLayer 必须保持在角色渲染层级之下；TileMaps 内同级 layer 可通过节点顺序叠加，但不得使用高于 `ActorHost` 的 `z_index` 覆盖 Player。资源、边界和前景装饰需要遮挡角色时必须明确标注其前景层级。
 - 与某个组件强耦合的功能不需要独立成类；地图统一使用 `BaseMap` 负责坐标、边界、MapCell/Item 运行时索引和地图 Item host 路由。MapCell 是每个格子的运行时行为对象；地图场景不创建无额外行为的根脚本。
 - `map_id`、`Dictionary[Vector2i, MapCell]`、`cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 和 `item_hosts: Dictionary[Node2D, ItemMeta.WorldType]` 放在 BaseMap。地图尺寸必须通过 `get_map_size()` 从 BASE layer 的 used rect 获取，tile 尺寸必须通过 `get_tile_size()` 从 BASE layer 的 TileSet 获取，不得保存为属性或在地图场景中重复配置。不得增加 farm/field/cabin 专属地图类或 crop 专属 host API。
 - 地面、道路、墙体、水域、静态资源区等开发者需要编辑的 TileMap cell 必须使用 Godot TileMap 编辑器绘制并序列化在对应 `.tscn` 中。运行脚本不得 `clear()` 后重建静态地图，也不得用启动时代码替代场景内的 `tile_map_data`。
-- DUG、WATERED、item_ids 等可存档数据只保存在 CellState/ItemState DTO 中；DUG 和 WATERED 必须使用 CellState.CellFlag，不得增加重复字段。MapCell/Item 绑定并操作对应 DTO。不得再创建 Dug/Watered TileMapLayer 或其他重复状态投影。
+- DUG、WATERED、item_ids 等可存档数据只保存在 CellState/ItemState DTO 中；DUG 和 WATERED 必须使用 CellState.CellFlag，不得增加重复字段。CellState.InteractionFlag 只描述一次 preview 的 VALID/INVALID/ENTITY 表现，不得写入 `to_dict()` 或地图权威 CellState。MapCell/Item 绑定并操作对应 DTO。不得再创建 Dug/Watered TileMapLayer 或其他重复状态投影。
 
 ## 4. 场景规则
 
@@ -63,6 +63,7 @@
 - Resource 负责静态 Meta 数据，例如物品、作物阶段、掉落表、NPC 日程和音频配置。
 - RefCounted/纯 GDScript 状态对象负责运行时数据，例如物品堆、地块状态和存档 DTO。
 - `ItemMeta` 及其 `ToolMeta`、`HarvestableMeta`、`PlantMeta` 子类统一放在 `scripts/data/item/`；`GameCatalog.items` 是唯一 Item Meta 集合和 ID 命名空间。PlantMeta 继承 HarvestableMeta：所有 Plant 都可收获，但石头等 Harvestable 不属于 Plant。
+- 物品使用、工具作用、播种、采集和放置逻辑由对应 Item/Tool 运行时类型实现；不得为这些类别再建立只做转发或 action_id 标记的 UseAction/GridToolAction/SeedAction 等空策略层。
 - Meta 是由 `.tres` 编辑、可被任意数量 ItemState 和 ItemStack 共享的只读元信息。不得把运行时可变数据写回 Meta，也不得把 Meta 字段复制进存档 State。
 - State 只保存每个实例的可变数据。`ItemState.meta_id` 是 ItemState 到 `ItemMeta.id` 的唯一连接；不得再保存静态类别或其他可从 Meta 获得的字段。序列化中的 `state_type` 只用于恢复具体 State 子类，不得代替 meta_id 或承载业务类别判断。
 - Resource 之间使用稳定 ID 关联，避免整个运行时状态通过循环 Resource 引用序列化。

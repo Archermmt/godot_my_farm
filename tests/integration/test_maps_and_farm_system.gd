@@ -20,6 +20,7 @@ func test_all_maps_have_aligned_layers_and_spawn_points() -> void:
 		assert_equal(map.get_map_size(), map.coordinate_layer().get_used_rect().size)
 		assert_equal(map.get_tile_size(), map.coordinate_layer().tile_set.tile_size)
 		assert_true(map.spawn_position(&"default") != Vector2.ZERO)
+		assert_true(not map.has_node("InteractionCursor"))
 		map.free()
 
 func test_static_tile_cells_are_serialized_in_map_scenes() -> void:
@@ -115,17 +116,23 @@ func test_each_map_owns_a_distinct_tilemap_hierarchy() -> void:
 	scene_tree.root.add_child(farm)
 	scene_tree.root.add_child(field)
 	scene_tree.root.add_child(cabin)
-	assert_true(farm.has_node("BaseLayer"))
-	assert_true(not farm.has_node("DugLayer"))
-	assert_true(field.has_node("GroundLayer"))
-	assert_true(field.has_node("ResourceLayer"))
-	assert_true(cabin.has_node("FloorLayer"))
-	assert_true(cabin.has_node("WallLayer"))
+	assert_true(farm.has_node("TileMaps/BaseLayer"))
+	assert_true(not farm.has_node("TileMaps/DugLayer"))
+	assert_true(field.has_node("TileMaps/GroundLayer"))
+	assert_true(field.has_node("TileMaps/ResourceLayer"))
+	assert_true(cabin.has_node("TileMaps/FloorLayer"))
+	assert_true(cabin.has_node("TileMaps/WallLayer"))
 	for map: BaseMap in [farm, field, cabin]:
+		var tilemaps := map.get_node("TileMaps") as Node2D
+		assert_true(tilemaps != null)
+		assert_equal(tilemaps.position, Vector2.ZERO)
+		assert_equal(tilemaps.rotation, 0.0)
+		assert_equal(tilemaps.scale, Vector2.ONE)
+		assert_equal(map.managed_layers().size(), tilemaps.get_child_count())
+		for layer: Node in tilemaps.get_children():
+			assert_true(layer is TileMapLayer)
 		for child: Node in map.get_children():
-			if child is TileMapLayer:
-				continue
-			assert_true(child.name != "FarmGrid" and child.name != "FieldGrid" and child.name != "CabinGrid")
+			assert_true(not child is TileMapLayer)
 	assert_true(farm.get_node("MapItems") is Node2D)
 	assert_true(field.get_node("MapItems") is Node2D)
 	assert_true(farm.item_host(ItemMeta.WorldType.GENERIC) == farm.get_node("MapItems/Items"))

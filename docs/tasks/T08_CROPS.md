@@ -11,7 +11,7 @@
 ## 交付范围
 
 - `scenes/items/plants/plant.tscn` 与 `scripts/items/plant_item.gd`。
-- 完成 SeedAction、PlantMeta 阶段结构使用链路。
+- 在具体 Item 使用逻辑中完成播种，并接入 PlantMeta 阶段结构。
 - 欧洲防风草至少 4 个可区分的原创占位阶段。
 - crop/seed 单元和集成测试。
 

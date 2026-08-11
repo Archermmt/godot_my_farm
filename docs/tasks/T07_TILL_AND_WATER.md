@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- 完成 `GridToolAction` 及 hoe/water 配置。
+- 在具体 Tool 运行时类型中完成 hoe/water 行为及配置。
 - `MapCell` 增加 till/water transaction。
 - 翻地与浇水音画事件，不创建状态 TileMapLayer。
 - 工具事务单元/集成测试。

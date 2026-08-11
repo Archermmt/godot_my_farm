@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- `scenes/maps/farm/farm.tscn`、`field/field.tscn`、`cabin/cabin.tscn`，每张地图直接管理自己的 TileMapLayer 层级。
+- `scenes/maps/farm/farm.tscn`、`field/field.tscn`、`cabin/cabin.tscn`，每张地图通过根节点下唯一的 `TileMaps` 容器集中管理自己的 TileMapLayer。
 - `scenes/world/scene_port.tscn`。
 - `scripts/world/base_map.gd`、`map_cell.gd`、`entity/entity.gd`、`scene_port.gd`，完善 SceneManager。
 - 原创占位 TileSet/tiles、地图 registry、地图切换集成测试。
@@ -18,7 +18,7 @@
 ## 实现要求
 
 1. 三地图视觉和边界明显不同；至少 farm 有可挖区/道路/阻挡区，field 有资源区，cabin 有床和出口占位。
-2. TileMapLayer 直接挂在地图根节点；Farm、Field、Cabin 全部直接使用 BaseMap，并校验 tile size/transform/origin 对齐。
+2. TileMapLayer 直接挂在地图根节点的 `TileMaps` 容器下；TileMaps 保持 identity transform，Farm、Field、Cabin 全部直接使用 BaseMap，并校验 tile size/transform/origin 对齐。
 3. `cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 将每层全部 used cells 映射为可组合 flag；MapCell 绑定 CellState 并负责运行时行为。
 4. 静态地图 cell 必须绘制并序列化在 `.tscn` 中；不得创建 Dug/Watered 等动态状态 TileMapLayer。
 5. 提供 world_to_cell、cell_to_world_center、get_cell_state、is_walkable、get_cells_in_rect 等 typed API。

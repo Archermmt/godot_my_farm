@@ -2,7 +2,7 @@
 
 ## 目标
 
-完成镰刀、篮子、镐、斧作用于作物/草/石头/树木的统一 HarvestToolAction，并实现确定掉落、吸附拾取、满包保留和树桩转换。
+完成镰刀、篮子、镐、斧作用于作物/草/石头/树木的具体 Tool 行为，并实现确定掉落、吸附拾取、满包保留和树桩转换。
 
 ## 依赖
 
@@ -11,7 +11,7 @@
 ## 交付范围
 
 - Harvestable/Pickup/Tree/Obstacle/Plant 组件或等价场景。
-- 完成 HarvestToolAction、DropTable、ItemFactory 和 EffectHost 最小链路。
+- 完成具体 Tool、HarvestableItem、DropTable、ItemFactory 和 EffectHost 最小链路。
 - 原创占位草、石头、树、树桩、木/石/草/作物掉落。
 - harvest/drop/pickup 单元与集成测试。
 

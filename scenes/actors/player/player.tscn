@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/player.gd" id="1_player"]
 [ext_resource type="Texture2D" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
 [ext_resource type="AnimationLibrary" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
+[ext_resource type="PackedScene" path="res://scenes/world/interaction_cursor.tscn" id="7_cursor"]
 
 [sub_resource type="CapsuleShape2D" id="CapsulePlayer"]
 radius = 6.0
@@ -106,6 +107,8 @@ one_shot = true
 
 [node name="InteractionOrigin" type="Marker2D" parent="."]
 position = Vector2(0, 8)
+
+[node name="InteractionCursor" parent="." instance=ExtResource("7_cursor")]
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(0, -8)

@@ -7,6 +7,7 @@ extends Node2D
 
 var cells: Dictionary[Vector2i, MapCell] = {}
 var items: Dictionary[StringName, Item] = {}
+var interaction_revision: int = 0
 var _map_state: MapState = null
 @onready var spawn_points: Node2D = $SpawnPoints
 
@@ -41,9 +42,10 @@ func configure_state(map_state: MapState) -> Error:
 	var restored_items: Array[Item] = []
 	for item_id: StringName in map_state.items:
 		var item_state: ItemState = map_state.items[item_id]
-		if item_state == null or item_state.instance_id != item_id or not DataCatalog.has_item(item_state.meta_id):
+		var catalog := _data_catalog()
+		if item_state == null or item_state.instance_id != item_id or catalog == null or not catalog.has_item(item_state.meta_id):
 			return ERR_INVALID_DATA
-		var item_meta := DataCatalog.get_item(item_state.meta_id)
+		var item_meta := catalog.get_item(item_state.meta_id)
 		if not _state_matches_meta(item_state, item_meta):
 			return ERR_INVALID_DATA
 		if item_host(item_meta.world_type()) == null:
@@ -63,9 +65,13 @@ func configure_state(map_state: MapState) -> Error:
 		if add_error != OK:
 			_clear_items()
 			return add_error
+	interaction_revision += 1
 	return OK
 
 func validate_alignment() -> Error:
+	var container := tilemap_container()
+	if container == null or container.position != Vector2.ZERO or container.rotation != 0.0 or container.scale != Vector2.ONE:
+		return ERR_UNCONFIGURED
 	var layers := managed_layers()
 	if layers.is_empty() or coordinate_layer() == null:
 		return ERR_UNCONFIGURED
@@ -101,10 +107,17 @@ func validate_alignment() -> Error:
 
 func managed_layers() -> Array[TileMapLayer]:
 	var layers: Array[TileMapLayer] = []
-	for child: Node in get_children():
+	var container := tilemap_container()
+	if container == null:
+		return layers
+	for child: Node in container.get_children():
 		if child is TileMapLayer:
 			layers.append(child as TileMapLayer)
 	return layers
+
+
+func tilemap_container() -> Node2D:
+	return get_node_or_null("TileMaps") as Node2D
 
 func coordinate_layer() -> TileMapLayer:
 	for layer: TileMapLayer in cell_flags:
@@ -143,7 +156,8 @@ func add_item_state(item_state: ItemState) -> Error:
 		return ERR_INVALID_PARAMETER
 	if _map_state.items.has(item_state.instance_id) or items.has(item_state.instance_id):
 		return ERR_ALREADY_EXISTS
-	var item_meta := DataCatalog.get_item(item_state.meta_id)
+	var catalog := _data_catalog()
+	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return ERR_INVALID_PARAMETER
 	var cell := get_cell(item_state.cell)
@@ -160,6 +174,7 @@ func add_item_state(item_state: ItemState) -> Error:
 		var rollback_error := cell.remove_item_id(item_state.instance_id)
 		assert(rollback_error == OK)
 		return add_error
+	interaction_revision += 1
 	return OK
 
 
@@ -189,6 +204,7 @@ func move_item(item_id: StringName, target_coordinates: Vector2i) -> Error:
 		return add_error
 	item.state.cell = target_coordinates
 	item.position = cell_to_world_center(target_coordinates)
+	interaction_revision += 1
 	return OK
 
 
@@ -205,6 +221,7 @@ func remove_item(item_id: StringName) -> Error:
 	items.erase(item_id)
 	_map_state.items.erase(item_id)
 	item.queue_free()
+	interaction_revision += 1
 	return OK
 
 func item_count(item_type: ItemMeta.WorldType = ItemMeta.WorldType.NONE) -> int:
@@ -275,7 +292,8 @@ func _build_cells() -> void:
 
 
 func _create_item(item_state: ItemState) -> Item:
-	var item_meta := DataCatalog.get_item(item_state.meta_id)
+	var catalog := _data_catalog()
+	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return null
 	var item: Item
@@ -307,3 +325,7 @@ func _clear_items() -> void:
 		if is_instance_valid(item):
 			item.free()
 	items.clear()
+
+
+func _data_catalog() -> DataCatalogService:
+	return get_tree().root.get_node_or_null("DataCatalog") as DataCatalogService

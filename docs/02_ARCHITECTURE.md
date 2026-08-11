@@ -196,7 +196,7 @@ sell_price: int
 use_kind: enum
 ```
 
-`use_kind` 决定送往 GridToolAction、HarvestToolAction、SeedAction、FoodAction 或 DropAction。`ToolMeta` 继承 ItemMeta，并额外保存 `tool_kind` 和 `base_stamina_cost`，供可采集对象匹配及 Toolbar 类型校验。数据中不保存 Callable。
+`use_kind` 只用于选择对应的 Item/Tool 运行时行为；不为 grid/harvest/seed/drop 额外建立 Action 类。`ToolMeta` 继承 ItemMeta，并额外保存 `tool_kind` 和 `base_stamina_cost`，供具体 Tool 行为、可采集对象匹配及 Toolbar 类型校验。数据中不保存 Callable。
 
 ### 6.2 HarvestableMeta 与 PlantMeta
 
@@ -279,26 +279,26 @@ NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/
 ### 8.1 Player
 
 - `player.gd` 挂在 CharacterBody2D 根节点，集中处理 InputMap、移动碰撞、输入锁、朝向、动画选择、相机边界和角色专属交互。
-- Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点；`AnimationPlayer` 直接引用 `Visual/Sprite`，动画帧和时间存放在 `AnimationLibrary` 资源中。
+- Visual、Hands、CollisionShape2D、InteractionOrigin 和 Camera2D 是无业务脚本的结构/表现节点；Player 持有唯一的 `InteractionCursor`，Cursor 使用 top-level 变换在世界坐标中绘制格子预览，不继承 Player 的连续像素位移。`AnimationPlayer` 直接引用 `Visual/Sprite`，动画帧和时间存放在 `AnimationLibrary` 资源中。
 - 不为同一个 Player 按 Input/Motor/Visual/Interaction 的概念名称建立一组只被 Player 使用的转发组件。只有产生跨角色复用或独立生命周期后才提取共享脚本。
 - Player 不直接修改 CellState.item_ids、MapState.items、背包字典或时间；通过 BaseMap/MapCell/PlayerState/GameManager 领域 API 请求。
 
 ### 8.2 BaseMap、MapCell 与地图 Item
 
-地图根场景参考 cabin 的并列职责结构。Grid 的直接子节点只能是 TileMapLayer：
+地图根场景使用统一的 `TileMaps` 容器集中管理所有 TileMapLayer：
 
 ```text
 Farm (BaseMap)
-├── BaseLayer (TileMapLayer)
-├── DiggableLayer (TileMapLayer, status mask)
-├── DropableLayer (TileMapLayer, status mask)
-├── RoadStatusLayer (TileMapLayer, status mask)
-├── ResourceStatusLayer (TileMapLayer, status mask)
-├── BoundaryStatusLayer (TileMapLayer, status mask)
+├── TileMaps (Node2D, identity transform)
+│   ├── BaseLayer (TileMapLayer)
+│   ├── DiggableLayer (TileMapLayer, status mask)
+│   ├── DropableLayer (TileMapLayer, status mask)
+│   ├── RoadStatusLayer (TileMapLayer, status mask)
+│   ├── ResourceStatusLayer (TileMapLayer, status mask)
+│   └── BoundaryStatusLayer (TileMapLayer, status mask)
 ├── MapItems (Node2D)
 │   ├── Plants (Node2D, y_sort_enabled)
 │   └── Items (Node2D, y_sort_enabled)
-├── InteractionCursor (Node2D)
 ├── Landmarks
 ├── StaticCollision
 ├── SpawnPoints
@@ -311,7 +311,7 @@ Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 flag mask �
 
 Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 通过 ItemState.meta_id 查询 DataCatalog，验证 Meta/State 子类组合后创建 Item、HarvestableItem 或 PlantItem，再按 `ItemMeta.world_type()` 通过 item_hosts 挂入对应 host。运行时子类保存下转后的强类型引用，专属逻辑不从基类 State 猜测字段。
 
-与某个地图强耦合的网格和地图 Item 生命周期统一放在地图根脚本中，不再抽出 `MapGrid` 或独立 ItemManager。Field/Cabin 将各自的 Ground/Road/Resource/Boundary 或 Floor/Wall 直接作为 BaseMap 根节点子节点，不创建无额外行为的地图脚本；地图树中不得添加仅用于包装 TileMapLayer 的 Grid 节点。
+与某个地图强耦合的网格和地图 Item 生命周期统一放在地图根脚本中，不再抽出 `MapGrid` 或独立 ItemManager。Farm/Field/Cabin 将各自的 Ground/Base/Road/Resource/Boundary 或 Floor/Wall 统一作为 `TileMaps` 的直接子节点，不创建无额外行为的地图脚本，也不得在 TileMaps 内继续添加包装层。
 
 ### 8.3 Targeting 与行动
 
@@ -320,10 +320,10 @@ Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 
 ```text
 唯一 active ItemStack（Toolbar 或 Itembar）
  -> 构建 InteractionContext(player, facing, charge, amount)
- -> 对应 UseAction.preview(context)
- -> Array[TargetCandidate]（有序、含有效原因）
- -> Cursor 渲染同一结果
- -> UseAction.commit(context, preview_result)
+ -> InteractionCursor.begin(context, map, item/tool)
+ -> InteractionCursor 计算目标、维护蓄力状态并绘制 preview
+ -> Array[CellState]（有序预览视图，InteractionFlag 标记 VALID/INVALID/ENTITY）
+ -> 具体 Item/Tool 提交 preview_result
  -> 校验体力/数量仍足够
  -> 原子修改 MapCell/GameManager
  -> EventBus 事实事件 + 音画反馈

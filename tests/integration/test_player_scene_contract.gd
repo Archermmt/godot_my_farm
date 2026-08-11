@@ -21,6 +21,11 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.get_node("SelectionPopup") is Control)
 	assert_true(player.get_node("SelectionTimer") is Timer)
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
+	var interaction_cursor := player.get_node("InteractionCursor") as InteractionCursor
+	assert_true(interaction_cursor != null)
+	assert_true(interaction_cursor.top_level)
+	player.position = Vector2(100, 100)
+	assert_equal(interaction_cursor.global_position, Vector2.ZERO)
 	var camera: Camera2D = player.get_node("Camera2D") as Camera2D
 	assert_true(camera.enabled)
 	assert_equal(camera.process_callback, Camera2D.CAMERA2D_PROCESS_PHYSICS)

@@ -13,9 +13,17 @@ enum CellFlag {
 	WATERED = 256,
 }
 
+enum InteractionFlag {
+	NONE = 0,
+	VALID = 1,
+	INVALID = 2,
+	ENTITY = 4,
+}
+
 var cell: Vector2i = Vector2i.ZERO
 var flags: int = 0
 var item_ids: Array[StringName] = []
+var interaction_flags: int = InteractionFlag.NONE
 
 
 func to_dict() -> Dictionary:

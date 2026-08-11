@@ -24,6 +24,7 @@ var _lock_reasons: Dictionary[StringName, bool] = {}
 @onready var selection_title: Label = $SelectionPopup/Background/Title
 @onready var selection_slots: HBoxContainer = $SelectionPopup/Background/Slots
 @onready var selection_timer: Timer = $SelectionTimer
+@onready var interaction_cursor: InteractionCursor = $InteractionCursor
 
 
 func _ready() -> void:
@@ -41,12 +42,20 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_input_locked() or not event.is_pressed() or (event is InputEventKey and event.is_echo()):
-		return
 	if state == null:
 		return
+	if event.is_action_released("use_held"):
+		_release_interaction()
+		get_viewport().set_input_as_handled()
+		return
+	if is_input_locked() or not event.is_pressed() or (event is InputEventKey and event.is_echo()):
+		return
 	var handled := true
-	if event.is_action_pressed("toolbar_previous"):
+	if event.is_action_pressed("use_held"):
+		_begin_interaction()
+	elif event.is_action_pressed("cancel"):
+		_cancel_interaction()
+	elif event.is_action_pressed("toolbar_previous"):
 		select_bar_relative(PlayerState.ActiveHandSource.TOOLBAR, -1)
 	elif event.is_action_pressed("toolbar_next"):
 		select_bar_relative(PlayerState.ActiveHandSource.TOOLBAR, 1)
@@ -60,13 +69,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _process(delta: float) -> void:
+	if interaction_cursor == null:
+		return
+	if interaction_cursor.is_charging() and is_input_locked():
+		_cancel_interaction()
+		return
+	interaction_cursor.update(delta)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_cancel_interaction()
+
+
 func _physics_process(_delta: float) -> void:
 	input_direction = movement_vector()
 	walking = wants_walk()
-	facing = resolve_facing(input_direction, facing)
+	if interaction_cursor == null or not interaction_cursor.is_charging():
+		facing = resolve_facing(input_direction, facing)
 	velocity = velocity_for(input_direction, walking)
 	move_and_slide()
 	set_motion(resolve_motion_state(input_direction, walking), facing)
+	_sync_state_cell()
 
 func movement_vector() -> Vector2:
 	if is_input_locked():
@@ -93,6 +118,8 @@ func set_facing(value: StringName) -> void:
 	if value not in DIRECTIONS:
 		return
 	set_motion(motion_state, value)
+	if interaction_cursor != null and interaction_cursor.is_charging():
+		_cancel_interaction()
 
 
 func set_motion(next_state: StringName, next_facing: StringName) -> void:
@@ -271,6 +298,10 @@ func _data_catalog() -> Variant:
 	return get_tree().root.get_node_or_null("DataCatalog")
 
 
+func _scene_manager() -> SceneManagerService:
+	return get_tree().root.get_node_or_null("SceneManager") as SceneManagerService
+
+
 func bind_state(next_state: PlayerState) -> Error:
 	if next_state == null:
 		return ERR_INVALID_PARAMETER
@@ -289,6 +320,7 @@ func active_stack() -> ItemStack:
 
 
 func select_bar_relative(source: PlayerState.ActiveHandSource, offset: int) -> Error:
+	_cancel_interaction()
 	if state == null:
 		return ERR_UNCONFIGURED
 	var error := state.select_bar_relative(source, offset)
@@ -298,6 +330,7 @@ func select_bar_relative(source: PlayerState.ActiveHandSource, offset: int) -> E
 
 
 func select_bar_index(source: PlayerState.ActiveHandSource, index: int) -> Error:
+	_cancel_interaction()
 	if state == null:
 		return ERR_UNCONFIGURED
 	var error := state.select_bar_index(source, index)
@@ -335,7 +368,60 @@ func _emit_selection_changed() -> void:
 
 
 func _on_player_state_changed(next_state: PlayerState) -> void:
+	_cancel_interaction()
 	bind_state(next_state)
+
+
+func _begin_interaction() -> void:
+	if interaction_cursor == null or state == null:
+		return
+	var stack := state.active_stack()
+	if stack == null or stack.is_empty():
+		return
+	var catalog: DataCatalogService = _data_catalog()
+	var meta: ItemMeta = catalog.get_item(stack.item_id) if catalog != null else null
+	var scene_manager := _scene_manager()
+	var map: BaseMap = scene_manager.current_map() if scene_manager != null else null
+	if meta == null or map == null:
+		return
+	var player_cell := map.world_to_cell(global_position)
+	state.cell = player_cell
+	var context := InteractionContext.new(
+		state.map_id,
+		player_cell,
+		state.facing,
+		0,
+		stack.item_id,
+		stack.amount,
+		state.stamina,
+		map.interaction_revision
+	)
+	interaction_cursor.begin(context, map, meta)
+
+
+func _sync_state_cell() -> void:
+	if state == null:
+		return
+	var scene_manager := _scene_manager()
+	var map: BaseMap = scene_manager.current_map() if scene_manager != null else null
+	if map == null:
+		return
+	var current_cell := map.world_to_cell(global_position)
+	if not map.contains_cell(current_cell):
+		return
+	state.cell = current_cell
+	if interaction_cursor != null and interaction_cursor.is_charging():
+		interaction_cursor.move_origin(current_cell)
+
+
+func _release_interaction() -> void:
+	if interaction_cursor != null:
+		interaction_cursor.release()
+
+
+func _cancel_interaction() -> void:
+	if interaction_cursor != null:
+		interaction_cursor.cancel()
 
 
 static func normalized_direction(raw: Vector2) -> Vector2:
