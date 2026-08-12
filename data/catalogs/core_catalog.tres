@@ -1,4 +1,4 @@
-[gd_resource type="Resource" load_steps=32 format=3]
+[gd_resource type="Resource" load_steps=59 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/game_catalog.gd" id="1_catalog"]
 [ext_resource type="Script" path="res://scripts/data/item/item_meta.gd" id="2_item"]
@@ -9,6 +9,10 @@
 [ext_resource type="Script" path="res://scripts/data/npc_schedule_event.gd" id="8_event"]
 [ext_resource type="Script" path="res://scripts/data/npc_schedule.gd" id="9_schedule"]
 [ext_resource type="Script" path="res://scripts/data/item/tool_meta.gd" id="10_tool"]
+[ext_resource type="Script" path="res://scripts/data/item/plant_stage_meta.gd" id="11_stage"]
+[ext_resource type="Texture2D" path="res://assets/art/items/plant_stages.svg" id="12_parsnip"]
+[ext_resource type="Texture2D" path="res://assets/art/items/pumpkin_stages.svg" id="13_pumpkin"]
+[ext_resource type="Texture2D" path="res://assets/art/items/potato_stages.svg" id="14_potato"]
 
 [sub_resource type="Resource" id="ItemHoe"]
 script = ExtResource("10_tool")
@@ -85,6 +89,26 @@ item_type = 1
 use_kind = 3
 stack_limit = 99
 buy_price = 20
+
+[sub_resource type="Resource" id="ItemSeedPumpkin"]
+script = ExtResource("2_item")
+id = &"seed_pumpkin"
+display_name = "Pumpkin Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+use_kind = 3
+stack_limit = 99
+buy_price = 40
+
+[sub_resource type="Resource" id="ItemSeedPotato"]
+script = ExtResource("2_item")
+id = &"seed_potato"
+display_name = "Potato Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+use_kind = 3
+stack_limit = 99
+buy_price = 30
 
 [sub_resource type="Resource" id="ItemWood"]
 script = ExtResource("2_item")
@@ -179,6 +203,48 @@ script = ExtResource("6_table")
 id = &"drop_grass"
 entries = Array[ExtResource("5_entry")]([SubResource("DropGrassEntry")])
 
+[sub_resource type="AtlasTexture" id="ParsnipStage0Texture"]
+atlas = ExtResource("12_parsnip")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="ParsnipStage0"]
+script = ExtResource("11_stage")
+texture = SubResource("ParsnipStage0Texture")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="ParsnipStage1Texture"]
+atlas = ExtResource("12_parsnip")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="ParsnipStage1"]
+script = ExtResource("11_stage")
+start_day = 2
+texture = SubResource("ParsnipStage1Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="ParsnipStage2Texture"]
+atlas = ExtResource("12_parsnip")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="ParsnipStage2"]
+script = ExtResource("11_stage")
+start_day = 4
+max_health = 2
+texture = SubResource("ParsnipStage2Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="ParsnipStage3Texture"]
+atlas = ExtResource("12_parsnip")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="ParsnipStage3"]
+script = ExtResource("11_stage")
+start_day = 6
+max_health = 2
+texture = SubResource("ParsnipStage3Texture")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drop_table_id = &"drop_parsnip"
+
 [sub_resource type="Resource" id="ItemParsnip"]
 script = ExtResource("4_plant")
 id = &"crop_parsnip"
@@ -190,35 +256,129 @@ stack_limit = 99
 buy_price = 50
 sell_price = 35
 seed_item_id = &"seed_parsnip"
-stages = Array[Dictionary]([{
-"drop_table_id": &"",
-"max_health": 1,
-"start_day": 0,
-"state_tags": Array[StringName]([&"sprout"]),
-"visual_key": &"parsnip_seed"
-}, {
-"drop_table_id": &"",
-"max_health": 1,
-"start_day": 2,
-"state_tags": Array[StringName]([&"growing"]),
-"visual_key": &"parsnip_sprout"
-}, {
-"drop_table_id": &"",
-"max_health": 2,
-"start_day": 4,
-"state_tags": Array[StringName]([&"growing"]),
-"visual_key": &"parsnip_leaves"
-}, {
-"drop_table_id": &"drop_parsnip",
-"max_health": 2,
-"start_day": 6,
-"state_tags": Array[StringName]([&"mature", &"harvestable"]),
-"visual_key": &"parsnip_mature"
-}])
+stages = Array[ExtResource("11_stage")]([SubResource("ParsnipStage0"), SubResource("ParsnipStage1"), SubResource("ParsnipStage2"), SubResource("ParsnipStage3")])
 requires_water = true
 required_tool = 4
 max_health = 2
 drop_table_id = &"drop_parsnip"
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+
+[sub_resource type="AtlasTexture" id="PumpkinStage0Texture"]
+atlas = ExtResource("13_pumpkin")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="PumpkinStage0"]
+script = ExtResource("11_stage")
+texture = SubResource("PumpkinStage0Texture")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="PumpkinStage1Texture"]
+atlas = ExtResource("13_pumpkin")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="PumpkinStage1"]
+script = ExtResource("11_stage")
+start_day = 2
+texture = SubResource("PumpkinStage1Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="PumpkinStage2Texture"]
+atlas = ExtResource("13_pumpkin")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="PumpkinStage2"]
+script = ExtResource("11_stage")
+start_day = 5
+max_health = 2
+texture = SubResource("PumpkinStage2Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="PumpkinStage3Texture"]
+atlas = ExtResource("13_pumpkin")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="PumpkinStage3"]
+script = ExtResource("11_stage")
+start_day = 8
+max_health = 3
+texture = SubResource("PumpkinStage3Texture")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+
+[sub_resource type="Resource" id="ItemPumpkin"]
+script = ExtResource("4_plant")
+id = &"crop_pumpkin"
+display_name = "Pumpkin"
+description = "A sturdy autumn gourd."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+buy_price = 80
+sell_price = 60
+seed_item_id = &"seed_pumpkin"
+stages = Array[ExtResource("11_stage")]([SubResource("PumpkinStage0"), SubResource("PumpkinStage1"), SubResource("PumpkinStage2"), SubResource("PumpkinStage3")])
+requires_water = true
+required_tool = 4
+max_health = 3
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+
+[sub_resource type="AtlasTexture" id="PotatoStage0Texture"]
+atlas = ExtResource("14_potato")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="PotatoStage0"]
+script = ExtResource("11_stage")
+texture = SubResource("PotatoStage0Texture")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="PotatoStage1Texture"]
+atlas = ExtResource("14_potato")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="PotatoStage1"]
+script = ExtResource("11_stage")
+start_day = 1
+texture = SubResource("PotatoStage1Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="PotatoStage2Texture"]
+atlas = ExtResource("14_potato")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="PotatoStage2"]
+script = ExtResource("11_stage")
+start_day = 3
+max_health = 2
+texture = SubResource("PotatoStage2Texture")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="PotatoStage3Texture"]
+atlas = ExtResource("14_potato")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="PotatoStage3"]
+script = ExtResource("11_stage")
+start_day = 5
+max_health = 2
+texture = SubResource("PotatoStage3Texture")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+
+[sub_resource type="Resource" id="ItemPotato"]
+script = ExtResource("4_plant")
+id = &"crop_potato"
+display_name = "Potato"
+description = "A dependable root crop."
+item_type = 3
+use_kind = 5
+stack_limit = 99
+buy_price = 60
+sell_price = 45
+seed_item_id = &"seed_potato"
+stages = Array[ExtResource("11_stage")]([SubResource("PotatoStage0"), SubResource("PotatoStage1"), SubResource("PotatoStage2"), SubResource("PotatoStage3")])
+requires_water = true
+required_tool = 4
+max_health = 2
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
 
@@ -277,6 +437,6 @@ events = Array[ExtResource("8_event")]([SubResource("ScheduleEventFarm")])
 
 [resource]
 script = ExtResource("1_catalog")
-items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemParsnip"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood"), SubResource("HarvestTree"), SubResource("HarvestRock"), SubResource("HarvestGrass")])
+items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemSeedPumpkin"), SubResource("ItemSeedPotato"), SubResource("ItemParsnip"), SubResource("ItemPumpkin"), SubResource("ItemPotato"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood"), SubResource("HarvestTree"), SubResource("HarvestRock"), SubResource("HarvestGrass")])
 drop_tables = Array[ExtResource("6_table")]([SubResource("DropParsnip"), SubResource("DropWood"), SubResource("DropStone"), SubResource("DropGrass")])
 npc_schedules = Array[ExtResource("9_schedule")]([SubResource("ScheduleVillager")])

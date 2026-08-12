@@ -102,6 +102,12 @@ func has_item(id: StringName) -> bool:
 	return _items.has(id)
 
 
+func item_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	ids.assign(_items.keys())
+	return ids
+
+
 func has_plant(id: StringName) -> bool:
 	return _items.get(id) is PlantMeta
 

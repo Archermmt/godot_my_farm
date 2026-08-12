@@ -205,14 +205,14 @@ use_kind: enum
 
 ```text
 id / seed_item_id
-stages: Array[Dictionary]  # PlantMeta.make_stage() 生成的阶段结构
+stages: Array[PlantStageMeta]
 requires_water: bool
 required_tool: enum
 max_health: int
 drop_table_id
 ```
 
-HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。PlantMeta 继承 HarvestableMeta，额外提供成长阶段、浇水需求和可选 seed_item_id；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。seed_item_id 为空表示不能由玩家播种。每个阶段结构由 `PlantMeta.make_stage()` 创建并由 CatalogValidator 校验。
+HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。PlantMeta 继承 HarvestableMeta，额外提供成长阶段、浇水需求和可选 seed_item_id；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。seed_item_id 为空表示不能由玩家播种。每个 `PlantStageMeta` 配置成长阈值、贴图、视觉偏移、生命、标签和掉落表，并由 CatalogValidator 校验；普通单格植物共享 `plant.tscn`，阶段贴图通过 Inspector 在 catalog 中替换。
 
 ### 6.3 DropTable
 
@@ -332,6 +332,8 @@ Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 
 ```
 
 Hoe 和 WateringCan 使用运行时 `Tool` 执行多格事务，并返回 `ToolUseResult`。Tool 只调用 MapCell 的 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，Cursor preview 复用同一查询入口。InteractionCursor.begin 直接接收 PlayerState，从中读取 cell、facing、active stack 和 stamina；地图 revision 在 Cursor 内部从 BaseMap 保存为事务快照。Tool 只接收快照体力值并在结果中返回 `stamina_spent`，由 Player 在成功提交后修改 PlayerState。成功后 BaseMap 增加 interaction revision 并让 `CellStateProjection` 从 MapCell 重绘；投影不拥有状态，删除或加载地图后都可从 CellState 重建。
+
+所有可使用物品的结果 DTO 继承 `ItemUseResult`，基类保存通用的 `error` 和 `effect_cells`；`ToolUseResult` 额外保存工具类型、跳过原因、体力和投影错误，`SeedUseResult` 额外保存种子 ID 和新建的植物实例 ID。Player/InteractionCursor 根据具体子类读取专属结果，基类不包含工具或种植业务字段。
 
 范围顺序必须确定：从起始格开始，按面向方向的行列顺序扩展。预览不得重新随机；提交使用预览中已确定的对象 ID。
 

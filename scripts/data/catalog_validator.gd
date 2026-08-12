@@ -83,13 +83,13 @@ static func _validate_plant(plant: PlantMeta, item_ids: Dictionary, drop_table_i
 		errors.append("plant %s stages must not be empty" % plant.id)
 	var previous_day: int = -1
 	for index: int in plant.stages.size():
-		var stage: Dictionary = plant.stages[index]
-		if not PlantMeta.is_stage_struct(stage):
-			errors.append("plant %s stages[%d] has invalid structure" % [plant.id, index])
+		var stage: PlantStageMeta = plant.stages[index]
+		if stage == null:
+			errors.append("plant %s stages[%d] is null" % [plant.id, index])
 			continue
-		var start_day := int(stage.get("start_day", 0))
-		var max_health := int(stage.get("max_health", 0))
-		var drop_table_id := stage.get("drop_table_id", &"") as StringName
+		var start_day := stage.start_day
+		var max_health := stage.max_health
+		var drop_table_id := stage.drop_table_id
 		if start_day <= previous_day:
 			errors.append("plant %s stages[%d].start_day must increase" % [plant.id, index])
 		previous_day = start_day

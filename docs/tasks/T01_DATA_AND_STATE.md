@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- `scripts/data/item/`：ItemMeta、ToolMeta、HarvestableMeta、PlantMeta；`scripts/data/`：DropTable/entry、NpcSchedule/event。PlantMeta 内部使用阶段结构，不建立独立成长阶段类。
+- `scripts/data/item/`：ItemMeta、ToolMeta、HarvestableMeta、PlantMeta、PlantStageMeta；`scripts/data/`：DropTable/entry、NpcSchedule/event。PlantStageMeta 是可由 Inspector 编辑的阶段 Resource，集中配置阶段贴图和阈值。
 - `scripts/state/item/`：ItemState、HarvestableState、PlantState；`scripts/state/inventory/`：ItemStack、InventoryState、ToolbarState、ItembarState；`scripts/state/`：PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/items/` 保存运行时 Item、HarvestableItem 和 PlantItem，与 `scripts/world/` 同级；`scripts/world/` 保存 BaseMap 与 MapCell。
 - `data/`：最小测试 catalog，包括 6 个工具、欧洲防风草种子/作物、木材、石头、草、食物占位定义。
 - `tests/unit/`：catalog/state/round-trip 测试。

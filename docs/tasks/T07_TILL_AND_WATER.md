@@ -21,7 +21,7 @@
 2. WaterCan 仅作用于带 DUG flag 的格；成功后写入 `CellState.CellFlag.WATERED`。同日重复浇水不重复耗体力。
 3. 多格行动先收集全部有效目标，再计算体力；体力不足时整次失败，地块和体力都不变。
 4. 成功事务顺序：状态提交 -> 无状态视觉投影 -> 体力扣除 -> facts signal -> audio/effect。投影失败必须报告并可由状态重建。
-5. Tool 返回结构化结果：changed cells、skipped reasons、stamina spent；UI 不解析日志判断结果。
+5. Tool 返回结构化结果：`effect_cells`、skipped reasons、stamina spent；UI 不解析日志判断结果。
 6. MapState 写回并恢复后，dug/watered 表现与状态一致。
 7. Cursor preview 的 valid 条件复用 MapCell 的查询规则，不能另写一套。
 

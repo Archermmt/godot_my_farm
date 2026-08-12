@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T07 翻地与浇水](./tasks/T07_TILL_AND_WATER.md)（completed）。
-- 下一任务：[T08 播种、作物与成长](./tasks/T08_CROPS.md)。
+- 当前任务：[T08 播种、成长与作物阶段](./tasks/T08_CROPS.md)（in_progress）。
+- T06、T07 已完成；T08 正在实现播种、阶段投影和基于浇水的日结算。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
@@ -12,11 +12,11 @@
 - 已完成参考 Unity/C# 项目的代码级职责分析。
 - 已固定 GDScript、Godot 场景/状态边界、任务依赖和验收流程。
 - T01 已建立静态定义、纯 DTO 状态和序列化校验链路；MapState、CellState、ItemState 等状态对象不持有 Node、Texture、PackedScene、Callable 或 NodePath。
-- 核心 catalog 包含 12 个物品、1 种作物/4 个成长阶段、3 个采集物、4 张掉落表/4 个 entry、1 份 NPC 日程/1 个 event，共 30 个 Resource 记录。
+- 核心 catalog 包含 19 个物品、3 种作物/各 4 个成长阶段、3 个采集物、4 张掉落表/4 个 entry、1 份 NPC 日程/1 个 event。
 - InventoryState 支持固定容量、堆叠、添加/移除、交换、合并、跨容器交换和选择；失败路径保持事务前状态。
 - 所有存档状态提供纯 Dictionary `to_dict()` 与显式严格 factory，Vector2i 和 StringName 经 JSON round-trip 后恢复原类型。
 - T02 已接入 5 个游戏 Autoload，顺序为 EventBus -> DataCatalog -> GameManager -> SceneManager -> AudioManager；GameManager 统一持有玩家、地图、NPC、时间和存档入口；godot-ai 的 `_mcp_game_helper` 是开发期附加服务，不属于游戏服务。
-- DataCatalog 使用显式 `core_catalog.tres`，GameManager 新游戏提供 6 个工具、15 个欧洲防风草种子、cabin/wake 起点、生命/体力/金币和三张空 MapState。
+- DataCatalog 使用显式 `core_catalog.tres`，GameManager 新游戏提供 6 个工具、欧洲防风草/南瓜/土豆种子、cabin/wake 起点、生命/体力/金币和三张空 MapState；`N` 键可开发期跳过一天。
 - GameManager 支持 start/stop、多个 pause reason、时间快照和统一存档入口；SceneManager host 注入、AudioManager 播放 API 在未到对应任务时返回明确 `ERR_UNAVAILABLE`。
 - T03 已建立唯一持久 Player leaf scene：CharacterBody2D、Capsule 碰撞、四向 Visual、Hands、InteractionOrigin 与 Camera2D；Main 只在 ActorHost 实例化一个 Player，并由 SceneManager 拒绝重复注册。
 - `player.gd` 单一根控制器集中处理 InputMap、多 reason 输入锁、对角归一化、移动碰撞、朝向、动画选择和 Camera2D limits；默认跑速 96、Shift 慢走 48，斜向朝向水平优先。Visual、Hands、碰撞、交互挂点和相机子节点不再挂角色业务脚本。

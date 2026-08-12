@@ -49,9 +49,9 @@ func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) ->
 				map.get_cell(changed_coordinates).set_flags(previous_flags[changed_coordinates])
 			result.error = cell_error
 			return result
-		result.changed_cells.append(cell.coordinates)
+		result.effect_cells.append(cell.coordinates)
 
-	result.projection_error = map.commit_cell_changes(result.changed_cells)
+	result.projection_error = map.commit_cell_changes(result.effect_cells)
 	result.stamina_spent = stamina_cost
 	return result
 

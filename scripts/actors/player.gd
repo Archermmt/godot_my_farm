@@ -70,6 +70,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var handled := true
 	if event.is_action_pressed("use_held"):
 		_begin_interaction()
+	elif event.is_action_pressed("skip_day"):
+		GameManager.skip_day()
 	elif event.is_action_pressed("cancel"):
 		_cancel_interaction()
 	elif event.is_action_pressed("toolbar_previous"):
@@ -243,7 +245,7 @@ func _refresh_held_visual() -> void:
 		return
 	held_visual.visible = true
 	held_swatch.color = _item_color(meta)
-	held_label.text = _short_label(meta.display_name)
+	held_label.text = _short_label(meta)
 
 
 func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
@@ -267,7 +269,7 @@ func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
 		label.add_theme_color_override("font_color", Color("142c2b") if index == container.selected_index else Color("e9f0df"))
 		if stack != null and not stack.is_empty():
 			var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
-			label.text = _short_label(meta.display_name) if meta != null else "?"
+			label.text = _short_label(meta) if meta != null else "?"
 		else:
 			label.text = "-"
 		slot.add_child(label)
@@ -297,11 +299,15 @@ func _item_color(meta: ItemMeta) -> Color:
 	return Color("6f9ca0")
 
 
-func _short_label(display_name: String) -> String:
-	var words := display_name.split(" ", false)
+func _short_label(meta: ItemMeta) -> String:
+	if meta == null:
+		return "?"
+	var words := meta.display_name.split(" ", false)
+	if meta.item_type == ItemMeta.ItemType.SEED and not words.is_empty():
+		return words[0].left(2).to_upper()
 	if words.size() >= 2:
 		return (words[0].left(1) + words[1].left(1)).to_upper()
-	return display_name.left(2).to_upper()
+	return meta.display_name.left(2).to_upper()
 
 
 func bind_state(next_state: PlayerState) -> Error:
@@ -405,22 +411,31 @@ func _sync_state_cell() -> void:
 func _release_interaction() -> void:
 	if interaction_cursor != null:
 		var error := interaction_cursor.release()
-		if error == OK and interaction_cursor.last_tool_result != null:
+		if error != OK:
+			return
+		if interaction_cursor.last_tool_result != null:
 			var result := interaction_cursor.last_tool_result
 			var stamina_spent := result.stamina_spent
 			if stamina_spent > 0 and state != null:
 				state.set_stamina(state.stamina - stamina_spent)
 			_emit_tool_result(result)
+		elif interaction_cursor.last_seed_result != null:
+			var seed_result := interaction_cursor.last_seed_result
+			if seed_result.consumed_count() > 0 and state != null:
+				state.itembar.remove_item(seed_result.seed_item_id, seed_result.consumed_count())
+				_event_bus_service.container_changed.emit(&"itembar")
+				var active := state.active_stack()
+				_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
 
 
 func _emit_tool_result(result: ToolUseResult) -> void:
 	if result == null or _event_bus_service == null:
 		return
-	_event_bus_service.cells_tool_used.emit(result.tool_kind, result.changed_cells, result.stamina_spent)
+	_event_bus_service.cells_tool_used.emit(result.tool_kind, result.effect_cells, result.stamina_spent)
 	if result.projection_error != OK:
-		_event_bus_service.cell_projection_failed.emit(result.changed_cells, result.projection_error)
+		_event_bus_service.cell_projection_failed.emit(result.effect_cells, result.projection_error)
 	var event_id := &"till" if result.tool_kind == ToolMeta.ToolKind.HOE else &"water"
-	_event_bus_service.request_tool_feedback.emit(event_id, result.changed_cells)
+	_event_bus_service.request_tool_feedback.emit(event_id, result.effect_cells)
 	if _audio_manager_service != null:
 		_audio_manager_service.play_event(event_id)
 

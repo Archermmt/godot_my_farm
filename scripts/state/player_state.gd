@@ -14,6 +14,8 @@ const INITIAL_TOOL_IDS: Array[StringName] = [
 ]
 const INITIAL_SEED_ID := &"seed_parsnip"
 const INITIAL_SEED_AMOUNT := 15
+const INITIAL_EXTRA_SEEDS: Array[StringName] = [&"seed_pumpkin", &"seed_potato"]
+const INITIAL_EXTRA_SEED_AMOUNT := 10
 
 enum ActiveHandSource {
 	NONE,
@@ -60,6 +62,11 @@ func initialize(catalog: DataCatalogService) -> Error:
 	var seed_meta: ItemMeta = catalog.get_item(INITIAL_SEED_ID)
 	if seed_meta == null or not itembar.accepts(seed_meta) or not itembar.set_slot(0, ItemStack.new(INITIAL_SEED_ID, INITIAL_SEED_AMOUNT)):
 		return ERR_INVALID_DATA
+	for index: int in INITIAL_EXTRA_SEEDS.size():
+		var extra_seed_id: StringName = INITIAL_EXTRA_SEEDS[index]
+		var extra_seed_meta: ItemMeta = catalog.get_item(extra_seed_id)
+		if extra_seed_meta == null or not itembar.accepts(extra_seed_meta) or not itembar.set_slot(index + 1, ItemStack.new(extra_seed_id, INITIAL_EXTRA_SEED_AMOUNT)):
+			return ERR_INVALID_DATA
 	return OK
 
 

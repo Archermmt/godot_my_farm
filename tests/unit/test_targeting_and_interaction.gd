@@ -19,14 +19,24 @@ func test_target_preview_respects_facing_and_charge_shape() -> void:
 
 
 func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
-	var map := _make_map(4, 4, CellState.CellFlag.DROPABLE)
-	var meta := ToolMeta.new()
+	var map := _make_map(8, 8, CellState.CellFlag.DROPABLE | CellState.CellFlag.DUG)
+	var meta := ItemMeta.new()
 	meta.use_kind = ItemMeta.UseKind.SEED
 	var player_state := _player_state(Vector2i(2, 2), &"down", &"seed_parsnip", 2, 10)
 	var cursor := InteractionCursor.new()
 	assert_equal(cursor.begin(player_state, map, meta), OK)
 	assert_equal(cursor.preview.size(), 1)
 	assert_equal(cursor.preview[0].cell, Vector2i(2, 3))
+	cursor.update(0.3)
+	assert_equal(cursor.preview.size(), 2)
+	assert_true((cursor.preview[0].interaction_flags & CellState.InteractionFlag.VALID) != 0)
+	assert_true((cursor.preview[1].interaction_flags & CellState.InteractionFlag.VALID) != 0)
+	player_state.toolbar.set_slot(0, ItemStack.new(&"seed_parsnip", 1))
+	cursor.cancel()
+	cursor.begin(player_state, map, meta)
+	cursor.update(1.0)
+	assert_true(cursor.preview.size() > 1)
+	assert_true((cursor.preview[1].interaction_flags & CellState.InteractionFlag.INVALID) != 0)
 	cursor.free()
 	map.free()
 
@@ -110,7 +120,7 @@ func test_cursor_release_delegates_hoe_and_watering_can_transactions() -> void:
 	assert_equal(cursor.release(), OK)
 	assert_true(cursor.last_tool_result.succeeded())
 	player_state.set_stamina(player_state.stamina - cursor.last_tool_result.stamina_spent)
-	assert_equal(cursor.last_tool_result.changed_cells, [Vector2i(2, 1)])
+	assert_equal(cursor.last_tool_result.effect_cells, [Vector2i(2, 1)])
 	assert_true(map.get_cell(Vector2i(2, 1)).is_dug())
 	assert_equal(player_state.stamina, 3)
 

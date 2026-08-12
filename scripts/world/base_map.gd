@@ -11,16 +11,24 @@ var interaction_revision: int = 0
 var _map_state: MapState = null
 var _cell_state_projection: Node2D = null
 var _catalog_service: DataCatalogService = null
+var _event_bus_service: EventBusService = null
 @onready var spawn_points: Node2D = $SpawnPoints
 
 func _ready() -> void:
-	configure_services(DataCatalog)
+	configure_services(DataCatalog, EventBus)
 	_build_cells()
 	_ensure_cell_state_projection()
 
 
-func configure_services(catalog_service: DataCatalogService) -> void:
+func configure_services(catalog_service: DataCatalogService, event_bus_service: EventBusService = null) -> void:
 	_catalog_service = catalog_service
+	_event_bus_service = event_bus_service
+	if _event_bus_service != null and not _event_bus_service.day_advanced.is_connected(_on_day_advanced):
+		_event_bus_service.day_advanced.connect(_on_day_advanced)
+
+
+func catalog() -> DataCatalogService:
+	return _catalog_service
 
 func configure_state(map_state: MapState) -> Error:
 	if map_state == null or map_state.map_id != map_id:
@@ -186,6 +194,30 @@ func add_item_state(item_state: ItemState) -> Error:
 	return OK
 
 
+func create_item_instance_id(meta_id: StringName) -> StringName:
+	var serial := 1
+	var candidate := StringName("%s_%d" % [meta_id, serial])
+	while items.has(candidate) or (_map_state != null and _map_state.items.has(candidate)):
+		serial += 1
+		candidate = StringName("%s_%d" % [meta_id, serial])
+	return candidate
+
+
+func settle_day(current_day: int) -> Array[StringName]:
+	var grown: Array[StringName] = []
+	if current_day <= 0:
+		return grown
+	for item_id: StringName in items:
+		var plant := items[item_id] as PlantItem
+		if plant == null or plant.plant_state == null:
+			continue
+		var cell := get_cell(plant.plant_state.cell)
+		if cell != null and cell.is_watered() and plant.grow_for_day(current_day):
+			grown.append(item_id)
+	clear_watered()
+	return grown
+
+
 func get_item(item_id: StringName) -> Item:
 	return items.get(item_id, null) as Item
 
@@ -243,10 +275,14 @@ func item_count(item_type: ItemMeta.WorldType = ItemMeta.WorldType.NONE) -> int:
 
 func world_to_cell(world_position: Vector2) -> Vector2i:
 	var layer := coordinate_layer()
+	if layer == null:
+		return Vector2i(floori(world_position.x), floori(world_position.y))
 	return layer.local_to_map(layer.to_local(world_position))
 
 func cell_to_world_center(cell: Vector2i) -> Vector2:
 	var layer := coordinate_layer()
+	if layer == null:
+		return Vector2(cell) + Vector2(0.5, 0.5)
 	return layer.to_global(layer.map_to_local(cell))
 
 func get_cells_in_rect(rect: Rect2i) -> Array[Vector2i]:
@@ -299,6 +335,10 @@ func clear_watered() -> Array[Vector2i]:
 	if not changed.is_empty():
 		commit_cell_changes(changed)
 	return changed
+
+
+func _on_day_advanced(_previous_day: int, current_day: int) -> void:
+	settle_day(current_day)
 
 
 func rebuild_cell_state_projection() -> Error:
@@ -367,7 +407,8 @@ func _create_item(item_state: ItemState) -> Item:
 		return null
 	var item: Item
 	if item_meta is PlantMeta:
-		item = PlantItem.new()
+		var plant_scene := load("res://scenes/items/plants/plant.tscn") as PackedScene
+		item = plant_scene.instantiate() as Item if plant_scene != null else PlantItem.new()
 	elif item_meta is HarvestableMeta:
 		item = HarvestableItem.new()
 	else:

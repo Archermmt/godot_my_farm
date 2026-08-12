@@ -118,6 +118,19 @@ func can_advance() -> bool:
 	return _running and not is_paused()
 
 
+func skip_day() -> Error:
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	if calendar.day >= 28:
+		return ERR_UNAVAILABLE
+	var previous_day := calendar.day
+	calendar.day += 1
+	calendar.weekday = 1 + (calendar.weekday % 7)
+	if _event_bus_service != null:
+		_event_bus_service.day_advanced.emit(previous_day, calendar.day)
+	return OK
+
+
 func pause_reasons() -> Array[StringName]:
 	var reasons: Array[StringName] = []
 	reasons.assign(_pause_reasons.keys())

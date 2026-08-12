@@ -56,6 +56,10 @@ func can_drop() -> bool:
 	return is_dropable() and not has_occupant()
 
 
+func can_plant() -> bool:
+	return is_dug() and not has_occupant() and not has_flag(CellState.CellFlag.BLOCKED)
+
+
 func tool_rejection_reason(tool_kind: ToolMeta.ToolKind) -> StringName:
 	match tool_kind:
 		ToolMeta.ToolKind.HOE:

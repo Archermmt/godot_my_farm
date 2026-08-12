@@ -21,9 +21,9 @@
 | T03 | [玩家移动、相机与动画状态](./tasks/T03_PLAYER_MOVEMENT.md) | T02 | B 核心切片 | completed |
 | T04 | [地图、网格与场景切换](./tasks/T04_MAPS_AND_FARM_GRID.md) | T03 | B 核心切片 | completed |
 | T05 | [背包、Toolbar、Itembar 与手持物](./tasks/T05_INVENTORY_TOOLBAR_ITEMBAR.md) | T03 | B 核心切片 | completed |
-| T06 | [统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md) | T04, T05 | B 核心切片 | pending |
-| T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | pending |
-| T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | pending |
+| T06 | [统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md) | T04, T05 | B 核心切片 | completed |
+| T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | completed |
+| T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | in_progress |
 | T09 | [采集对象、掉落与拾取](./tasks/T09_HARVEST_AND_PICKUP.md) | T06, T08 | B 核心切片 | pending |
 | T10 | [时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md) | T08, T09 | C 活世界 | pending |
 | T11 | [环境生成与地图状态恢复](./tasks/T11_WORLD_GENERATION.md) | T09, T10 | C 活世界 | pending |

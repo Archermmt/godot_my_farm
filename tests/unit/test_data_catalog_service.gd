@@ -7,7 +7,7 @@ func test_service_loads_explicit_catalog_and_indexes_ids() -> void:
 	var service := DataCatalogService.new()
 	assert_true(service.load_catalog(CATALOG_PATH, false))
 	assert_true(service.is_ready_for_game())
-	assert_equal(service.item_count(), 15)
+	assert_equal(service.item_count(), 19)
 	assert_equal(service.get_item(&"tool_hoe").display_name, "Hoe")
 	assert_equal(service.get_plant(&"crop_parsnip").seed_item_id, &"seed_parsnip")
 	assert_equal(service.get_drop_table(&"drop_wood").entries[0].item_id, &"material_wood")

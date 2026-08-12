@@ -52,4 +52,3 @@ func assert_equal(actual: Variant, expected: Variant, message: String = "") -> v
 		if detail.is_empty():
 			detail = "Expected %s, got %s" % [str(expected), str(actual)]
 		_failures.append(detail)
-

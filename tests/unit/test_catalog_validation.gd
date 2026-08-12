@@ -7,10 +7,15 @@ func test_core_catalog_loads_and_is_valid() -> void:
 	var catalog: GameCatalog = load(CATALOG_PATH) as GameCatalog
 	assert_true(catalog != null)
 	assert_equal(CatalogValidator.validate(catalog), [])
-	assert_equal(catalog.items.size(), 15)
-	assert_true(catalog.items[7] is PlantMeta)
-	assert_true(catalog.items[7] is HarvestableMeta)
-	assert_equal(_count_type(catalog.items, HarvestableMeta), 4)
+	assert_equal(catalog.items.size(), 19)
+	assert_true(catalog.items[_index_of(catalog.items, &"crop_parsnip")] is PlantMeta)
+	assert_true(catalog.items[_index_of(catalog.items, &"crop_parsnip")] is HarvestableMeta)
+	assert_equal(_count_type(catalog.items, HarvestableMeta), 6)
+	for plant_id: StringName in [&"crop_parsnip", &"crop_pumpkin", &"crop_potato"]:
+		var plant := catalog.items[_index_of(catalog.items, plant_id)] as PlantMeta
+		assert_equal(plant.stages.size(), 4)
+		for stage: PlantStageMeta in plant.stages:
+			assert_true(stage.texture != null, "%s has a stage without texture" % plant_id)
 	assert_equal(catalog.drop_tables.size(), 4)
 	assert_equal(catalog.npc_schedules.size(), 1)
 
@@ -60,8 +65,8 @@ func test_plant_stage_order_and_cross_references_are_reported() -> void:
 	var plant := catalog.items[1] as PlantMeta
 	plant.seed_item_id = &"missing_seed"
 	plant.drop_table_id = &"missing_drop"
-	plant.stages[1]["start_day"] = 0
-	plant.stages[1]["drop_table_id"] = &"missing_stage_drop"
+	plant.stages[1].start_day = 0
+	plant.stages[1].drop_table_id = &"missing_stage_drop"
 	var errors: Array[String] = CatalogValidator.validate(catalog)
 	assert_true(_contains(errors, "plant_test seed_item_id"))
 	assert_true(_contains(errors, "plant_test drop_table_id"))
@@ -143,3 +148,10 @@ func _count_type(items: Array[ItemMeta], meta_script: Script) -> int:
 		if is_instance_of(item, meta_script):
 			count += 1
 	return count
+
+
+func _index_of(items: Array[ItemMeta], item_id: StringName) -> int:
+	for index: int in items.size():
+		if items[index].id == item_id:
+			return index
+	return -1

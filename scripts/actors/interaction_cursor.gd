@@ -22,6 +22,7 @@ var charge_elapsed: float = 0.0
 var preview: Array[CellState] = []
 var player_state: PlayerState = null
 var last_tool_result: ToolUseResult = null
+var last_seed_result: SeedUseResult = null
 
 var _map: BaseMap = null
 var _meta: ItemMeta = null
@@ -47,6 +48,7 @@ func begin(next_player_state: PlayerState, map: BaseMap, meta: ItemMeta) -> Erro
 	charge_elapsed = 0.0
 	_commit_emitted = false
 	last_tool_result = null
+	last_seed_result = null
 	state = InteractionState.CHARGING
 	_refresh_preview()
 	return OK
@@ -92,7 +94,19 @@ func release() -> Error:
 			var tool_error := last_tool_result.error
 			_clear_to_idle()
 			return tool_error
-		valid_cells = last_tool_result.changed_cells.duplicate()
+		valid_cells = last_tool_result.effect_cells.duplicate()
+	elif _meta.use_kind == ItemMeta.UseKind.SEED:
+		var seed_cells: Array[Vector2i] = []
+		for cell_state: CellState in preview:
+			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
+				seed_cells.append(cell_state.cell)
+		var stack := player_state.active_stack()
+		last_seed_result = SeedItem.new(_meta, _map.catalog()).use(_map, seed_cells, GameManager.calendar.day, stack.amount)
+		if last_seed_result.error != OK:
+			var seed_error := last_seed_result.error
+			_clear_to_idle()
+			return seed_error
+		valid_cells = last_seed_result.effect_cells.duplicate()
 	else:
 		for cell_state: CellState in preview:
 			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
@@ -133,21 +147,18 @@ func _build_preview() -> Array[CellState]:
 		return result
 	var dimensions := _dimensions(charge_level)
 	var target_cells := _target_cells(player_state.cell, player_state.facing, dimensions.x, dimensions.y)
-	var in_bounds: Array[Vector2i] = []
-	for cell: Vector2i in target_cells:
-		if _map.contains_cell(cell):
-			in_bounds.append(cell)
-	target_cells = in_bounds
-	if _meta.use_kind == ItemMeta.UseKind.SEED:
-		target_cells = target_cells.slice(0, mini(target_cells.size(), stack.amount))
-	for cell: Vector2i in target_cells:
+	for index: int in target_cells.size():
+		var cell: Vector2i = target_cells[index]
+		if not _map.contains_cell(cell):
+			continue
 		var map_cell := _map.get_cell(cell)
 		var source_state := map_cell.cell_state()
 		var preview_state := CellState.new()
 		preview_state.cell = source_state.cell
 		preview_state.flags = source_state.flags
 		preview_state.item_ids = source_state.item_ids.duplicate()
-		preview_state.interaction_flags = CellState.InteractionFlag.VALID if _cell_accepts(map_cell) else CellState.InteractionFlag.INVALID
+		var has_seed := _meta.use_kind != ItemMeta.UseKind.SEED or index < stack.amount
+		preview_state.interaction_flags = CellState.InteractionFlag.VALID if has_seed and _cell_accepts(map_cell) else CellState.InteractionFlag.INVALID
 		if not source_state.item_ids.is_empty():
 			preview_state.interaction_flags |= CellState.InteractionFlag.ENTITY
 		result.append(preview_state)
@@ -165,6 +176,8 @@ func _level_for_elapsed() -> int:
 func _max_charge_level() -> int:
 	if _meta is ToolMeta:
 		return maxi(0, (_meta as ToolMeta).charge_levels.size() - 1)
+	if _meta != null and _meta.use_kind == ItemMeta.UseKind.SEED:
+		return 4
 	return 0
 
 
@@ -175,6 +188,8 @@ func _dimensions(level: int) -> Vector2i:
 			return Vector2i.ONE
 		var configured := levels[clampi(level, 0, levels.size() - 1)]
 		return Vector2i(maxi(1, configured.x), maxi(1, configured.y))
+	if _meta != null and _meta.use_kind == ItemMeta.UseKind.SEED:
+		return Vector2i(level + 1, 1)
 	return Vector2i.ONE
 
 
@@ -195,7 +210,9 @@ func _cell_accepts(cell: MapCell) -> bool:
 	match _meta.use_kind:
 		ItemMeta.UseKind.GRID_TOOL:
 			return Tool.new(_meta as ToolMeta).rejection_reason(cell) == &"" if _meta is ToolMeta else false
-		ItemMeta.UseKind.SEED, ItemMeta.UseKind.DROP:
+		ItemMeta.UseKind.SEED:
+			return cell.can_plant()
+		ItemMeta.UseKind.DROP:
 			return cell.can_drop()
 		ItemMeta.UseKind.HARVEST_TOOL:
 			return cell.has_occupant()

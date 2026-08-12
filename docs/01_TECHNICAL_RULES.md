@@ -160,7 +160,7 @@ GameManager
 - BaseMap 的 Item 工厂必须通过 ItemState.meta_id 解析 Meta，校验对应 State 子类，并显式创建匹配的 Item 子类；例如 PlantMeta/PlantState 对应 PlantItem。由于 Plant 继承 Harvestable，工厂判断顺序必须先 Plant、后 Harvestable。不得根据 ID 文本、节点名或脚本路径推断类型，也不得接受交叉组合。
 - ItemState 及其子类放在 scripts/state/item/，ItemStack 和 InventoryState/ToolbarState/ItembarState 放在 scripts/state/inventory/，CellState 放在 scripts/state/；Item 基类和运行时子类放在与 world 同级的 scripts/items/。
 - 浇水使用 `CellState.CellFlag.WATERED`；日推进逻辑消费前一天的浇水状态后清除该 flag。
-- Hoe/WateringCan 的多格操作由运行时 `Tool` 统一执行：先用 MapCell 查询收集有效格，再整批校验体力，最后原子修改 CellState。`ToolUseResult` 返回 changed_cells、skipped_reasons、stamina_spent 和 projection_error；UI 不从日志推断结果。
+- Hoe/WateringCan 的多格操作由运行时 `Tool` 统一执行：先用 MapCell 查询收集有效格，再整批校验体力，最后原子修改 CellState。`ToolUseResult` 继承 `ItemUseResult`，通过 `effect_cells` 返回实际生效的格子，并额外返回 skipped_reasons、stamina_spent 和 projection_error；UI 不从日志推断结果。
 - 一次 Tool 事务只消耗一次 `base_stamina_cost`；蓄力只扩大目标范围，不得将消耗乘以有效格数量，否则最大蓄力范围可能在满体力时也无法使用。
 - MapCell 的工具行为统一通过 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，不得为 Hoe/WateringCan 保留重复的 till/water 方法。Tool 不持有或修改 PlayerState；Player 根据成功的 ToolUseResult.stamina_spent 更新体力，InteractionCursor 直接读取 PlayerState 但不修改其体力。
 - InteractionContext 不再作为中间快照类型；InteractionCursor.begin 直接接收 PlayerState，并在内部保存 BaseMap interaction_revision 快照。
@@ -171,7 +171,7 @@ GameManager
 ## 9. 输入和交互
 
 - 所有玩家输入必须注册到 InputMap；业务脚本只调用 `Input.is_action_*`。
-- 必需 action：`move_left/right/up/down`、`walk_modifier`、`use_held`、`drop_held`、`toolbar_previous/toolbar_next`、`itembar_previous/itembar_next`、`inventory_toggle`、`inventory_swap`、`inventory_confirm`、`cancel`、`quick_save`、`quick_load`。
+- 必需 action：`move_left/right/up/down`、`walk_modifier`、`use_held`、`drop_held`、`toolbar_previous/toolbar_next`、`itembar_previous/itembar_next`、`inventory_toggle`、`inventory_swap`、`inventory_confirm`、`cancel`、`quick_save`、`quick_load`、`skip_day`。`skip_day` 是开发期换日入口，由 GameManager 推进 CalendarState 并发出 `day_advanced`。
 - 正式玩法的选择、使用、丢下和背包整理必须可由纯键盘完成；业务逻辑不得读取鼠标位置、鼠标按钮或 drag/drop 事件。方向目标来自 Player facing，UI 导航来自语义化方向 action。
 - Toolbar 只管理工具，Itembar 只管理可选择非工具物品，Inventory 管理普通存储。三者交换必须经过类型校验和原子状态 API；UI 不得直接改数组。
 - Player 只有一个 `active_hand_source` 和一个 active ItemStack。切换 Toolbar 或 Itembar 会替换当前手持来源，不允许工具与物品同时激活、同时显示或同时提交行动。
