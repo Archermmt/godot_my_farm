@@ -24,7 +24,7 @@
 5. charge level 按数据配置升级并限制最大级；目标范围遵循参考的单格、3x1、3x3、9x3、9x9 语义，不超地图或可用数量。
 6. commit 接受已经显示的 preview token/result，并重新校验资源版本；不得悄悄重新选择另一批目标。
 7. cancel、UI 打开、地图切换、active source/选中格变化、失去焦点都会清理 cursor 和 charging 状态，不消费物品/体力。
-8. 不在 InteractionCursor 写锄头/种子/斧头名称判断；通过 ItemMeta.use_kind 分发。
+8. 不在 InteractionCursor 写锄头/种子/斧头名称判断；通过 `ToolMeta` / `SeedMeta` 子类和 `ToolKind` 分发。
 
 ## 自动化验收
 
@@ -49,7 +49,8 @@
 - 状态：completed（2026-08-11）。
 - 已建立统一的 `InteractionCursor`；Player 直接控制 Cursor，Cursor 负责蓄力状态、目标计算和 preview 绘制，具体提交逻辑归 Item/Tool 运行时类型。
 - Player 通过 `use_held` 按下/释放驱动 `idle -> charging -> committed/cancelled -> idle`；重复 release 不会重复提交。
-- `ToolMeta.charge_levels` 配置单格、3x1、3x3、9x3、9x9 目标尺寸；目标顺序由 facing 和前方距离稳定生成，SEED 目标按 stack amount 截断。
+- `ToolMeta.charge_levels` 和 `SeedMeta.charge_levels` 分别配置目标尺寸；Hoe、WateringCan、Sickle、Basket 默认五档，Pickaxe、Axe 默认三档（1x1、3x1、3x3），Seed 使用四档（1x1、3x1、3x3、9x3）。目标顺序由 facing 和前方距离稳定生成，SEED 目标按 stack amount 标记超量格为 invalid。
+- 蓄力期间 Player 保持 facing 不变，移动只按地图 cell 的跨度跳转；每次成功跳转更新 PlayerState.cell，InteractionCursor 随之重建预览。
 - `BaseMap.interaction_revision` 用于 preview token 版本校验；地图版本变化时 commit 失败且不发出提交事实。
 - `InteractionCursor` 由 Player 场景持有，切换 cabin、farm、field 时继续复用；它使用 top-level 变换，并直接用 preview 返回的 CellState 绘制目标格和实体标记。
 - 本阶段不修改地块、不扣体力、不消费物品、不生成掉落；`interaction_committed` 只报告已验证的目标集合。

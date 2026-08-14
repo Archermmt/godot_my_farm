@@ -13,6 +13,7 @@
 - 完善 GameManager 内的时间控制与 CalendarState。
 - `scripts/world/day_cycle_controller.gd` 或等价应用协调器。
 - Clock/PlayerStatus 最小 HUD；LightSchedule Resource 与地图光照节点。
+- 常驻“游戏状态 + 人物状态”显示面板：同一面板显示日期、时间、季节、地图、生命、体力和金币，并随运行时状态实时更新。
 - time/day-cycle 单元和集成测试。
 
 ## 实现要求

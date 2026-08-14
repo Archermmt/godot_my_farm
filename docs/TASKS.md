@@ -23,9 +23,9 @@
 | T05 | [背包、Toolbar、Itembar 与手持物](./tasks/T05_INVENTORY_TOOLBAR_ITEMBAR.md) | T03 | B 核心切片 | completed |
 | T06 | [统一目标预览与蓄力交互](./tasks/T06_TARGETING_AND_INTERACTION.md) | T04, T05 | B 核心切片 | completed |
 | T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | completed |
-| T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | in_progress |
-| T09 | [采集对象、掉落与拾取](./tasks/T09_HARVEST_AND_PICKUP.md) | T06, T08 | B 核心切片 | pending |
-| T10 | [时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md) | T08, T09 | C 活世界 | pending |
+| T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | completed |
+| T09 | [采集对象、掉落与拾取](./tasks/T09_HARVEST_AND_PICKUP.md) | T06, T08 | B 核心切片 | completed |
+| T10 | [时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md) | T08, T09 | C 活世界 | in_progress |
 | T11 | [环境生成与地图状态恢复](./tasks/T11_WORLD_GENERATION.md) | T09, T10 | C 活世界 | pending |
 | T12 | [HUD、背包界面、音频与特效](./tasks/T12_PRESENTATION.md) | T05, T09, T10 | C 活世界 | pending |
 | T13 | [NPC 日程与跨地图导航](./tasks/T13_NPC_SCHEDULE.md) | T04, T10, T11 | C 活世界 | pending |

@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T08 播种、成长与作物阶段](./tasks/T08_CROPS.md)（in_progress）。
-- T06、T07 已完成；T08 正在实现播种、阶段投影和基于浇水的日结算。
+- 当前任务：[T10 时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md)（in_progress）。
+- T06-T09 已完成核心链路；T10 已接通 GameManager 时间推进、30 天日历、统一日结入口和游戏/人物状态显示面板，光照/完整验收仍待完成。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
@@ -23,12 +23,16 @@
 - Player 动画已改为 `AnimationPlayer` + `player_animations.tres`，包含 12 个可编辑的 idle/walk/run 四向动画；运行脚本不再设置 Sprite frame、维护动画相位或手写动画时钟。
 - 原创占位角色图为 144x128、4 行 x 6 帧；T04 已接入原创占位 TileMap 和地图层，资源许可记录在 `assets/licenses/ASSETS.md`，T16 再完成正式美术替换与整体 polish。
 - T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actors/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
-- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/ItemState DTO，BaseMap 通过 ItemState.meta_id 解析 ItemMeta，管理 MapCell/Item 运行时对象并按 ItemMeta.world_type() 路由 host；Item 代码位于与 world 同级的 scripts/items，ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
+- T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/ItemState DTO，BaseMap 通过 ItemState.meta_id 解析 ItemMeta，管理 MapCell/Item 运行时对象并按 Meta 真实子类路由 host；Item 代码位于与 world 同级的 scripts/items，ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
 - T05 已实现 6 格 Toolbar、10 格 Itembar 与 20 格 Inventory。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
 - 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
 - T06 已建立统一 `InteractionCursor`；Player 场景持有并直接控制唯一的 Cursor，Cursor 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview。Cursor 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
-- T07 已实现运行时 `Tool` 与结构化 `ToolUseResult`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
+- T07 已实现运行时 `Tool` 与结构化 `ToolOutcome`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
+- T09 已接通 Sickle/Basket/Pickaxe/Axe 到 Harvestable：工具验证、伤害、固定单次体力消耗、成熟 Plant 收获、确定 RNG 掉落、Tree -> Stump -> 清除和旧 instance ID 防重复结算均由结构化结果与 BaseMap 事务完成。
+- T11 环境生成实现已完成：farm/field 各自挂载可在 Inspector 配置的 ItemsGenerator 子节点，以 world seed/map/epoch/salt 确定生成 tree/rock/grass，避开静态否决格和 SpawnPoints/Ports 安全区，并通过 BaseMap 事务写入普通 ItemState。MapState 保存 generation_epoch/initialized，地图恢复不重复生成。
+- 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；Player CollectArea 驱动吸附，支持零距离和满包保留，移动跨格时同步 MapState/CellState。可拾取 Item 保留 CellState 引用但不阻塞播种/放置；`drop_held` 先创建世界 Item 再扣 Itembar。
+- 新游戏 farm 的 MapState 在 cabin 出口左侧固定包含草、石、树和成熟欧洲防风草各一份，供 T09 键盘验收；运行节点统一挂入 BaseMap 的分类 Item host。
 
 ## 环境记录
 
@@ -40,6 +44,9 @@
 
 ## 最近一次验证
 
+- 日期：2026-08-14（Asia/Shanghai）。
+- T11 自动化：原生 runner 为 107 tests / 4811 assertions；覆盖 farm/field 配置、seed 确定性、格子 flag、安全区、生成标签、无合法格有限退出、完整状态恢复和 20 次地图恢复不增殖。Godot 资源扫描、主场景运行和 `git diff --check` 通过。
+- T11 godot-ai：session `godot-my-farm@c274`；farm 生成 23/23，field 生成 41/44（3 个受最小距离约束跳过），运行错误为空；farm/field 1280x720 framebuffer 均为实时非空画面，`stale_frame=false`。
 - 日期：2026-08-11（Asia/Shanghai）。
 - T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、Cursor 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
 - 日期：2026-08-10（Asia/Shanghai）。

@@ -1,0 +1,60 @@
+[gd_resource type="Resource" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item/plant_meta.gd" id="1_meta"]
+[ext_resource type="Script" path="res://scripts/data/item/plant_stage.gd" id="2_stage"]
+[ext_resource type="Texture2D" path="res://assets/art/items/plant_stages.svg" id="3_texture"]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_drop.gd" id="4_drop"]
+[sub_resource type="Resource" id="DropProduce"]
+script = ExtResource("4_drop")
+item_id = &"produce_parsnip"
+min_amount = 1
+max_amount = 2
+
+[sub_resource type="AtlasTexture" id="Stage0Texture"]
+atlas = ExtResource("3_texture")
+region = Rect2(0, 0, 32, 32)
+[sub_resource type="Resource" id="Stage0"]
+script = ExtResource("2_stage")
+texture = SubResource("Stage0Texture")
+state_tags = Array[StringName]([&"sprout"])
+[sub_resource type="AtlasTexture" id="Stage1Texture"]
+atlas = ExtResource("3_texture")
+region = Rect2(32, 0, 32, 32)
+[sub_resource type="Resource" id="Stage1"]
+script = ExtResource("2_stage")
+start_day = 2
+texture = SubResource("Stage1Texture")
+state_tags = Array[StringName]([&"growing"])
+[sub_resource type="AtlasTexture" id="Stage2Texture"]
+atlas = ExtResource("3_texture")
+region = Rect2(64, 0, 32, 32)
+[sub_resource type="Resource" id="Stage2"]
+script = ExtResource("2_stage")
+start_day = 4
+max_health = 2
+texture = SubResource("Stage2Texture")
+state_tags = Array[StringName]([&"growing"])
+[sub_resource type="AtlasTexture" id="Stage3Texture"]
+atlas = ExtResource("3_texture")
+region = Rect2(96, 0, 32, 32)
+[sub_resource type="Resource" id="Stage3"]
+script = ExtResource("2_stage")
+start_day = 6
+max_health = 2
+texture = SubResource("Stage3Texture")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drops = Array[ExtResource("4_drop")]([SubResource("DropProduce")])
+
+[resource]
+script = ExtResource("1_meta")
+id = &"crop_parsnip"
+display_name = "Parsnip Plant"
+description = "A growing parsnip plant."
+item_type = 5
+can_pickup = false
+stages = Array[ExtResource("2_stage")]([SubResource("Stage0"), SubResource("Stage1"), SubResource("Stage2"), SubResource("Stage3")])
+requires_water = true
+required_tool = 4
+max_health = 2
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])

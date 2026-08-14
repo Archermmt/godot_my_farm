@@ -44,7 +44,7 @@ godot --headless --path . --quit
 | Targeting | 各蓄力范围和稳定顺序 | 地图边缘、阻挡、可用目标不足 |
 | Action transaction | 体力/物品/地块一起提交 | 任一条件失败时全部不变 |
 | ItemMeta/ItemState/Item | State 子类恢复、Meta/State/Item 强类型绑定、BaseMap 工厂、浇水后跨天成长 | 未知 meta_id、未知 state_type、Meta/State/host 不匹配、重复 ID |
-| Harvest/DropTable | 工具匹配、生命、掉落 | 错工具、未死亡无掉落、min/max |
+| Harvest/HarvestableDrop | 工具匹配、生命、掉落 | 错工具、未死亡无掉落、min/max |
 | GameManager 时间 | 分钟跨小时/日/月/年 | 大 delta、暂停 reason 叠加 |
 | NpcSchedule | 季节/星期过滤和 fallback | 无匹配、跨午夜、加载中间时刻 |
 | GameManager 存档 DTO | round-trip 等价 | 坏 JSON、未知版本、缺字段 |

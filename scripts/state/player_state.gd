@@ -1,21 +1,5 @@
 class_name PlayerState
-extends RefCounted
-
-const INVENTORY_CAPACITY := 20
-const TOOLBAR_CAPACITY := 6
-const ITEMBAR_CAPACITY := 10
-const INITIAL_TOOL_IDS: Array[StringName] = [
-	&"tool_hoe",
-	&"tool_watering_can",
-	&"tool_sickle",
-	&"tool_basket",
-	&"tool_pickaxe",
-	&"tool_axe",
-]
-const INITIAL_SEED_ID := &"seed_parsnip"
-const INITIAL_SEED_AMOUNT := 15
-const INITIAL_EXTRA_SEEDS: Array[StringName] = [&"seed_pumpkin", &"seed_potato"]
-const INITIAL_EXTRA_SEED_AMOUNT := 10
+extends Resource
 
 enum ActiveHandSource {
 	NONE,
@@ -23,50 +7,35 @@ enum ActiveHandSource {
 	ITEMBAR,
 }
 
-var map_id: StringName = &"farm"
-var spawn_id: StringName = &"default"
-var cell: Vector2i = Vector2i.ZERO
-var facing: StringName = &"down"
-var max_health: int = 100
-var health: int = 100
-var max_stamina: int = 100
-var stamina: int = 100
-var gold: int = 0
-var active_hand_source: ActiveHandSource = ActiveHandSource.NONE
-var inventory: InventoryState = InventoryState.new(INVENTORY_CAPACITY, &"inventory")
-var toolbar: ToolbarState = ToolbarState.new(TOOLBAR_CAPACITY)
-var itembar: ItembarState = ItembarState.new(ITEMBAR_CAPACITY)
+@export var map_id: StringName = &"cabin"
+@export var spawn_id: StringName = &"wake"
+@export var cell: Vector2i = Vector2i(5, 4)
+@export_enum("up", "down", "left", "right") var facing: String = "down"
+@export_range(1, 999, 1) var max_health: int = 100
+@export_range(0, 999, 1) var health: int = 100
+@export_range(1, 999, 1) var max_stamina: int = 100
+@export_range(0, 999, 1) var stamina: int = 100
+@export_range(0, 999999, 1) var gold: int = 500
+@export var active_hand_source: ActiveHandSource = ActiveHandSource.NONE
+@export var inventory: InventoryState = InventoryState.new(20, &"inventory")
+@export var toolbar: ToolbarState = ToolbarState.new(6)
+@export var itembar: ItembarState = ItembarState.new(10)
 
 
-func initialize(catalog: DataCatalogService) -> Error:
-	map_id = &"cabin"
-	spawn_id = &"wake"
-	cell = Vector2i(5, 4)
-	facing = &"down"
-	set_max_health(100)
-	set_health(100)
-	set_max_stamina(100)
-	set_stamina(100)
-	set_gold(500)
-	active_hand_source = ActiveHandSource.NONE
-	inventory = InventoryState.new(INVENTORY_CAPACITY, &"inventory")
-	toolbar = ToolbarState.new(TOOLBAR_CAPACITY)
-	itembar = ItembarState.new(ITEMBAR_CAPACITY)
-	if catalog == null or not catalog.is_ready_for_game():
+func initialize(template: PlayerState, catalog: DataCatalogService) -> Error:
+	if template == null or template.inventory == null or template.toolbar == null or template.itembar == null or catalog == null or not catalog.is_ready_for_game():
 		return ERR_UNCONFIGURED
-	for index: int in INITIAL_TOOL_IDS.size():
-		var item_id: StringName = INITIAL_TOOL_IDS[index]
-		var meta: ItemMeta = catalog.get_item(item_id)
-		if meta == null or not toolbar.accepts(meta) or not toolbar.set_slot(index, ItemStack.new(item_id, 1)):
-			return ERR_INVALID_DATA
-	var seed_meta: ItemMeta = catalog.get_item(INITIAL_SEED_ID)
-	if seed_meta == null or not itembar.accepts(seed_meta) or not itembar.set_slot(0, ItemStack.new(INITIAL_SEED_ID, INITIAL_SEED_AMOUNT)):
+	var restored := from_dict(template.to_dict())
+	if restored == null:
 		return ERR_INVALID_DATA
-	for index: int in INITIAL_EXTRA_SEEDS.size():
-		var extra_seed_id: StringName = INITIAL_EXTRA_SEEDS[index]
-		var extra_seed_meta: ItemMeta = catalog.get_item(extra_seed_id)
-		if extra_seed_meta == null or not itembar.accepts(extra_seed_meta) or not itembar.set_slot(index + 1, ItemStack.new(extra_seed_id, INITIAL_EXTRA_SEED_AMOUNT)):
-			return ERR_INVALID_DATA
+	_copy_from(restored)
+	active_hand_source = ActiveHandSource.NONE
+	for container_id: StringName in [&"inventory", &"toolbar", &"itembar"]:
+		var container := get_container(container_id)
+		for stack: ItemStack in container.slots:
+			var item_meta := catalog.get_item(stack.item_id) if not stack.is_empty() else null
+			if not container_accepts_stack(container_id, stack, item_meta):
+				return ERR_INVALID_DATA
 	return OK
 
 
@@ -76,6 +45,18 @@ func set_health(value: int) -> void:
 
 func set_stamina(value: int) -> void:
 	stamina = clampi(value, 0, max(1, max_stamina))
+
+
+func consume_energy(amount: int) -> bool:
+	if amount < 0 or stamina < amount:
+		return false
+	stamina -= amount
+	return true
+
+
+func restore_for_new_day() -> void:
+	health = max_health
+	stamina = max_stamina
 
 
 func set_gold(value: int) -> void:
@@ -219,6 +200,8 @@ static func from_dict(data: Dictionary) -> PlayerState:
 		return null
 	if int(data.get("health", 100)) < 0 or int(data.get("stamina", 100)) < 0 or int(data.get("gold", 0)) < 0:
 		return null
+	if str(data.get("facing", "")) not in ["up", "down", "left", "right"]:
+		return null
 	var restored_source := int(data.get("active_hand_source", ActiveHandSource.NONE)) as ActiveHandSource
 	if restored_source < ActiveHandSource.NONE or restored_source > ActiveHandSource.ITEMBAR:
 		return null
@@ -226,7 +209,7 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	restored.map_id = StringName(str(data.get("map_id", "farm")))
 	restored.spawn_id = StringName(str(data.get("spawn_id", "default")))
 	restored.cell = SerializationUtil.vector2i_from_dict(data.get("cell", {}) as Dictionary)
-	restored.facing = StringName(str(data.get("facing", "down")))
+	restored.facing = str(data.get("facing", "down"))
 	restored.set_max_health(int(data.get("max_health", 100)))
 	restored.set_health(int(data.get("health", restored.max_health)))
 	restored.set_max_stamina(int(data.get("max_stamina", 100)))
@@ -238,14 +221,28 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	var restored_itembar := ItembarState.from_dict(data.get("itembar", {}) as Dictionary)
 	if restored_inventory == null or restored_toolbar == null or restored_itembar == null:
 		return null
-	if restored_inventory.owner_id != &"inventory" or restored_inventory.capacity() != INVENTORY_CAPACITY:
-		return null
-	if restored_toolbar.capacity() != TOOLBAR_CAPACITY or restored_itembar.capacity() != ITEMBAR_CAPACITY:
+	if restored_inventory.owner_id != &"inventory":
 		return null
 	restored.inventory = restored_inventory
 	restored.toolbar = restored_toolbar
 	restored.itembar = restored_itembar
 	return restored
+
+
+func _copy_from(other: PlayerState) -> void:
+	map_id = other.map_id
+	spawn_id = other.spawn_id
+	cell = other.cell
+	facing = other.facing
+	max_health = other.max_health
+	health = other.health
+	max_stamina = other.max_stamina
+	stamina = other.stamina
+	gold = other.gold
+	active_hand_source = other.active_hand_source
+	inventory = other.inventory
+	toolbar = other.toolbar
+	itembar = other.itembar
 
 
 func _bar_for_source(source: ActiveHandSource) -> InventoryState:

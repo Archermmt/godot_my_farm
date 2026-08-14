@@ -18,6 +18,8 @@ var _event_bus_service: EventBusService = null
 var _catalog_service: DataCatalogService = null
 var _scene_manager_service: SceneManagerService = null
 var _audio_manager_service: AudioManagerService = null
+var _interaction_move_cooldown: float = 0.0
+var _interaction_move_direction: Vector2i = Vector2i.ZERO
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var camera: Camera2D = $Camera2D
@@ -29,6 +31,7 @@ var _audio_manager_service: AudioManagerService = null
 @onready var selection_slots: HBoxContainer = $SelectionPopup/Background/Slots
 @onready var selection_timer: Timer = $SelectionTimer
 @onready var interaction_cursor: InteractionCursor = $InteractionCursor
+@onready var collect_area: Area2D = $CollectArea
 
 
 func _ready() -> void:
@@ -72,6 +75,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_interaction()
 	elif event.is_action_pressed("skip_day"):
 		GameManager.skip_day()
+	elif event.is_action_pressed("drop_held"):
+		_drop_held_item()
 	elif event.is_action_pressed("cancel"):
 		_cancel_interaction()
 	elif event.is_action_pressed("toolbar_previous"):
@@ -102,15 +107,61 @@ func _notification(what: int) -> void:
 		_cancel_interaction()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	input_direction = movement_vector()
 	walking = wants_walk()
-	if interaction_cursor == null or not interaction_cursor.is_charging():
+	if interaction_cursor != null and interaction_cursor.is_charging():
+		_process_interaction_grid_move(delta)
+		velocity = Vector2.ZERO
+		set_motion(&"idle", facing)
+		_sync_state_cell()
+		return
+	else:
 		facing = resolve_facing(input_direction, facing)
 	velocity = velocity_for(input_direction, walking)
 	move_and_slide()
 	set_motion(resolve_motion_state(input_direction, walking), facing)
 	_sync_state_cell()
+	_process_pickups(delta)
+
+
+func _process_pickups(delta: float) -> void:
+	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
+	if map == null or collect_area == null:
+		return
+	map.collect_pickups(self, global_position, 72.0, delta)
+
+
+func _process_interaction_grid_move(delta: float) -> void:
+	_interaction_move_cooldown = maxf(0.0, _interaction_move_cooldown - delta)
+	var direction: Vector2i = _cardinal_input_direction(input_direction)
+	if direction == Vector2i.ZERO:
+		_interaction_move_direction = Vector2i.ZERO
+		return
+	if direction == _interaction_move_direction and _interaction_move_cooldown > 0.0:
+		return
+	_interaction_move_direction = direction
+	_interaction_move_cooldown = 0.14
+	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
+	if map == null or state == null:
+		return
+	var target_cell: Vector2i = state.cell + direction
+	if not map.contains_cell(target_cell) or not map.is_walkable(target_cell):
+		return
+	var target_position := map.cell_to_world_center(target_cell)
+	var movement := target_position - global_position
+	if test_move(global_transform, movement):
+		return
+	global_position = target_position
+	interaction_cursor.move_origin(target_cell)
+
+
+func _cardinal_input_direction(direction: Vector2) -> Vector2i:
+	if is_zero_approx(direction.x) and is_zero_approx(direction.y):
+		return Vector2i.ZERO
+	if absf(direction.x) >= absf(direction.y):
+		return Vector2i(signi(roundi(direction.x)), 0)
+	return Vector2i(0, signi(roundi(direction.y)))
 
 func movement_vector() -> Vector2:
 	if is_input_locked():
@@ -327,6 +378,23 @@ func active_stack() -> ItemStack:
 	return state.active_stack() if state != null else null
 
 
+func collect_item(item_meta: ItemMeta, amount: int) -> int:
+	if state == null or item_meta == null or item_meta.is_tool() or amount <= 0 or not state.itembar.accepts(item_meta):
+		return 0
+	var accepted_by_itembar := state.itembar.add_item_partial(item_meta.id, amount, item_meta.stack_limit)
+	var remaining := amount - accepted_by_itembar
+	var accepted_by_inventory := state.inventory.add_item_partial(item_meta.id, remaining, item_meta.stack_limit) if remaining > 0 else 0
+	if _event_bus_service != null:
+		if accepted_by_itembar > 0:
+			_event_bus_service.container_changed.emit(&"itembar")
+		if accepted_by_inventory > 0:
+			_event_bus_service.container_changed.emit(&"inventory")
+		if accepted_by_itembar > 0 and state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR:
+			var active := state.active_stack()
+			_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
+	return accepted_by_itembar + accepted_by_inventory
+
+
 func select_bar_relative(source: PlayerState.ActiveHandSource, offset: int) -> Error:
 	_cancel_interaction()
 	if state == null:
@@ -391,6 +459,8 @@ func _begin_interaction() -> void:
 		return
 	var player_cell := map.world_to_cell(global_position)
 	state.cell = player_cell
+	_interaction_move_cooldown = 0.0
+	_interaction_move_direction = Vector2i.ZERO
 	interaction_cursor.begin(state, map, meta)
 
 
@@ -411,30 +481,70 @@ func _sync_state_cell() -> void:
 func _release_interaction() -> void:
 	if interaction_cursor != null:
 		var error := interaction_cursor.release()
+		_reset_interaction_grid_move()
 		if error != OK:
 			return
-		if interaction_cursor.last_tool_result != null:
-			var result := interaction_cursor.last_tool_result
+		if interaction_cursor.last_tool_outcome != null:
+			var result := interaction_cursor.last_tool_outcome
 			var stamina_spent := result.stamina_spent
-			if stamina_spent > 0 and state != null:
-				state.set_stamina(state.stamina - stamina_spent)
-			_emit_tool_result(result)
-		elif interaction_cursor.last_seed_result != null:
-			var seed_result := interaction_cursor.last_seed_result
-			if seed_result.consumed_count() > 0 and state != null:
-				state.itembar.remove_item(seed_result.seed_item_id, seed_result.consumed_count())
+			if stamina_spent > 0 and state != null and state.consume_energy(stamina_spent):
+				if state.stamina <= 0:
+					GameManager.request_end_day()
+			_emit_tool_outcome(result)
+		elif interaction_cursor.last_seed_outcome != null:
+			var seed_outcome := interaction_cursor.last_seed_outcome
+			if seed_outcome.consumed_count() > 0 and state != null:
+				state.itembar.remove_item(seed_outcome.seed_item_id, seed_outcome.consumed_count())
 				_event_bus_service.container_changed.emit(&"itembar")
 				var active := state.active_stack()
 				_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
 
 
-func _emit_tool_result(result: ToolUseResult) -> void:
+func _drop_held_item() -> void:
+	if state == null or state.active_hand_source != PlayerState.ActiveHandSource.ITEMBAR:
+		return
+	var stack := state.active_stack()
+	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
+	if stack == null or stack.is_empty() or map == null:
+		return
+	var facing_offset: Vector2i = InteractionCursor.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
+	var target_cell: Vector2i = map.world_to_cell(global_position) + facing_offset
+	if not map.check_cell(target_cell, BaseMap.CellCondition.DROPABLE):
+		return
+	var dropped_item_id := stack.item_id
+	if map.spawn_pickup(dropped_item_id, target_cell) == &"":
+		return
+	state.itembar.remove_item(dropped_item_id, 1)
+	if _event_bus_service != null:
+		_event_bus_service.container_changed.emit(&"itembar")
+		var active := state.active_stack()
+		_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
+
+
+func _emit_tool_outcome(result: ToolOutcome) -> void:
 	if result == null or _event_bus_service == null:
 		return
 	_event_bus_service.cells_tool_used.emit(result.tool_kind, result.effect_cells, result.stamina_spent)
-	if result.projection_error != OK:
-		_event_bus_service.cell_projection_failed.emit(result.effect_cells, result.projection_error)
-	var event_id := &"till" if result.tool_kind == ToolMeta.ToolKind.HOE else &"water"
+	if result is CellToolOutcome:
+		var cell_result := result as CellToolOutcome
+		if cell_result.projection_error != OK:
+			_event_bus_service.cell_projection_failed.emit(cell_result.effect_cells, cell_result.projection_error)
+	var event_id: StringName
+	match result.tool_kind:
+		ToolMeta.ToolKind.HOE:
+			event_id = &"till"
+		ToolMeta.ToolKind.WATERING_CAN:
+			event_id = &"water"
+		ToolMeta.ToolKind.SICKLE:
+			event_id = &"cut"
+		ToolMeta.ToolKind.BASKET:
+			event_id = &"harvest"
+		ToolMeta.ToolKind.PICKAXE:
+			event_id = &"mine"
+		ToolMeta.ToolKind.AXE:
+			event_id = &"chop"
+		_:
+			event_id = &"tool_use"
 	_event_bus_service.request_tool_feedback.emit(event_id, result.effect_cells)
 	if _audio_manager_service != null:
 		_audio_manager_service.play_event(event_id)
@@ -443,6 +553,12 @@ func _emit_tool_result(result: ToolUseResult) -> void:
 func _cancel_interaction() -> void:
 	if interaction_cursor != null:
 		interaction_cursor.cancel()
+	_reset_interaction_grid_move()
+
+
+func _reset_interaction_grid_move() -> void:
+	_interaction_move_cooldown = 0.0
+	_interaction_move_direction = Vector2i.ZERO
 
 
 static func normalized_direction(raw: Vector2) -> Vector2:

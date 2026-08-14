@@ -2,6 +2,8 @@ class_name CalendarState
 extends RefCounted
 
 const SEASONS: Array[StringName] = [&"spring", &"summer", &"autumn", &"winter"]
+const DAYS_PER_MONTH := 30
+const MONTHS_PER_YEAR := 12
 
 var year: int = 1
 var month: int = 1
@@ -18,6 +20,29 @@ func season() -> StringName:
 
 func minute_of_day() -> int:
 	return hour * 60 + minute
+
+
+func add_minutes(amount: int) -> void:
+	if amount <= 0:
+		return
+	var total := minute_of_day() + amount
+	var days := floori(float(total) / (24.0 * 60.0))
+	var remainder := posmod(total, 24 * 60)
+	hour = floori(float(remainder) / 60.0)
+	minute = posmod(remainder, 60)
+	for _index in range(days):
+		_advance_day()
+
+
+func _advance_day() -> void:
+	day += 1
+	weekday = 1 + (weekday % 7)
+	if day > DAYS_PER_MONTH:
+		day = 1
+		month += 1
+		if month > MONTHS_PER_YEAR:
+			month = 1
+			year += 1
 
 
 func to_dict() -> Dictionary:
@@ -41,7 +66,7 @@ static func from_dict(data: Dictionary) -> CalendarState:
 	var raw_weekday: int = int(data.get("weekday", 1))
 	var raw_hour: int = int(data.get("hour", 6))
 	var raw_minute: int = int(data.get("minute", 0))
-	if raw_year < 1 or raw_month < 1 or raw_month > 12 or raw_day < 1 or raw_day > 28:
+	if raw_year < 1 or raw_month < 1 or raw_month > MONTHS_PER_YEAR or raw_day < 1 or raw_day > DAYS_PER_MONTH:
 		return null
 	if raw_weekday < 1 or raw_weekday > 7 or raw_hour < 0 or raw_hour > 23 or raw_minute < 0 or raw_minute > 59:
 		return null

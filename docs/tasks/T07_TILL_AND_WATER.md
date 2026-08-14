@@ -45,7 +45,7 @@
 ## 完成记录
 
 - 状态：completed（2026-08-11）。
-- 新增运行时 `Tool` 与结构化 `ToolUseResult`；Hoe/WateringCan 按 ToolMeta 配置执行，工具事务不进入 Cursor，Player 只根据结果扣除体力。
+- 新增运行时 `Tool` 与结构化 `ToolOutcome`；Hoe/WateringCan 按 ToolMeta 配置执行，工具事务不进入 Cursor，Player 只根据 Outcome 扣除体力。
 - MapCell 的 till/water 查询同时供 preview 与 commit 使用；重复翻地、重复浇水、占用、非可耕地和未翻地均返回稳定的 skipped reason。
 - 多格事务先收集有效格，每次事务固定消耗一次 `base_stamina_cost`；蓄力扩大范围不按格重复收费。体力不足时 flags、revision 和 stamina 全部不变。
 - 成功顺序为 CellState 修改、BaseMap projection/revision、PlayerState stamina、事实信号、AudioManager/效果请求；投影错误单独写入 result 并发出事实。

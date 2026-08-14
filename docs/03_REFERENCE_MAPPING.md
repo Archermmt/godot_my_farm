@@ -38,17 +38,17 @@
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
 | `Tool` | 体力和蓄力 | Tool 运行时类型 + InteractionCursor |
 | `GridTool` | 网格行动 | 具体 Tool + MapCell transaction |
-| `ItemTool` | 对对象行动 | 具体 Tool + HarvestableItem |
+| `ItemTool` | 对对象行动 | 具体 Tool + Harvestable |
 | `Seed` | 种植范围和消耗 | Item 使用逻辑 + PlantMeta |
 | `Harvestable/LifePeriod` | 阶段、生命、掉落 | `HarvestableMeta`/GrowthStage + component |
-| `Plant/Crop` | 地块植物与浇水成长 | `PlantMeta` + PlantState + PlantItem + day_advanced |
+| `Plant/Crop` | 地块植物与浇水成长 | `PlantMeta` + PlantState + Plant + day_advanced |
 | `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `HarvestableMeta` + TreeWorldItem 专属状态/动画策略 |
 | `Pickable` | 吸附拾取 | `PickupItem (Area2D)` |
 | `FieldGrid` | 单格标签与地图 Item | MapCell/CellState + BaseMap/MapState items |
 | `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_flags` + MapCell |
 | `FieldManager` | 网格、光标、工具执行 | `BaseMap` + InteractionCursor |
 | `Cursor` | 有效/无效目标反馈 | `InteractionCursor` scene |
-| `Generator` | 随机环境对象 | seeded `WorldGenerator` + MapState |
+| `Generator` | 随机环境对象 | seeded `ItemsGenerator` + MapState |
 | `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `InventoryState` 与 InventoryUI 分离 |
 | `ToolBar` | 快捷栏选择 | 分离的 `ToolbarUI`（工具）+ `ItembarUI`（非工具物品）+ Player 头顶选择提示 |
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
@@ -70,11 +70,11 @@
 
 ### 4.2 工具类别与目标能力匹配
 
-参考代码由 `ToolType` 与每个 LifePeriod 的 harvest data 决定有效工具和产出。Godot 版由 `tool_kind`、HarvestableMeta 和 DropTable 实现，不把对象名写进工具脚本。
+参考代码由 `ToolType` 与每个 LifePeriod 的 harvest data 决定有效工具和产出。Godot 版由 `tool_kind`、HarvestableMeta 和内嵌 `HarvestableDrop` 实现，不把对象名写进工具脚本。
 
 ### 4.3 生命阶段是数据
 
-成长日、图像、生命和掉落必须来自 Resource 数据，不能把“第 3 天换 sprite”硬编码在 PlantItem。
+成长日、图像、生命和掉落必须来自 Resource 数据，不能把“第 3 天换 sprite”硬编码在 Plant。
 
 ### 4.4 玩家跨地图保持，地图动态状态恢复
 

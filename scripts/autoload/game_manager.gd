@@ -2,6 +2,9 @@ class_name GameManagerService
 extends Node
 
 const DEFAULT_WORLD_SEED := 12031992
+const DEFAULT_TIME_SCALE := 1.2
+
+@export var player_state_template: PlayerState = preload("res://data/player/default_player_state.tres")
 
 var player: PlayerState = null
 var maps: Dictionary[StringName, MapState] = {}
@@ -10,9 +13,11 @@ var world_seed: int = 0
 var current_slot: int = -1
 var game_version: String = "0.1.0"
 var calendar: CalendarState = CalendarState.new()
-var time_scale: float = 60.0
+var time_scale: float = DEFAULT_TIME_SCALE
 var _running: bool = false
 var _pause_reasons: Dictionary[StringName, bool] = {}
+var _time_accumulator: float = 0.0
+var _ending_day: bool = false
 
 var _catalog_service: DataCatalogService = null
 var _event_bus_service: EventBusService = null
@@ -27,9 +32,28 @@ func _ready() -> void:
 			push_error("[GameManager] failed to create default new game: %s" % error_string(error))
 
 
+func _process(delta: float) -> void:
+	if not can_advance() or delta <= 0.0:
+		return
+	_time_accumulator += delta * time_scale
+	var whole_minutes := floori(_time_accumulator)
+	if whole_minutes <= 0:
+		return
+	_time_accumulator -= whole_minutes
+	advance_minutes(whole_minutes)
+
+
 func configure(catalog_service: DataCatalogService, event_bus_service: EventBusService = null) -> void:
 	_catalog_service = catalog_service
 	_event_bus_service = event_bus_service
+
+
+func configure_time_scale(value: float) -> Error:
+	if value <= 0.0 or is_nan(value) or is_inf(value):
+		return ERR_INVALID_PARAMETER
+	time_scale = value
+	_time_accumulator = 0.0
+	return OK
 
 
 func new_game(p_seed: int) -> Error:
@@ -37,7 +61,7 @@ func new_game(p_seed: int) -> Error:
 		return ERR_UNCONFIGURED
 
 	var next_player := PlayerState.new()
-	var player_error := next_player.initialize(_catalog_service)
+	var player_error := next_player.initialize(player_state_template, _catalog_service)
 	if player_error != OK:
 		return player_error
 
@@ -55,6 +79,8 @@ func new_game(p_seed: int) -> Error:
 	calendar = CalendarState.new()
 	_running = false
 	_pause_reasons.clear()
+	_time_accumulator = 0.0
+	_ending_day = false
 	_initialized = true
 	if _event_bus_service != null:
 		_event_bus_service.player_state_changed.emit(player)
@@ -80,6 +106,8 @@ func reset() -> void:
 	calendar = CalendarState.new()
 	_running = false
 	_pause_reasons.clear()
+	_time_accumulator = 0.0
+	_ending_day = false
 	_initialized = false
 
 
@@ -121,14 +149,49 @@ func can_advance() -> bool:
 func skip_day() -> Error:
 	if not _initialized:
 		return ERR_UNCONFIGURED
-	if calendar.day >= 28:
-		return ERR_UNAVAILABLE
+	_complete_day()
+	return OK
+
+
+func advance_minutes(minutes: int) -> Error:
+	if not _initialized or minutes < 0:
+		return ERR_INVALID_PARAMETER if minutes < 0 else ERR_UNCONFIGURED
+	if minutes == 0:
+		return OK
+	for _index in range(minutes):
+		var before := calendar.to_dict()
+		calendar.add_minutes(1)
+		if _event_bus_service != null:
+			_event_bus_service.time_advanced.emit(1, before, 1)
+		if calendar.hour >= 23:
+			_complete_day()
+	return OK
+
+
+func request_end_day() -> Error:
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	_complete_day()
+	return OK
+
+
+func _complete_day() -> void:
+	if _ending_day or not _initialized:
+		return
+	_ending_day = true
 	var previous_day := calendar.day
-	calendar.day += 1
-	calendar.weekday = 1 + (calendar.weekday % 7)
+	calendar.add_minutes((24 * 60) - calendar.minute_of_day())
 	if _event_bus_service != null:
 		_event_bus_service.day_advanced.emit(previous_day, calendar.day)
-	return OK
+	if player != null:
+		player.restore_for_new_day()
+		player.map_id = &"cabin"
+		player.spawn_id = &"wake"
+	calendar.hour = 6
+	calendar.minute = 0
+	if is_instance_valid(SceneManager) and SceneManager.current_map_id() != &"cabin":
+		SceneManager.request_map_change(&"cabin", &"wake")
+	_ending_day = false
 
 
 func pause_reasons() -> Array[StringName]:
@@ -190,7 +253,7 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 	var time_data := data.get("time", {}) as Dictionary
 	var next_calendar := CalendarState.from_dict(time_data.get("calendar", {}) as Dictionary)
-	var raw_time_scale: Variant = time_data.get("time_scale", 60.0)
+	var raw_time_scale: Variant = time_data.get("time_scale", DEFAULT_TIME_SCALE)
 	if next_calendar == null or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT) or float(raw_time_scale) <= 0.0 or not SerializationUtil.has_valid_bool(time_data, "running") or not SerializationUtil.has_valid_array(time_data, "pause_reasons"):
 		return ERR_INVALID_DATA
 	var next_pause_reasons: Dictionary[StringName, bool] = {}
@@ -202,9 +265,11 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 	if game_error != OK:
 		return game_error
 	calendar = next_calendar
-	time_scale = float(time_data.get("time_scale", 60.0))
+	time_scale = float(time_data.get("time_scale", DEFAULT_TIME_SCALE))
 	_running = bool(time_data.get("running", false))
 	_pause_reasons = next_pause_reasons
+	_time_accumulator = 0.0
+	_ending_day = false
 	return OK
 
 
@@ -282,7 +347,7 @@ func startup_summary() -> String:
 	return "seed=%d map=%s units=%d slots=%d/%d hp=%d stamina=%d gold=%d" % [
 		world_seed,
 		player.map_id,
-		player.itembar.count_item(PlayerState.INITIAL_SEED_ID) + PlayerState.INITIAL_TOOL_IDS.size(),
+		player.used_slot_count(),
 		player.used_slot_count(),
 		player.inventory.capacity() + player.toolbar.capacity() + player.itembar.capacity(),
 		player.health,

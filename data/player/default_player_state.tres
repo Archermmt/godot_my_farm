@@ -1,0 +1,86 @@
+[gd_resource type="Resource" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/state/player_state.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/state/inventory/inventory_state.gd" id="2_inventory"]
+[ext_resource type="Script" path="res://scripts/state/inventory/toolbar_state.gd" id="3_toolbar"]
+[ext_resource type="Script" path="res://scripts/state/inventory/itembar_state.gd" id="4_itembar"]
+[ext_resource type="Script" path="res://scripts/state/inventory/item_stack.gd" id="5_stack"]
+
+[sub_resource type="Resource" id="Empty"]
+script = ExtResource("5_stack")
+
+[sub_resource type="Resource" id="Hoe"]
+script = ExtResource("5_stack")
+item_id = &"tool_hoe"
+amount = 1
+
+[sub_resource type="Resource" id="WateringCan"]
+script = ExtResource("5_stack")
+item_id = &"tool_watering_can"
+amount = 1
+
+[sub_resource type="Resource" id="Sickle"]
+script = ExtResource("5_stack")
+item_id = &"tool_sickle"
+amount = 1
+
+[sub_resource type="Resource" id="Basket"]
+script = ExtResource("5_stack")
+item_id = &"tool_basket"
+amount = 1
+
+[sub_resource type="Resource" id="Pickaxe"]
+script = ExtResource("5_stack")
+item_id = &"tool_pickaxe"
+amount = 1
+
+[sub_resource type="Resource" id="Axe"]
+script = ExtResource("5_stack")
+item_id = &"tool_axe"
+amount = 1
+
+[sub_resource type="Resource" id="ParsnipSeed"]
+script = ExtResource("5_stack")
+item_id = &"seed_parsnip"
+amount = 15
+
+[sub_resource type="Resource" id="PumpkinSeed"]
+script = ExtResource("5_stack")
+item_id = &"seed_pumpkin"
+amount = 10
+
+[sub_resource type="Resource" id="PotatoSeed"]
+script = ExtResource("5_stack")
+item_id = &"seed_potato"
+amount = 10
+
+[sub_resource type="Resource" id="Inventory"]
+script = ExtResource("2_inventory")
+owner_id = &"inventory"
+slots = Array[ExtResource("5_stack")]([SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty")])
+
+[sub_resource type="Resource" id="Toolbar"]
+script = ExtResource("3_toolbar")
+owner_id = &"toolbar"
+slots = Array[ExtResource("5_stack")]([SubResource("Hoe"), SubResource("WateringCan"), SubResource("Sickle"), SubResource("Basket"), SubResource("Pickaxe"), SubResource("Axe")])
+
+[sub_resource type="Resource" id="Itembar"]
+script = ExtResource("4_itembar")
+owner_id = &"itembar"
+slots = Array[ExtResource("5_stack")]([SubResource("ParsnipSeed"), SubResource("PumpkinSeed"), SubResource("PotatoSeed"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty"), SubResource("Empty")])
+
+[resource]
+script = ExtResource("1_player")
+map_id = &"cabin"
+spawn_id = &"wake"
+cell = Vector2i(5, 4)
+facing = "down"
+max_health = 100
+health = 100
+max_stamina = 100
+stamina = 100
+gold = 500
+active_hand_source = 0
+inventory = SubResource("Inventory")
+toolbar = SubResource("Toolbar")
+itembar = SubResource("Itembar")

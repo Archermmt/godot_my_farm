@@ -29,8 +29,8 @@ func _run() -> void:
 		_fail("toolbar keyboard selection failed")
 		return
 	await _tap(&"itembar_next")
-	if player.state.active_hand_source != PlayerState.ActiveHandSource.ITEMBAR or not player.active_stack().is_empty() or player.held_visual.visible:
-		_fail("empty itembar selection did not clear held item")
+	if player.state.active_hand_source != PlayerState.ActiveHandSource.ITEMBAR or player.active_stack().item_id != &"seed_pumpkin" or not player.held_visual.visible:
+		_fail("pumpkin itembar selection failed")
 		return
 	await _tap(&"itembar_previous")
 	if player.active_stack().item_id != &"seed_parsnip" or not player.held_visual.visible:
@@ -39,6 +39,9 @@ func _run() -> void:
 	await _tap(&"inventory_toggle")
 	if not ui.panel_open or not player.is_input_locked() or not game_manager.is_paused():
 		_fail("inventory lock failed")
+		return
+	if ui.toolbar_slots.get_child_count() != 6 or ui.itembar_slots.get_child_count() != 10 or ui.inventory_slots.get_child_count() != 20:
+		_fail("inventory slots were not built after player registration")
 		return
 	ui.focus_container = &"toolbar"
 	ui.focus_index = 1

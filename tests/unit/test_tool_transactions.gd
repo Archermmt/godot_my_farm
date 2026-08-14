@@ -4,7 +4,7 @@ extends ProjectTestCase
 func test_hoe_changes_only_valid_cells_and_reports_skips() -> void:
 	var map := _make_map(4, 2, CellState.CellFlag.DIGGABLE)
 	map.get_cell(Vector2i(1, 0)).add_item_id(&"rock")
-	map.get_cell(Vector2i(2, 0)).set_flags(CellState.CellFlag.BASE)
+	map.get_cell(Vector2i(2, 0)).static_flags = CellState.CellFlag.BASE
 	var player := PlayerState.new()
 	player.set_stamina(20)
 	var tool := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2))
@@ -17,6 +17,7 @@ func test_hoe_changes_only_valid_cells_and_reports_skips() -> void:
 	assert_equal(player.stamina, 20)
 	assert_true(map.get_cell(Vector2i(0, 0)).is_dug())
 	assert_equal(map.interaction_revision, 1)
+	tool.free()
 	map.free()
 
 
@@ -38,6 +39,7 @@ func test_water_rejects_untilled_and_repeated_cells_without_spending_stamina() -
 	assert_equal(repeated.error, ERR_UNAVAILABLE)
 	assert_equal(repeated.stamina_spent, 0)
 	assert_equal(player.stamina, 10)
+	tool.free()
 	map.free()
 
 
@@ -47,7 +49,8 @@ func test_multi_cell_tool_use_is_atomic_at_stamina_boundaries() -> void:
 		var player := PlayerState.new()
 		player.set_stamina(starting_stamina)
 		var before := _cell_flags(map)
-		var result := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2)).use(
+		var result := Tool.perform(
+			_tool_meta(ToolMeta.ToolKind.HOE, 2),
 			map,
 			[Vector2i(0, 0), Vector2i(1, 0)],
 			player.stamina
@@ -73,7 +76,7 @@ func test_max_charge_hoe_changes_nine_by_nine_for_one_use_cost() -> void:
 	for y: int in 9:
 		for x: int in 9:
 			targets.append(Vector2i(x, y))
-	var result := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2)).use(map, targets, player.stamina)
+	var result := Tool.perform(_tool_meta(ToolMeta.ToolKind.HOE, 2), map, targets, player.stamina)
 	assert_true(result.succeeded())
 	assert_equal(result.effect_cells.size(), 81)
 	assert_equal(result.stamina_spent, 2)
@@ -85,7 +88,8 @@ func test_max_charge_hoe_changes_nine_by_nine_for_one_use_cost() -> void:
 func test_tool_result_reports_one_successful_batch() -> void:
 	var map := _make_map(3, 1, CellState.CellFlag.DIGGABLE)
 	var available_stamina := 10
-	var result := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2)).use(
+	var result := Tool.perform(
+		_tool_meta(ToolMeta.ToolKind.HOE, 2),
 		map,
 		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 		available_stamina
@@ -116,7 +120,6 @@ func test_cell_flags_round_trip_and_watered_cleanup() -> void:
 func _tool_meta(kind: ToolMeta.ToolKind, stamina_cost: int) -> ToolMeta:
 	var meta := ToolMeta.new()
 	meta.id = &"test_tool"
-	meta.use_kind = ItemMeta.UseKind.GRID_TOOL
 	meta.tool_kind = kind
 	meta.base_stamina_cost = stamina_cost
 	return meta
@@ -133,5 +136,5 @@ func _make_map(width: int, height: int, flag: CellState.CellFlag) -> BaseMap:
 func _cell_flags(map: BaseMap) -> Dictionary[Vector2i, int]:
 	var result: Dictionary[Vector2i, int] = {}
 	for coordinates: Vector2i in map.cells:
-		result[coordinates] = map.cells[coordinates].flags()
+		result[coordinates] = map.cells[coordinates].state_flags()
 	return result

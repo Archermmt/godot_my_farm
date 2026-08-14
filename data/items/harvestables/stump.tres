@@ -1,0 +1,30 @@
+[gd_resource type="Resource" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_meta.gd" id="1_meta"]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_stage.gd" id="2_stage"]
+[ext_resource type="Texture2D" path="res://assets/art/items/harvestable_stages.svg" id="3_texture"]
+[sub_resource type="AtlasTexture" id="HealthyTexture"]
+atlas = ExtResource("3_texture")
+region = Rect2(288, 0, 48, 64)
+[sub_resource type="Resource" id="Healthy"]
+script = ExtResource("2_stage")
+min_health = 2
+texture = SubResource("HealthyTexture")
+visual_offset = Vector2(0, -32)
+[sub_resource type="AtlasTexture" id="DamagedTexture"]
+atlas = ExtResource("3_texture")
+region = Rect2(336, 0, 48, 64)
+[sub_resource type="Resource" id="Damaged"]
+script = ExtResource("2_stage")
+texture = SubResource("DamagedTexture")
+visual_offset = Vector2(0, -32)
+[resource]
+script = ExtResource("1_meta")
+id = &"stump"
+display_name = "Stump"
+item_type = 4
+can_pickup = false
+required_tool = 6
+max_health = 2
+blocks_movement = true
+state_tags = Array[StringName]([&"stump"])
+visual_stages = Array[ExtResource("2_stage")]([SubResource("Damaged"), SubResource("Healthy")])

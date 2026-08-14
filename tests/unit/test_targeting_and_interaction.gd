@@ -4,7 +4,6 @@ extends ProjectTestCase
 func test_target_preview_respects_facing_and_charge_shape() -> void:
 	var map := _make_map(12, 12, CellState.CellFlag.DIGGABLE)
 	var meta := ToolMeta.new()
-	meta.use_kind = ItemMeta.UseKind.GRID_TOOL
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var player_state := _player_state(Vector2i(5, 5), &"right", &"tool_hoe", 1, 10)
 	var cursor := InteractionCursor.new()
@@ -18,19 +17,41 @@ func test_target_preview_respects_facing_and_charge_shape() -> void:
 	map.free()
 
 
+func test_pickaxe_and_axe_stop_at_three_charge_levels() -> void:
+	for tool_id: StringName in [&"tool_pickaxe", &"tool_axe"]:
+		var meta := DataCatalog.get_item(tool_id) as ToolMeta
+		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3)])
+		var map := _make_map(20, 20, CellState.CellFlag.BASE)
+		var player_state := _player_state(Vector2i(10, 10), &"right", tool_id, 1, 10)
+		var cursor := InteractionCursor.new()
+		assert_equal(cursor.begin(player_state, map, meta), OK)
+		cursor.update(10.0)
+		assert_equal(cursor.charge_level, 2)
+		assert_equal(cursor.preview.size(), 9)
+		cursor.free()
+		map.free()
+
+
+func test_other_tools_keep_five_charge_levels() -> void:
+	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket"]:
+		var meta := DataCatalog.get_item(tool_id) as ToolMeta
+		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3), Vector2i(9, 9)])
+
+
 func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
-	var map := _make_map(8, 8, CellState.CellFlag.DROPABLE | CellState.CellFlag.DUG)
-	var meta := ItemMeta.new()
-	meta.use_kind = ItemMeta.UseKind.SEED
+	var map := _make_map(8, 8, CellState.CellFlag.DROPABLE, CellState.CellFlag.DUG)
+	var meta := DataCatalog.get_seed(&"seed_parsnip")
+	assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3)])
 	var player_state := _player_state(Vector2i(2, 2), &"down", &"seed_parsnip", 2, 10)
 	var cursor := InteractionCursor.new()
 	assert_equal(cursor.begin(player_state, map, meta), OK)
 	assert_equal(cursor.preview.size(), 1)
 	assert_equal(cursor.preview[0].cell, Vector2i(2, 3))
 	cursor.update(0.3)
-	assert_equal(cursor.preview.size(), 2)
+	assert_equal(cursor.preview.size(), 3)
 	assert_true((cursor.preview[0].interaction_flags & CellState.InteractionFlag.VALID) != 0)
 	assert_true((cursor.preview[1].interaction_flags & CellState.InteractionFlag.VALID) != 0)
+	assert_true((cursor.preview[2].interaction_flags & CellState.InteractionFlag.INVALID) != 0)
 	player_state.toolbar.set_slot(0, ItemStack.new(&"seed_parsnip", 1))
 	cursor.cancel()
 	cursor.begin(player_state, map, meta)
@@ -41,12 +62,27 @@ func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
 	map.free()
 
 
+func test_seed_stops_at_four_charge_levels_and_reaches_nine_by_three() -> void:
+	for seed_id: StringName in [&"seed_parsnip", &"seed_pumpkin", &"seed_potato"]:
+		var meta := DataCatalog.get_seed(seed_id)
+		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3)])
+		var map := _make_map(24, 24, CellState.CellFlag.DROPABLE, CellState.CellFlag.DUG)
+		var player_state := _player_state(Vector2i(7, 10), &"right", seed_id, 99, 10)
+		var cursor := InteractionCursor.new()
+		assert_equal(cursor.begin(player_state, map, meta), OK)
+		cursor.update(10.0)
+		assert_equal(cursor.charge_level, 3)
+		assert_equal(cursor.preview.size(), 27)
+		cursor.free()
+		map.free()
+
+
 func test_preview_uses_transient_cell_state_flags_for_entity_rendering() -> void:
 	var map := _make_map(4, 4, CellState.CellFlag.BASE)
 	var map_cell := map.get_cell(Vector2i(2, 1))
 	assert_equal(map_cell.add_item_id(&"tree_001"), OK)
 	var meta := ToolMeta.new()
-	meta.use_kind = ItemMeta.UseKind.HARVEST_TOOL
+	meta.tool_kind = ToolMeta.ToolKind.NONE
 	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_axe", 1, 10)
 	var cursor := InteractionCursor.new()
 	assert_equal(cursor.begin(player_state, map, meta), OK)
@@ -67,7 +103,6 @@ func test_invalid_map_cell_remains_in_preview_for_cursor_feedback() -> void:
 	var map_cell := map.get_cell(Vector2i(2, 1))
 	assert_equal(map_cell.add_item_id(&"rock_001"), OK)
 	var meta := ToolMeta.new()
-	meta.use_kind = ItemMeta.UseKind.GRID_TOOL
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_hoe", 1, 10)
 	var cursor := InteractionCursor.new()
@@ -82,7 +117,6 @@ func test_invalid_map_cell_remains_in_preview_for_cursor_feedback() -> void:
 func test_charge_state_commits_once_and_cancels_on_map_revision_change() -> void:
 	var map := _make_map(12, 12, CellState.CellFlag.DIGGABLE)
 	var meta := ToolMeta.new()
-	meta.use_kind = ItemMeta.UseKind.GRID_TOOL
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var cursor := InteractionCursor.new()
 	var player_state := _player_state(Vector2i(5, 5), &"up", &"tool_hoe", 1, 10)
@@ -113,19 +147,17 @@ func test_cursor_release_delegates_hoe_and_watering_can_transactions() -> void:
 	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_hoe", 1, 5)
 	var cursor := InteractionCursor.new()
 	var hoe := ToolMeta.new()
-	hoe.use_kind = ItemMeta.UseKind.GRID_TOOL
 	hoe.tool_kind = ToolMeta.ToolKind.HOE
 	hoe.base_stamina_cost = 2
 	assert_equal(cursor.begin(player_state, map, hoe), OK)
 	assert_equal(cursor.release(), OK)
-	assert_true(cursor.last_tool_result.succeeded())
-	player_state.set_stamina(player_state.stamina - cursor.last_tool_result.stamina_spent)
-	assert_equal(cursor.last_tool_result.effect_cells, [Vector2i(2, 1)])
+	assert_true(cursor.last_tool_outcome.succeeded())
+	player_state.set_stamina(player_state.stamina - cursor.last_tool_outcome.stamina_spent)
+	assert_equal(cursor.last_tool_outcome.effect_cells, [Vector2i(2, 1)])
 	assert_true(map.get_cell(Vector2i(2, 1)).is_dug())
 	assert_equal(player_state.stamina, 3)
 
 	var watering_can := ToolMeta.new()
-	watering_can.use_kind = ItemMeta.UseKind.GRID_TOOL
 	watering_can.tool_kind = ToolMeta.ToolKind.WATERING_CAN
 	watering_can.base_stamina_cost = 1
 	player_state.cell = Vector2i(1, 1)
@@ -133,18 +165,20 @@ func test_cursor_release_delegates_hoe_and_watering_can_transactions() -> void:
 	player_state.set_stamina(3)
 	assert_equal(cursor.begin(player_state, map, watering_can), OK)
 	assert_equal(cursor.release(), OK)
-	player_state.set_stamina(player_state.stamina - cursor.last_tool_result.stamina_spent)
+	player_state.set_stamina(player_state.stamina - cursor.last_tool_outcome.stamina_spent)
 	assert_true(map.get_cell(Vector2i(2, 1)).is_watered())
 	assert_equal(player_state.stamina, 2)
 	cursor.free()
 	map.free()
 
 
-func _make_map(width: int, height: int, flag: CellState.CellFlag) -> BaseMap:
+func _make_map(width: int, height: int, meta_flags: int, state_flags: int = 0) -> BaseMap:
 	var map := BaseMap.new()
 	for y: int in height:
 		for x: int in width:
-			map.cells[Vector2i(x, y)] = MapCell.new(Vector2i(x, y), flag)
+			var cell := MapCell.new(Vector2i(x, y), meta_flags)
+			cell.set_state_flags(state_flags)
+			map.cells[Vector2i(x, y)] = cell
 	return map
 
 

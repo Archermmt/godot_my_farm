@@ -2,70 +2,75 @@ class_name MapCell
 extends RefCounted
 
 var coordinates: Vector2i
+var static_flags: int = 0
 var _state: CellState
 
 
-func _init(cell_coordinates: Vector2i = Vector2i.ZERO, initial_flags: int = 0) -> void:
+func _init(cell_coordinates: Vector2i = Vector2i.ZERO, initial_static_flags: int = 0) -> void:
 	coordinates = cell_coordinates
+	static_flags = initial_static_flags
 	_state = CellState.new()
 	_state.cell = coordinates
-	_state.flags = initial_flags
 
 
-func flags() -> int:
+func add_static_flag(value: CellState.CellFlag) -> void:
+	static_flags |= value
+
+
+func remove_static_flag(value: CellState.CellFlag) -> void:
+	static_flags &= ~value
+
+
+func has_static_flag(value: CellState.CellFlag) -> bool:
+	return (static_flags & value) == value
+
+
+func state_flags() -> int:
 	return _state.flags
 
 
-func set_flags(value: int) -> void:
+func set_state_flags(value: int) -> void:
 	_state.flags = value
 
 
-func add_flag(value: CellState.CellFlag) -> void:
+func add_state_flag(value: CellState.CellFlag) -> void:
 	_state.flags |= value
 
 
-func remove_flag(value: CellState.CellFlag) -> void:
+func remove_state_flag(value: CellState.CellFlag) -> void:
 	_state.flags &= ~value
 
 
-func has_flag(value: CellState.CellFlag) -> bool:
+func has_state_flag(value: CellState.CellFlag) -> bool:
 	return (_state.flags & value) == value
 
 
 func is_walkable() -> bool:
-	return has_flag(CellState.CellFlag.BASE) and not has_flag(CellState.CellFlag.BLOCKED)
+	return has_static_flag(CellState.CellFlag.BASE) and not has_static_flag(CellState.CellFlag.BLOCKED)
 
 
 func is_diggable() -> bool:
-	return has_flag(CellState.CellFlag.DIGGABLE) and not has_flag(CellState.CellFlag.BLOCKED)
+	return has_static_flag(CellState.CellFlag.DIGGABLE) and not has_static_flag(CellState.CellFlag.BLOCKED)
 
 
 func is_dropable() -> bool:
-	return has_flag(CellState.CellFlag.DROPABLE) and not has_flag(CellState.CellFlag.BLOCKED)
+	return has_static_flag(CellState.CellFlag.DROPABLE) and not has_static_flag(CellState.CellFlag.BLOCKED)
 
 
 func is_dug() -> bool:
-	return has_flag(CellState.CellFlag.DUG)
+	return has_state_flag(CellState.CellFlag.DUG)
 
 
 func is_watered() -> bool:
-	return has_flag(CellState.CellFlag.WATERED)
-
-
-func can_drop() -> bool:
-	return is_dropable() and not has_occupant()
-
-
-func can_plant() -> bool:
-	return is_dug() and not has_occupant() and not has_flag(CellState.CellFlag.BLOCKED)
+	return has_state_flag(CellState.CellFlag.WATERED)
 
 
 func tool_rejection_reason(tool_kind: ToolMeta.ToolKind) -> StringName:
 	match tool_kind:
 		ToolMeta.ToolKind.HOE:
-			if has_flag(CellState.CellFlag.BLOCKED):
+			if has_static_flag(CellState.CellFlag.BLOCKED):
 				return &"blocked"
-			if not has_flag(CellState.CellFlag.DIGGABLE):
+			if not has_static_flag(CellState.CellFlag.DIGGABLE):
 				return &"not_diggable"
 			if is_dug():
 				return &"already_dug"
@@ -73,7 +78,7 @@ func tool_rejection_reason(tool_kind: ToolMeta.ToolKind) -> StringName:
 				return &"occupied"
 			return &""
 		ToolMeta.ToolKind.WATERING_CAN:
-			if has_flag(CellState.CellFlag.BLOCKED):
+			if has_static_flag(CellState.CellFlag.BLOCKED):
 				return &"blocked"
 			if not is_dug():
 				return &"not_dug"
@@ -88,9 +93,9 @@ func use_tool(tool_kind: ToolMeta.ToolKind) -> Error:
 		return ERR_UNAVAILABLE
 	match tool_kind:
 		ToolMeta.ToolKind.HOE:
-			add_flag(CellState.CellFlag.DUG)
+			add_state_flag(CellState.CellFlag.DUG)
 		ToolMeta.ToolKind.WATERING_CAN:
-			add_flag(CellState.CellFlag.WATERED)
+			add_state_flag(CellState.CellFlag.WATERED)
 		_:
 			return ERR_UNAVAILABLE
 	return OK
@@ -124,9 +129,6 @@ func remove_item_id(item_id: StringName) -> Error:
 func bind_state(cell_state: CellState) -> Error:
 	if cell_state == null or cell_state.cell != coordinates:
 		return ERR_INVALID_PARAMETER
-	var static_flags := flags() & ~(CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
-	var dynamic_flags := cell_state.flags & (CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
-	cell_state.flags = static_flags | dynamic_flags
 	_state = cell_state
 	return OK
 

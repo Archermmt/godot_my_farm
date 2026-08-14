@@ -11,7 +11,7 @@
 ## 交付范围
 
 - Harvestable/Pickup/Tree/Obstacle/Plant 组件或等价场景。
-- 完成具体 Tool、HarvestableItem、DropTable、ItemFactory 和 EffectHost 最小链路。
+- 完成具体 Tool、Harvestable、HarvestableDrop、ItemFactory 和 EffectHost 最小链路。
 - 原创占位草、石头、树、树桩、木/石/草/作物掉落。
 - harvest/drop/pickup 单元与集成测试。
 
@@ -19,7 +19,7 @@
 
 1. Harvestable 当前 stage 定义生命、允许 tool_kind、掉落表和受击反馈；错工具 preview/commit 均无效。
 2. 伤害与蓄力规则由工具配置计算；对象生命归零后只结算一次掉落，并通过 BaseMap 同时删除运行时 Item、ItemState 和所属 CellState.item_ids 引用。
-3. DropTable 用可注入 RNG，min <= amount <= max；同一个死亡事务不因重试重复掉落。
+3. 内嵌 HarvestableDrop 使用可注入 RNG，min <= amount <= max；同一个死亡事务不因重试重复掉落。
 4. 成熟 Plant 用 Basket/指定工具收获，产出进入背包或生成 Pickup；格子占用清理，是否保留 dug 状态按数据规则明确。
 5. Tree 根据 Player 相对 x 确定倒向；成熟树死亡生成 stump，stump 可再次用斧处理。动画期间禁止二次命中结算。
 6. Pickup 使用 Area2D 探测 Player，在追踪半径内以 delta 平滑吸附；距离为 0 时不得除零。

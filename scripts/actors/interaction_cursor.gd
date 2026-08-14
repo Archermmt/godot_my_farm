@@ -21,8 +21,8 @@ var charge_level: int = 0
 var charge_elapsed: float = 0.0
 var preview: Array[CellState] = []
 var player_state: PlayerState = null
-var last_tool_result: ToolUseResult = null
-var last_seed_result: SeedUseResult = null
+var last_tool_outcome: ToolOutcome = null
+var last_seed_outcome: SeedOutcome = null
 
 var _map: BaseMap = null
 var _meta: ItemMeta = null
@@ -40,6 +40,8 @@ func begin(next_player_state: PlayerState, map: BaseMap, meta: ItemMeta) -> Erro
 		return ERR_BUSY
 	if next_player_state == null or map == null or meta == null:
 		return ERR_INVALID_PARAMETER
+	if not meta is ToolMeta and not meta is SeedMeta:
+		return ERR_UNAVAILABLE
 	player_state = next_player_state
 	_map = map
 	_meta = meta
@@ -47,8 +49,8 @@ func begin(next_player_state: PlayerState, map: BaseMap, meta: ItemMeta) -> Erro
 	charge_level = 0
 	charge_elapsed = 0.0
 	_commit_emitted = false
-	last_tool_result = null
-	last_seed_result = null
+	last_tool_outcome = null
+	last_seed_outcome = null
 	state = InteractionState.CHARGING
 	_refresh_preview()
 	return OK
@@ -85,28 +87,28 @@ func release() -> Error:
 		return ERR_INVALID_DATA
 	state = InteractionState.COMMITTED
 	var valid_cells: Array[Vector2i] = []
-	if _meta is ToolMeta and (_meta as ToolMeta).tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]:
+	if _meta is ToolMeta:
 		var target_cells: Array[Vector2i] = []
 		for cell_state: CellState in preview:
 			target_cells.append(cell_state.cell)
-		last_tool_result = Tool.new(_meta as ToolMeta).use(_map, target_cells, player_state.stamina)
-		if last_tool_result.error != OK:
-			var tool_error := last_tool_result.error
+		last_tool_outcome = Tool.perform(_meta as ToolMeta, _map, target_cells, player_state.stamina, player_state.cell)
+		if last_tool_outcome.error != OK:
+			var tool_error := last_tool_outcome.error
 			_clear_to_idle()
 			return tool_error
-		valid_cells = last_tool_result.effect_cells.duplicate()
-	elif _meta.use_kind == ItemMeta.UseKind.SEED:
+		valid_cells = last_tool_outcome.effect_cells.duplicate()
+	elif _meta is SeedMeta:
 		var seed_cells: Array[Vector2i] = []
 		for cell_state: CellState in preview:
 			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
 				seed_cells.append(cell_state.cell)
 		var stack := player_state.active_stack()
-		last_seed_result = SeedItem.new(_meta, _map.catalog()).use(_map, seed_cells, GameManager.calendar.day, stack.amount)
-		if last_seed_result.error != OK:
-			var seed_error := last_seed_result.error
+		last_seed_outcome = Seed.perform(_meta as SeedMeta, _map.catalog(), _map, seed_cells, GameManager.calendar.day, stack.amount)
+		if last_seed_outcome.error != OK:
+			var seed_error := last_seed_outcome.error
 			_clear_to_idle()
 			return seed_error
-		valid_cells = last_seed_result.effect_cells.duplicate()
+		valid_cells = last_seed_outcome.effect_cells.duplicate()
 	else:
 		for cell_state: CellState in preview:
 			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
@@ -157,7 +159,7 @@ func _build_preview() -> Array[CellState]:
 		preview_state.cell = source_state.cell
 		preview_state.flags = source_state.flags
 		preview_state.item_ids = source_state.item_ids.duplicate()
-		var has_seed := _meta.use_kind != ItemMeta.UseKind.SEED or index < stack.amount
+		var has_seed := not _meta is SeedMeta or index < stack.amount
 		preview_state.interaction_flags = CellState.InteractionFlag.VALID if has_seed and _cell_accepts(map_cell) else CellState.InteractionFlag.INVALID
 		if not source_state.item_ids.is_empty():
 			preview_state.interaction_flags |= CellState.InteractionFlag.ENTITY
@@ -174,23 +176,23 @@ func _level_for_elapsed() -> int:
 
 
 func _max_charge_level() -> int:
-	if _meta is ToolMeta:
-		return maxi(0, (_meta as ToolMeta).charge_levels.size() - 1)
-	if _meta != null and _meta.use_kind == ItemMeta.UseKind.SEED:
-		return 4
-	return 0
+	return maxi(0, _charge_levels().size() - 1)
 
 
 func _dimensions(level: int) -> Vector2i:
+	var levels := _charge_levels()
+	if levels.is_empty():
+		return Vector2i.ONE
+	var configured := levels[clampi(level, 0, levels.size() - 1)]
+	return Vector2i(maxi(1, configured.x), maxi(1, configured.y))
+
+
+func _charge_levels() -> Array[Vector2i]:
 	if _meta is ToolMeta:
-		var levels := (_meta as ToolMeta).charge_levels
-		if levels.is_empty():
-			return Vector2i.ONE
-		var configured := levels[clampi(level, 0, levels.size() - 1)]
-		return Vector2i(maxi(1, configured.x), maxi(1, configured.y))
-	if _meta != null and _meta.use_kind == ItemMeta.UseKind.SEED:
-		return Vector2i(level + 1, 1)
-	return Vector2i.ONE
+		return (_meta as ToolMeta).charge_levels
+	if _meta is SeedMeta:
+		return (_meta as SeedMeta).charge_levels
+	return []
 
 
 func _target_cells(origin: Vector2i, facing: StringName, length: int, width: int) -> Array[Vector2i]:
@@ -207,28 +209,23 @@ func _target_cells(origin: Vector2i, facing: StringName, length: int, width: int
 func _cell_accepts(cell: MapCell) -> bool:
 	if cell == null:
 		return false
-	match _meta.use_kind:
-		ItemMeta.UseKind.GRID_TOOL:
-			return Tool.new(_meta as ToolMeta).rejection_reason(cell) == &"" if _meta is ToolMeta else false
-		ItemMeta.UseKind.SEED:
-			return cell.can_plant()
-		ItemMeta.UseKind.DROP:
-			return cell.can_drop()
-		ItemMeta.UseKind.HARVEST_TOOL:
-			return cell.has_occupant()
-	return true
+	if _meta is SeedMeta:
+		return _map.check_cell(cell.coordinates, BaseMap.CellCondition.PLANTABLE)
+	if not _meta is ToolMeta:
+		return false
+	var tool_meta := _meta as ToolMeta
+	if Tool.targets_cells(tool_meta):
+		return Tool.cell_rejection_reason(tool_meta, cell) == &""
+	if tool_meta.tool_kind == ToolMeta.ToolKind.NONE:
+		return cell.has_occupant()
+	return Tool.item_rejection_reason(tool_meta, _map, cell.coordinates) == &""
 
 
 func _action_id() -> StringName:
-	match _meta.use_kind if _meta != null else ItemMeta.UseKind.NONE:
-		ItemMeta.UseKind.GRID_TOOL:
-			return &"grid_tool"
-		ItemMeta.UseKind.HARVEST_TOOL:
-			return &"harvest_tool"
-		ItemMeta.UseKind.SEED:
-			return &"seed"
-		ItemMeta.UseKind.DROP:
-			return &"drop"
+	if _meta is SeedMeta:
+		return &"seed"
+	if _meta is ToolMeta:
+		return &"grid_tool" if Tool.targets_cells(_meta as ToolMeta) else &"harvest_tool"
 	return &"use"
 
 

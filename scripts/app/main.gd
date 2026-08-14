@@ -1,5 +1,7 @@
 extends Node
 
+@export_range(0.1, 120.0, 0.1, "or_greater") var time_scale: float = 1.2
+
 @onready var map_host: Node2D = $World/MapHost
 @onready var actor_host: Node2D = $World/ActorHost
 @onready var player: FarmPlayer = $World/ActorHost/Player
@@ -11,6 +13,7 @@ extends Node
 @onready var service_summary: Label = %ServiceSummary
 @onready var version_label: Label = %VersionLabel
 @onready var bootstrap_screen: Control = $UILayer/BootstrapScreen
+var _farm_pickups_spawned := false
 
 
 func _ready() -> void:
@@ -23,6 +26,10 @@ func _ready() -> void:
 		return
 	if not GameManager.is_initialized():
 		_show_boot_error(["GameManager did not create a new game"])
+		return
+	var time_scale_error := GameManager.configure_time_scale(time_scale)
+	if time_scale_error != OK:
+		_show_boot_error(["Invalid game time scale: %s" % time_scale])
 		return
 	var register_error: Error = SceneManager.register_hosts(
 		map_host,
@@ -40,12 +47,15 @@ func _ready() -> void:
 	if player.bind_state(GameManager.player) != OK:
 		_show_boot_error(["Player state binding failed"])
 		return
+	if not EventBus.map_changed.is_connected(_on_map_changed):
+		EventBus.map_changed.connect(_on_map_changed)
 	player.set_facing(player.state.facing)
 
 	var map_error: Error = await SceneManager.load_initial_map(GameManager.player.map_id, GameManager.player.spawn_id)
 	if map_error != OK:
 		_show_boot_error(["Initial map load failed: %s" % error_string(map_error)])
 		return
+	_on_map_changed(SceneManager.current_map_id())
 	GameManager.start()
 	status_dot.color = Color("77cc59")
 	status_label.text = "T07  FARM TOOLS READY"
@@ -64,6 +74,18 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if SceneManager != null:
 		SceneManager.unregister_hosts(map_host)
+
+
+func _on_map_changed(map_id: StringName) -> void:
+	if map_id != &"farm" or _farm_pickups_spawned:
+		return
+	var farm := SceneManager.current_map()
+	if farm == null:
+		return
+	farm.spawn_pickup(&"material_wood", Vector2i(10, 8))
+	farm.spawn_pickup(&"material_stone", Vector2i(11, 8))
+	farm.spawn_pickup(&"material_wood", Vector2i(12, 8))
+	_farm_pickups_spawned = true
 
 
 func _show_boot_error(errors: Array[String]) -> void:

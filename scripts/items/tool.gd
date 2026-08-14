@@ -1,20 +1,60 @@
 class_name Tool
-extends RefCounted
+extends Item
 
-var meta: ToolMeta = null
-
-
-func _init(tool_meta: ToolMeta = null) -> void:
-	meta = tool_meta
+func _init(next_meta: ToolMeta = null) -> void:
+	meta = next_meta
 
 
-func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) -> ToolUseResult:
-	var result := ToolUseResult.new()
-	result.tool_kind = meta.tool_kind if meta != null else ToolMeta.ToolKind.NONE
-	if map == null or meta == null or available_stamina < 0:
-		result.error = ERR_INVALID_PARAMETER
+func tool_meta() -> ToolMeta:
+	return meta as ToolMeta
+
+
+static func perform(
+	meta: ToolMeta,
+	map: BaseMap,
+	target_cells: Array[Vector2i],
+	available_stamina: int,
+	source_cell: Vector2i = Vector2i(-999999, -999999)
+) -> ToolOutcome:
+	var tool := Tool.new(meta)
+	var result := tool.use(map, target_cells, available_stamina, source_cell)
+	tool.free()
+	return result
+
+
+static func cell_rejection_reason(meta: ToolMeta, cell: MapCell) -> StringName:
+	var tool := Tool.new(meta)
+	var reason := tool.rejection_reason(cell)
+	tool.free()
+	return reason
+
+
+static func item_rejection_reason(meta: ToolMeta, map: BaseMap, coordinates: Vector2i) -> StringName:
+	var tool := Tool.new(meta)
+	var reason := tool.harvest_rejection_reason(map, coordinates)
+	tool.free()
+	return reason
+
+
+static func targets_cells(meta: ToolMeta) -> bool:
+	return meta != null and meta.tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]
+
+
+func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int, source_cell: Vector2i = Vector2i(-999999, -999999)) -> ToolOutcome:
+	var typed_meta := tool_meta()
+	if targets_cells(typed_meta):
+		return use_on_cells(map, target_cells, available_stamina)
+	return use_on_items(map, target_cells, available_stamina, source_cell)
+
+
+func use_on_cells(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) -> CellToolOutcome:
+	var result := _new_cell_outcome()
+	var typed_meta := tool_meta()
+	var validation_error := _validate_use(map, available_stamina)
+	if validation_error != OK:
+		result.error = validation_error
 		return result
-	if meta.tool_kind not in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]:
+	if typed_meta.tool_kind not in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]:
 		result.error = ERR_UNAVAILABLE
 		return result
 
@@ -35,18 +75,18 @@ func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) ->
 	if accepted.is_empty():
 		result.error = ERR_UNAVAILABLE
 		return result
-	var stamina_cost := meta.base_stamina_cost
+	var stamina_cost := typed_meta.base_stamina_cost
 	if available_stamina < stamina_cost:
 		result.error = ERR_CANT_ACQUIRE_RESOURCE
 		return result
 
 	var previous_flags: Dictionary[Vector2i, int] = {}
 	for cell: MapCell in accepted:
-		previous_flags[cell.coordinates] = cell.flags()
-		var cell_error := cell.use_tool(meta.tool_kind)
+		previous_flags[cell.coordinates] = cell.state_flags()
+		var cell_error := cell.use_tool(typed_meta.tool_kind)
 		if cell_error != OK:
 			for changed_coordinates: Vector2i in previous_flags:
-				map.get_cell(changed_coordinates).set_flags(previous_flags[changed_coordinates])
+				map.get_cell(changed_coordinates).set_state_flags(previous_flags[changed_coordinates])
 			result.error = cell_error
 			return result
 		result.effect_cells.append(cell.coordinates)
@@ -56,7 +96,92 @@ func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) ->
 	return result
 
 
+func use_on_items(
+	map: BaseMap,
+	target_cells: Array[Vector2i],
+	available_stamina: int,
+	source_cell: Vector2i = Vector2i(-999999, -999999)
+) -> ItemToolOutcome:
+	var result := _new_item_outcome()
+	var typed_meta := tool_meta()
+	var validation_error := _validate_use(map, available_stamina)
+	if validation_error != OK:
+		result.error = validation_error
+		return result
+	if typed_meta.tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]:
+		result.error = ERR_UNAVAILABLE
+		return result
+
+	var accepted: Array[Harvestable] = []
+	var seen: Dictionary[StringName, bool] = {}
+	for coordinates: Vector2i in target_cells:
+		var target := map.harvestable_at(coordinates)
+		var reason := harvest_rejection_reason(map, coordinates)
+		if target == null or reason != &"":
+			result.skipped_reasons[coordinates] = reason
+			continue
+		if seen.has(target.item_id()):
+			result.skipped_reasons[coordinates] = &"duplicate"
+			continue
+		seen[target.item_id()] = true
+		accepted.append(target)
+
+	if accepted.is_empty():
+		result.error = ERR_UNAVAILABLE
+		return result
+	if available_stamina < typed_meta.base_stamina_cost:
+		result.error = ERR_CANT_ACQUIRE_RESOURCE
+		return result
+	for target: Harvestable in accepted:
+		var coordinates: Vector2i = target.state.cell
+		if target.apply_tool(typed_meta.tool_kind, typed_meta.damage) != OK:
+			result.error = ERR_UNAVAILABLE
+			return result
+		result.effect_cells.append(coordinates)
+		result.hit_item_ids.append(target.item_id())
+		if target.is_depleted():
+			var depleted_id := target.item_id()
+			if target.harvestable_meta().id == &"tree":
+				result.tree_fall_directions[depleted_id] = 1 if source_cell.x <= coordinates.x else -1
+			result.pickup_ids.append_array(map.resolve_depleted_item(depleted_id))
+			result.destroyed_item_ids.append(depleted_id)
+	result.stamina_spent = typed_meta.base_stamina_cost
+	return result
+
+
 func rejection_reason(cell: MapCell) -> StringName:
-	if cell == null or meta == null:
+	var typed_meta := tool_meta()
+	if cell == null or typed_meta == null:
 		return &"missing_cell"
-	return cell.tool_rejection_reason(meta.tool_kind)
+	return cell.tool_rejection_reason(typed_meta.tool_kind)
+
+
+func harvest_rejection_reason(map: BaseMap, coordinates: Vector2i) -> StringName:
+	var typed_meta := tool_meta()
+	if map == null or typed_meta == null:
+		return &"missing_map"
+	var target := map.harvestable_at(coordinates)
+	return target.tool_rejection_reason(typed_meta.tool_kind) if target != null else &"missing_target"
+
+
+func _new_cell_outcome() -> CellToolOutcome:
+	var result := CellToolOutcome.new()
+	var typed_meta := tool_meta()
+	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
+	return result
+
+
+func _new_item_outcome() -> ItemToolOutcome:
+	var result := ItemToolOutcome.new()
+	var typed_meta := tool_meta()
+	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
+	return result
+
+
+func _validate_use(map: BaseMap, available_stamina: int) -> Error:
+	var typed_meta := tool_meta()
+	if map == null or typed_meta == null or available_stamina < 0:
+		return ERR_INVALID_PARAMETER
+	if typed_meta.tool_kind == ToolMeta.ToolKind.NONE:
+		return ERR_UNAVAILABLE
+	return OK

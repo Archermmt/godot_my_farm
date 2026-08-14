@@ -9,17 +9,16 @@ func _ready() -> void:
 		push_error("[T01Fixture] failed to load %s" % CATALOG_PATH)
 		get_tree().quit(1)
 		return
-	var errors: Array[String] = CatalogValidator.validate(catalog)
+	var errors: Array[String] = DataCatalogService.validate_catalog(catalog)
 	if not errors.is_empty():
 		for error: String in errors:
 			push_error("[T01Fixture] %s" % error)
 		get_tree().quit(1)
 		return
-	print("[T01Fixture] catalog valid | items=%d plants=%d harvestables=%d drops=%d schedules=%d" % [
+	print("[T01Fixture] catalog valid | items=%d plants=%d harvestables=%d schedules=%d" % [
 		catalog.items.size(),
 		_count_type(catalog.items, PlantMeta),
 		_count_type(catalog.items, HarvestableMeta),
-		catalog.drop_tables.size(),
 		catalog.npc_schedules.size(),
 	])
 	get_tree().quit(0)

@@ -1,23 +1,48 @@
 class_name BaseMap
 extends Node2D
 
+const ITEM_SCENE := preload("res://scenes/items/item.tscn")
+const PLANT_SCENE := preload("res://scenes/items/plants/plant.tscn")
+const HARVESTABLE_SCENE := preload("res://scenes/items/harvestables/harvestable.tscn")
+
+enum CellCondition { HAS_OCCUPANT, PLANTABLE, DROPABLE }
+
 @export var map_id: StringName = &"farm"
 @export var cell_flags: Dictionary[TileMapLayer, CellState.CellFlag] = {}
-@export var item_hosts: Dictionary[Node2D, ItemMeta.WorldType] = {}
+@export var items_host: Node2D = null
+@export var harvestables_host: Node2D = null
+@export var plants_host: Node2D = null
 
 var cells: Dictionary[Vector2i, MapCell] = {}
 var items: Dictionary[StringName, Item] = {}
 var interaction_revision: int = 0
 var _map_state: MapState = null
-var _cell_state_projection: Node2D = null
+var _dug_layer: TileMapLayer = null
+var _watered_layer: TileMapLayer = null
 var _catalog_service: DataCatalogService = null
 var _event_bus_service: EventBusService = null
+var _world_seed: int = 0
+var drop_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var last_generation_summary: Dictionary = {}
 @onready var spawn_points: Node2D = $SpawnPoints
+@onready var items_generator: ItemsGenerator = get_node_or_null("ItemsGenerator") as ItemsGenerator
 
 func _ready() -> void:
 	configure_services(DataCatalog, EventBus)
 	_build_cells()
-	_ensure_cell_state_projection()
+
+
+func collect_pickups(player: FarmPlayer, center: Vector2, radius: float, delta: float) -> void:
+	if player == null or radius <= 0.0:
+		return
+	var completed: Array[StringName] = []
+	for item: Item in items.values():
+		if item == null or item is Harvestable or item.collected or item.meta == null or not item.meta.can_pickup:
+			continue
+		if item.global_position.distance_to(center) <= radius and item.attract_to(player, delta):
+			completed.append(item.item_id())
+	for item_id: StringName in completed:
+		remove_item(item_id)
 
 
 func configure_services(catalog_service: DataCatalogService, event_bus_service: EventBusService = null) -> void:
@@ -30,7 +55,7 @@ func configure_services(catalog_service: DataCatalogService, event_bus_service: 
 func catalog() -> DataCatalogService:
 	return _catalog_service
 
-func configure_state(map_state: MapState) -> Error:
+func configure_state(map_state: MapState, world_seed: int = 0, run_generation: bool = false) -> Error:
 	if map_state == null or map_state.map_id != map_id:
 		return ERR_INVALID_PARAMETER
 	if cells.is_empty():
@@ -64,8 +89,10 @@ func configure_state(map_state: MapState) -> Error:
 		var item_meta := catalog.get_item(item_state.meta_id)
 		if not _state_matches_meta(item_state, item_meta):
 			return ERR_INVALID_DATA
-		if item_host(item_meta.world_type()) == null:
+		if _item_host_for_meta(item_meta) == null:
 			return ERR_UNCONFIGURED
+		if not cells.has(item_state.cell):
+			return ERR_INVALID_DATA
 		var item := _create_item(item_state)
 		if item == null:
 			return ERR_INVALID_DATA
@@ -76,13 +103,24 @@ func configure_state(map_state: MapState) -> Error:
 		if bind_error != OK:
 			return bind_error
 	_map_state = map_state
+	_world_seed = world_seed
 	for item: Item in restored_items:
 		var add_error := add_item(item)
 		if add_error != OK:
 			_clear_items()
 			return add_error
+	last_generation_summary = {}
+	if run_generation and not map_state.generator_initialized:
+		if items_generator == null:
+			map_state.generator_initialized = true
+		else:
+			last_generation_summary = items_generator.generate(self, get_map_size(), world_seed, map_state.generation_epoch, _catalog_service)
+			var generation_error: Error = int(last_generation_summary.get("error", ERR_INVALID_DATA))
+			if generation_error != OK:
+				return generation_error
+			map_state.generator_initialized = true
 	interaction_revision += 1
-	return rebuild_cell_state_projection()
+	return rebuild_cell_state_layers()
 
 func validate_alignment() -> Error:
 	var container := tilemap_container()
@@ -113,12 +151,13 @@ func validate_alignment() -> Error:
 				return ERR_INVALID_DATA
 	if base_layer_count != 1:
 		return ERR_INVALID_DATA
-	var configured_item_types: Dictionary[ItemMeta.WorldType, bool] = {}
-	for host: Node2D in item_hosts:
-		var item_type: ItemMeta.WorldType = item_hosts[host]
-		if host == null or not is_ancestor_of(host) or item_type == ItemMeta.WorldType.NONE or configured_item_types.has(item_type):
+	var configured_hosts: Dictionary[Node2D, bool] = {}
+	for host: Node2D in [items_host, harvestables_host, plants_host]:
+		if host == null:
+			continue
+		if not is_ancestor_of(host) or configured_hosts.has(host):
 			return ERR_INVALID_DATA
-		configured_item_types[item_type] = true
+		configured_hosts[host] = true
 	return OK
 
 func managed_layers() -> Array[TileMapLayer]:
@@ -149,25 +188,19 @@ func get_tile_size() -> Vector2i:
 	var base_layer := coordinate_layer()
 	return base_layer.tile_set.tile_size if base_layer != null and base_layer.tile_set != null else Vector2i.ZERO
 
-func item_host(item_type: ItemMeta.WorldType) -> Node2D:
-	for host: Node2D in item_hosts:
-		if item_hosts[host] == item_type:
-			return host
-	return null
-
 func add_item(item: Item) -> Error:
 	if item == null or item.state == null or item.meta == null or item.item_id() == &"":
 		return ERR_INVALID_PARAMETER
 	if items.has(item.item_id()) or item.get_parent() != null:
 		return ERR_ALREADY_EXISTS
-	var host := item_host(item.meta.world_type())
+	var host := _item_host_for_meta(item.meta)
 	if host == null:
 		return ERR_UNCONFIGURED
 	host.add_child(item)
 	items[item.item_id()] = item
 	return OK
 
-func add_item_state(item_state: ItemState) -> Error:
+func add_item_state(item_state: ItemState, coordinates: Vector2i = Vector2i.ZERO) -> Error:
 	if _map_state == null or item_state == null or item_state.instance_id == &"":
 		return ERR_INVALID_PARAMETER
 	if _map_state.items.has(item_state.instance_id) or items.has(item_state.instance_id):
@@ -176,13 +209,14 @@ func add_item_state(item_state: ItemState) -> Error:
 	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return ERR_INVALID_PARAMETER
-	var cell := get_cell(item_state.cell)
+	var cell := get_cell(coordinates)
 	if cell == null:
 		return ERR_DOES_NOT_EXIST
 	var add_id_error := cell.add_item_id(item_state.instance_id)
 	if add_id_error != OK:
 		return add_id_error
 	_map_state.items[item_state.instance_id] = item_state
+	item_state.cell = coordinates
 	var item := _create_item(item_state)
 	var add_error := add_item(item)
 	if add_error != OK:
@@ -203,15 +237,94 @@ func create_item_instance_id(meta_id: StringName) -> StringName:
 	return candidate
 
 
+func spawn_pickup(meta_id: StringName, coordinates: Vector2i) -> StringName:
+	var item_meta := _catalog_service.get_item(meta_id) if _catalog_service != null else null
+	if item_meta == null or item_meta is ToolMeta or not item_meta.can_pickup or get_cell(coordinates) == null:
+		return &""
+	var item_state := ItemState.new()
+	item_state.meta_id = meta_id
+	item_state.instance_id = create_item_instance_id(StringName("pickup_%s" % meta_id))
+	item_state.cell = coordinates
+	return item_state.instance_id if add_item_state(item_state, coordinates) == OK else &""
+
+
+func harvestable_at(coordinates: Vector2i) -> Harvestable:
+	var cell := get_cell(coordinates)
+	if cell == null:
+		return null
+	for item_id: StringName in cell.cell_state().item_ids:
+		var harvestable := get_item(item_id) as Harvestable
+		if harvestable != null:
+			return harvestable
+	return null
+
+
+func check_cell(coordinates: Vector2i, condition: CellCondition) -> bool:
+	var cell := get_cell(coordinates)
+	if cell == null:
+		return false
+	var has_occupant := false
+	for item_id: StringName in cell.cell_state().item_ids:
+		var item := get_item(item_id)
+		if item == null or not item.meta.can_pickup:
+			has_occupant = true
+			break
+	match condition:
+		CellCondition.HAS_OCCUPANT:
+			return has_occupant
+		CellCondition.PLANTABLE:
+			return cell.is_dug() and not cell.has_static_flag(CellState.CellFlag.BLOCKED) and not has_occupant
+		CellCondition.DROPABLE:
+			return cell.is_dropable() and not has_occupant
+	return false
+
+
+func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
+	var harvestable := get_item(item_id) as Harvestable
+	var pickup_ids: Array[StringName] = []
+	if harvestable == null or not harvestable.is_depleted():
+		return pickup_ids
+	var coordinates: Vector2i = harvestable.state.cell
+	if coordinates == Vector2i(999999, 999999):
+		return pickup_ids
+	var replacement_id := harvestable.harvestable_meta().depleted_replacement_id
+	var drops := roll_drops(harvestable.active_drops())
+	var remove_error := remove_item(item_id)
+	if remove_error != OK:
+		return pickup_ids
+	if replacement_id != &"":
+		var replacement_meta := _catalog_service.get_item(replacement_id) as HarvestableMeta if _catalog_service != null else null
+		if replacement_meta != null:
+			var replacement_state := HarvestableState.new()
+			replacement_state.meta_id = replacement_id
+			replacement_state.instance_id = create_item_instance_id(replacement_id)
+			replacement_state.health = replacement_meta.max_health
+			add_item_state(replacement_state, coordinates)
+	for item_id_and_amount: Dictionary in drops:
+		for _index in int(item_id_and_amount["amount"]):
+			var pickup_id := spawn_pickup(item_id_and_amount["item_id"] as StringName, coordinates)
+			if pickup_id != &"":
+				pickup_ids.append(pickup_id)
+	return pickup_ids
+
+
+func roll_drops(entries: Array[HarvestableDrop]) -> Array[Dictionary]:
+	var drops: Array[Dictionary] = []
+	for entry: HarvestableDrop in entries:
+		if entry != null and drop_rng.randf() <= entry.chance:
+			drops.append({"item_id": entry.item_id, "amount": drop_rng.randi_range(entry.min_amount, entry.max_amount)})
+	return drops
+
+
 func settle_day(current_day: int) -> Array[StringName]:
 	var grown: Array[StringName] = []
 	if current_day <= 0:
 		return grown
 	for item_id: StringName in items:
-		var plant := items[item_id] as PlantItem
-		if plant == null or plant.plant_state == null:
+		var plant := items[item_id] as Plant
+		if plant == null or plant.plant_state() == null:
 			continue
-		var cell := get_cell(plant.plant_state.cell)
+		var cell := get_cell(plant.plant_state().cell)
 		if cell != null and cell.is_watered() and plant.grow_for_day(current_day):
 			grown.append(item_id)
 	clear_watered()
@@ -219,7 +332,17 @@ func settle_day(current_day: int) -> Array[StringName]:
 
 
 func get_item(item_id: StringName) -> Item:
-	return items.get(item_id, null) as Item
+	var item := items.get(item_id, null) as Item
+	if item != null and item.collected:
+		items.erase(item_id)
+		if _map_state != null:
+			_map_state.items.erase(item_id)
+		var cell := get_cell(item.state.cell)
+		if cell != null:
+			cell.remove_item_id(item_id)
+		item.queue_free()
+		return null
+	return item
 
 
 func move_item(item_id: StringName, target_coordinates: Vector2i) -> Error:
@@ -248,6 +371,18 @@ func move_item(item_id: StringName, target_coordinates: Vector2i) -> Error:
 	return OK
 
 
+func sync_item_cell_from_position(item_id: StringName) -> Error:
+	var item := get_item(item_id)
+	if item == null or item.state == null:
+		return ERR_DOES_NOT_EXIST
+	var target_coordinates := world_to_cell(item.global_position)
+	if target_coordinates == item.state.cell:
+		return OK
+	if not contains_cell(target_coordinates):
+		return ERR_INVALID_PARAMETER
+	return move_item(item_id, target_coordinates)
+
+
 func remove_item(item_id: StringName) -> Error:
 	var item := get_item(item_id)
 	if item == null or item.state == null or _map_state == null:
@@ -264,14 +399,8 @@ func remove_item(item_id: StringName) -> Error:
 	interaction_revision += 1
 	return OK
 
-func item_count(item_type: ItemMeta.WorldType = ItemMeta.WorldType.NONE) -> int:
-	if item_type != ItemMeta.WorldType.NONE:
-		var host := item_host(item_type)
-		return host.get_child_count() if host != null else 0
-	var count := 0
-	for host: Node2D in item_hosts:
-		count += host.get_child_count()
-	return count
+func item_count() -> int:
+	return items.size()
 
 func world_to_cell(world_position: Vector2) -> Vector2i:
 	var layer := coordinate_layer()
@@ -308,12 +437,11 @@ func get_cell(cell: Vector2i) -> MapCell:
 
 func has_cell_flag(cell: Vector2i, flag: CellState.CellFlag) -> bool:
 	var map_cell := get_cell(cell)
-	return map_cell != null and map_cell.has_flag(flag)
+	return map_cell != null and map_cell.has_static_flag(flag)
 
 func is_walkable(cell: Vector2i) -> bool:
 	var map_cell := get_cell(cell)
 	return map_cell != null and map_cell.is_walkable()
-
 
 func commit_cell_changes(changed_cells: Array[Vector2i]) -> Error:
 	if changed_cells.is_empty():
@@ -322,15 +450,14 @@ func commit_cell_changes(changed_cells: Array[Vector2i]) -> Error:
 		if not cells.has(coordinates):
 			return ERR_DOES_NOT_EXIST
 	interaction_revision += 1
-	return rebuild_cell_state_projection()
-
+	return rebuild_cell_state_layers()
 
 func clear_watered() -> Array[Vector2i]:
 	var changed: Array[Vector2i] = []
 	for coordinates: Vector2i in cells:
 		var cell: MapCell = cells[coordinates]
 		if cell.is_watered():
-			cell.remove_flag(CellState.CellFlag.WATERED)
+			cell.remove_state_flag(CellState.CellFlag.WATERED)
 			changed.append(coordinates)
 	if not changed.is_empty():
 		commit_cell_changes(changed)
@@ -339,15 +466,29 @@ func clear_watered() -> Array[Vector2i]:
 
 func _on_day_advanced(_previous_day: int, current_day: int) -> void:
 	settle_day(current_day)
+	if _map_state == null or items_generator == null or not items_generator.regenerate_daily:
+		return
+	_map_state.generation_epoch += 1
+	last_generation_summary = items_generator.generate(self, get_map_size(), _world_seed, _map_state.generation_epoch, _catalog_service)
+	var generation_error: Error = int(last_generation_summary.get("error", ERR_INVALID_DATA))
+	if generation_error != OK:
+		push_error("[BaseMap] daily generation failed for %s: %s" % [map_id, error_string(generation_error)])
 
 
-func rebuild_cell_state_projection() -> Error:
+func rebuild_cell_state_layers() -> Error:
 	if get_tile_size() == Vector2i.ZERO:
 		return ERR_UNCONFIGURED
-	_ensure_cell_state_projection()
-	if _cell_state_projection == null:
+	_ensure_cell_state_layers()
+	if _dug_layer == null or _watered_layer == null:
 		return ERR_CANT_CREATE
-	_cell_state_projection.queue_redraw()
+	_dug_layer.clear()
+	_watered_layer.clear()
+	for coordinates: Vector2i in cells:
+		var cell: MapCell = cells[coordinates]
+		if cell.is_watered():
+			_watered_layer.set_cell(coordinates, 0, Vector2i(3, 0), 0)
+		elif cell.is_dug():
+			_dug_layer.set_cell(coordinates, 0, Vector2i(1, 1), 0)
 	return OK
 
 func spawn_position(spawn_id: StringName) -> Vector2:
@@ -368,36 +509,15 @@ func _build_cells() -> void:
 		for coordinates: Vector2i in layer.get_used_cells():
 			var map_cell := get_cell(coordinates)
 			if map_cell != null:
-				map_cell.add_flag(flag)
+				map_cell.add_static_flag(flag)
 
 
-func _ensure_cell_state_projection() -> void:
-	if is_instance_valid(_cell_state_projection):
+func _ensure_cell_state_layers() -> void:
+	var container := tilemap_container()
+	if container == null:
 		return
-	_cell_state_projection = get_node_or_null("CellStateProjection") as Node2D
-	if _cell_state_projection == null:
-		_cell_state_projection = Node2D.new()
-		_cell_state_projection.name = "CellStateProjection"
-		_cell_state_projection.z_index = 0
-		add_child(_cell_state_projection)
-	if not _cell_state_projection.draw.is_connected(_draw_cell_state_projection):
-		_cell_state_projection.draw.connect(_draw_cell_state_projection)
-
-
-func _draw_cell_state_projection() -> void:
-	if _cell_state_projection == null:
-		return
-	var tile_size := Vector2(get_tile_size())
-	var inset := Vector2(2, 2)
-	for coordinates: Vector2i in cells:
-		var cell: MapCell = cells[coordinates]
-		if not cell.is_dug():
-			continue
-		var center := _cell_state_projection.to_local(cell_to_world_center(coordinates))
-		var rect := Rect2(center - tile_size * 0.5 + inset, tile_size - inset * 2.0)
-		_cell_state_projection.draw_rect(rect, Color("714a32", 0.72), true)
-		if cell.is_watered():
-			_cell_state_projection.draw_rect(rect.grow(-3.0), Color("4f91a8", 0.58), true)
+	_dug_layer = container.get_node_or_null("DugLayer") as TileMapLayer
+	_watered_layer = container.get_node_or_null("WateredLayer") as TileMapLayer
 
 
 func _create_item(item_state: ItemState) -> Item:
@@ -406,13 +526,14 @@ func _create_item(item_state: ItemState) -> Item:
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return null
 	var item: Item
-	if item_meta is PlantMeta:
-		var plant_scene := load("res://scenes/items/plants/plant.tscn") as PackedScene
-		item = plant_scene.instantiate() as Item if plant_scene != null else PlantItem.new()
-	elif item_meta is HarvestableMeta:
-		item = HarvestableItem.new()
+	if item_state is PlantState:
+		item = PLANT_SCENE.instantiate() as Item
+	elif item_state is HarvestableState:
+		item = HARVESTABLE_SCENE.instantiate() as Item
 	else:
-		item = Item.new()
+		item = ITEM_SCENE.instantiate() as Item
+	if item == null:
+		return null
 	if item.bind_state(item_state, item_meta) != OK:
 		item.free()
 		return null
@@ -423,11 +544,23 @@ func _create_item(item_state: ItemState) -> Item:
 func _state_matches_meta(item_state: ItemState, item_meta: ItemMeta) -> bool:
 	if item_state == null or item_meta == null:
 		return false
+	if item_meta is ToolMeta:
+		return false
 	if item_meta is PlantMeta:
 		return item_state is PlantState
 	if item_meta is HarvestableMeta:
 		return item_state is HarvestableState
-	return item_state.state_type() == ItemState.StateType.ITEM
+	return not item_state is HarvestableState
+
+
+func _item_host_for_meta(item_meta: ItemMeta) -> Node2D:
+	if item_meta is PlantMeta:
+		return plants_host
+	if item_meta is HarvestableMeta:
+		return harvestables_host
+	if item_meta is ToolMeta:
+		return null
+	return items_host
 
 
 func _clear_items() -> void:

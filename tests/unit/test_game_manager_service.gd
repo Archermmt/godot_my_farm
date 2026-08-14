@@ -1,6 +1,77 @@
 extends ProjectTestCase
 
+
+func test_new_game_defers_world_generation_until_map_is_loaded() -> void:
+	var game_manager := GameManagerService.new()
+	game_manager.configure(DataCatalog, null)
+	assert_equal(game_manager.new_game(99), OK)
+	var farm := game_manager.maps[&"farm"] as MapState
+	assert_true(not farm.generator_initialized)
+	assert_equal(farm.items.size(), 0)
+	assert_equal(farm.cells.size(), 0)
+	game_manager.free()
+
 const CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
+
+
+func test_new_game_uses_inspector_editable_player_state_template() -> void:
+	var catalog_service := _catalog_service()
+	var game_manager := GameManagerService.new()
+	var template := PlayerState.new()
+	template.map_id = &"field"
+	template.spawn_id = &"entrance"
+	template.cell = Vector2i(7, 9)
+	template.facing = "left"
+	template.max_health = 140
+	template.health = 140
+	template.max_stamina = 175
+	template.stamina = 175
+	template.gold = 725
+	template.inventory = InventoryState.new(4, &"inventory")
+	template.toolbar = ToolbarState.new(2)
+	template.itembar = ItembarState.new(3)
+	assert_true(template.itembar.set_slot(1, ItemStack.new(&"seed_potato", 8)))
+	game_manager.player_state_template = template
+	game_manager.configure(catalog_service)
+
+	assert_equal(game_manager.new_game(321), OK)
+	assert_equal(game_manager.player.map_id, &"field")
+	assert_equal(game_manager.player.spawn_id, &"entrance")
+	assert_equal(game_manager.player.cell, Vector2i(7, 9))
+	assert_equal(game_manager.player.facing, &"left")
+	assert_equal(game_manager.player.health, 140)
+	assert_equal(game_manager.player.max_health, 140)
+	assert_equal(game_manager.player.stamina, 175)
+	assert_equal(game_manager.player.max_stamina, 175)
+	assert_equal(game_manager.player.gold, 725)
+	assert_equal(game_manager.player.inventory.capacity(), 4)
+	assert_equal(game_manager.player.toolbar.capacity(), 2)
+	assert_equal(game_manager.player.itembar.capacity(), 3)
+	assert_equal(game_manager.player.itembar.get_slot(1).item_id, &"seed_potato")
+	assert_equal(game_manager.player.itembar.get_slot(1).amount, 8)
+	assert_equal(game_manager.player.active_hand_source, PlayerState.ActiveHandSource.NONE)
+	game_manager.free()
+	catalog_service.free()
+
+
+func test_snapshot_restore_does_not_depend_on_current_player_template() -> void:
+	var catalog_service := _catalog_service()
+	var game_manager := GameManagerService.new()
+	game_manager.configure(catalog_service)
+	assert_equal(game_manager.new_game(322), OK)
+	var snapshot := game_manager.snapshot()
+	var replacement_template := PlayerState.new()
+	replacement_template.inventory = InventoryState.new(1, &"inventory")
+	replacement_template.toolbar = ToolbarState.new(1)
+	replacement_template.itembar = ItembarState.new(1)
+	game_manager.player_state_template = replacement_template
+
+	assert_equal(game_manager.replace_snapshot(snapshot), OK)
+	assert_equal(game_manager.player.inventory.capacity(), 20)
+	assert_equal(game_manager.player.toolbar.capacity(), 6)
+	assert_equal(game_manager.player.itembar.capacity(), 10)
+	game_manager.free()
+	catalog_service.free()
 
 
 func test_new_game_is_deterministic_and_does_not_accumulate_inventory() -> void:
@@ -15,7 +86,7 @@ func test_new_game_is_deterministic_and_does_not_accumulate_inventory() -> void:
 	assert_equal(game_manager.player.itembar.capacity(), 10)
 	assert_equal(game_manager.player.itembar.count_item(&"seed_parsnip"), 15)
 	assert_equal(game_manager.player.inventory.count_item(&"seed_parsnip"), 0)
-	for tool_id: StringName in PlayerState.INITIAL_TOOL_IDS:
+	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket", &"tool_pickaxe", &"tool_axe"]:
 		assert_equal(game_manager.player.toolbar.count_item(tool_id), 1)
 	assert_equal(game_manager.player.map_id, &"cabin")
 	assert_equal(game_manager.player.spawn_id, &"wake")

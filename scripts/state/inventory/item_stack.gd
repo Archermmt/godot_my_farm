@@ -1,8 +1,8 @@
 class_name ItemStack
-extends RefCounted
+extends Resource
 
-var item_id: StringName = &""
-var amount: int = 0
+@export var item_id: StringName = &""
+@export_range(0, 999, 1) var amount: int = 0
 
 
 func _init(p_item_id: StringName = &"", p_amount: int = 0) -> void:

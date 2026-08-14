@@ -25,6 +25,11 @@ func test_input_direction_normalizes_diagonal_and_preserves_zero() -> void:
 	assert_true(is_equal_approx(diagonal.length(), 1.0))
 	assert_true(is_equal_approx(diagonal.x, diagonal.y))
 	assert_equal(FarmPlayer.normalized_direction(Vector2.ZERO), Vector2.ZERO)
+	var player := FarmPlayer.new()
+	assert_equal(player._cardinal_input_direction(Vector2(0.8, 0.4)), Vector2i.RIGHT)
+	assert_equal(player._cardinal_input_direction(Vector2(-0.2, -0.9)), Vector2i.UP)
+	assert_equal(player._cardinal_input_direction(Vector2.ZERO), Vector2i.ZERO)
+	player.free()
 
 
 func test_facing_uses_horizontal_priority_and_stays_stable_when_stopped() -> void:

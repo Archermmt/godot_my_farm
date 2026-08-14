@@ -1,9 +1,9 @@
 class_name InventoryState
-extends RefCounted
+extends Resource
 
-var owner_id: StringName = &"player"
-var slots: Array[ItemStack] = []
-var selected_index: int = 0
+@export var owner_id: StringName = &"player"
+@export var slots: Array[ItemStack] = []
+@export var selected_index: int = 0
 
 
 func _init(slot_count: int = 20, p_owner_id: StringName = &"player") -> void:
@@ -65,6 +65,31 @@ func add_item(item_id: StringName, amount: int, stack_limit: int) -> bool:
 			slot.amount = moved
 			remaining -= moved
 	return true
+
+
+func add_item_partial(item_id: StringName, amount: int, stack_limit: int) -> int:
+	if item_id == &"" or amount <= 0 or stack_limit <= 0:
+		return 0
+	var accepted := mini(amount, _free_space_for(item_id, stack_limit))
+	if accepted <= 0:
+		return 0
+	var remaining := accepted
+	for slot: ItemStack in slots:
+		if remaining == 0:
+			break
+		if not slot.is_empty() and slot.item_id == item_id and slot.amount < stack_limit:
+			var moved := mini(remaining, stack_limit - slot.amount)
+			slot.amount += moved
+			remaining -= moved
+	for slot: ItemStack in slots:
+		if remaining == 0:
+			break
+		if slot.is_empty():
+			var moved := mini(remaining, stack_limit)
+			slot.item_id = item_id
+			slot.amount = moved
+			remaining -= moved
+	return accepted
 
 
 func can_remove_item(item_id: StringName, amount: int) -> bool:

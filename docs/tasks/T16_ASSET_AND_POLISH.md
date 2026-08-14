@@ -33,7 +33,7 @@
 
 ## 自动化验收
 
-- Catalog 中每个 icon/world_scene/held_scene/stage texture/audio 引用非空且可加载。
+- Catalog 中每个 icon、stage texture 和 audio 引用均可加载；运行时 Scene 引用由对应工厂单独验证，不进入 Meta。
 - SpriteFrames 必需 animation/direction 存在，帧数/尺寸/pivot 合法。
 - 资源清单覆盖 `assets/` 中所有发行文件，无未登记外部资源。
 - 不包含 Unity `.meta/.prefab/.unity` 或参考仓库 GUID/Material。

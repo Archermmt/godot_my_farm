@@ -1,4 +1,4 @@
-class_name PlantStageMeta
+class_name PlantStage
 extends Resource
 
 @export_range(0, 999, 1) var start_day: int = 0
@@ -6,4 +6,4 @@ extends Resource
 @export var texture: Texture2D = null
 @export var visual_offset: Vector2 = Vector2(0, -5)
 @export var state_tags: Array[StringName] = []
-@export var drop_table_id: StringName = &""
+@export var drops: Array[HarvestableDrop] = []

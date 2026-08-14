@@ -33,6 +33,7 @@ func test_map_rejects_invalid_nested_state_and_duplicate_ids() -> void:
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": false,
+		"generation_epoch": 0,
 		"cells": [{"cell": {"x": 0, "y": 0}, "flags": 1, "item_ids": ["crop_0_0"]}],
 		"items": [{"state_type": "plant", "meta_id": "", "instance_id": "crop_0_0", "cell": {"x": 0, "y": 0}, "health": 1, "random_seed": 0, "flags": [], "growth_days": 0, "planted_on_day": 1}],
 	}) == null, "MapState accepted malformed nested ItemState")
@@ -48,13 +49,14 @@ func test_map_rejects_invalid_nested_state_and_duplicate_ids() -> void:
 	assert_true(MapState.from_dict({
 		"map_id": "farm",
 		"generator_initialized": true,
+		"generation_epoch": 0,
 		"cells": [{"cell": {"x": 1, "y": 2}, "flags": 1, "item_ids": []}],
 		"items": [item, item],
 	}) == null, "MapState accepted duplicate item IDs")
 
 
 func test_item_state_rejects_missing_meta_id() -> void:
-	assert_true(ItemState.from_dict({
+	assert_true(ItemCodec.from_dict({
 		"state_type": "plant",
 		"instance_id": "crop_1_2",
 		"meta_id": "",
@@ -68,7 +70,7 @@ func test_item_state_rejects_missing_meta_id() -> void:
 
 
 func test_item_state_rejects_unknown_state_type() -> void:
-	assert_true(ItemState.from_dict({
+	assert_true(ItemCodec.from_dict({
 		"state_type": "unknown",
 		"instance_id": "item_1_2",
 		"meta_id": "material_wood",
@@ -82,12 +84,9 @@ func test_base_item_state_round_trip_preserves_base_type() -> void:
 	var state := ItemState.new()
 	state.instance_id = &"wood_pickup_1"
 	state.meta_id = &"material_wood"
-	state.cell = Vector2i(3, 4)
 	state.random_seed = 12
-	state.flags = [&"pickup"]
-	var restored := ItemState.from_dict(state.to_dict())
+	var restored := ItemCodec.from_dict(ItemCodec.to_dict(state))
 	assert_true(restored != null)
-	assert_equal(restored.state_type(), ItemState.StateType.ITEM)
+	assert_true(not restored is HarvestableState)
 	assert_equal(restored.instance_id, state.instance_id)
-	assert_equal(restored.cell, state.cell)
-	assert_equal(restored.flags, state.flags)
+	assert_equal(restored.flags, [])

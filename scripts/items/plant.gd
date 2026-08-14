@@ -1,8 +1,5 @@
-class_name PlantItem
-extends HarvestableItem
-
-var plant_state: PlantState = null
-var plant_meta: PlantMeta = null
+class_name Plant
+extends Harvestable
 
 @onready var stage_visual: Sprite2D = get_node_or_null("StageVisual") as Sprite2D
 
@@ -17,40 +14,51 @@ func bind_state(item_state: ItemState, item_meta: ItemMeta) -> Error:
 	var bind_error := super.bind_state(item_state, item_meta)
 	if bind_error != OK:
 		return bind_error
-	plant_state = item_state as PlantState
-	plant_meta = item_meta as PlantMeta
 	_refresh_stage_visual()
 	return OK
 
 
+func plant_state() -> PlantState:
+	return state as PlantState
+
+
+func plant_meta() -> PlantMeta:
+	return meta as PlantMeta
+
+
 func stage_index() -> int:
-	if plant_meta == null or plant_meta.stages.is_empty():
+	var typed_state := plant_state()
+	var typed_meta := plant_meta()
+	if typed_state == null or typed_meta == null or typed_meta.stages.is_empty():
 		return -1
 	var result := 0
-	for index: int in plant_meta.stages.size():
-		if plant_state.growth_days >= plant_meta.stages[index].start_day:
+	for index: int in typed_meta.stages.size():
+		if typed_state.growth_days >= typed_meta.stages[index].start_day:
 			result = index
 	return result
 
 
 func is_mature() -> bool:
-	return stage_index() == plant_meta.stages.size() - 1 if plant_meta != null and not plant_meta.stages.is_empty() else false
+	var typed_meta := plant_meta()
+	return stage_index() == typed_meta.stages.size() - 1 if typed_meta != null and not typed_meta.stages.is_empty() else false
 
 
 func is_harvestable() -> bool:
 	return is_mature()
 
 
-func current_stage() -> PlantStageMeta:
+func current_stage() -> PlantStage:
 	var index := stage_index()
-	return plant_meta.stages[index] if plant_meta != null and index >= 0 else null
+	var typed_meta := plant_meta()
+	return typed_meta.stages[index] if typed_meta != null and index >= 0 else null
 
 
 func grow_for_day(current_day: int) -> bool:
-	if plant_state == null or current_day <= 0 or plant_state.last_growth_day >= current_day:
+	var typed_state := plant_state()
+	if typed_state == null or current_day <= 0 or typed_state.last_growth_day >= current_day:
 		return false
-	plant_state.last_growth_day = current_day
-	plant_state.growth_days += 1
+	typed_state.last_growth_day = current_day
+	typed_state.growth_days += 1
 	_refresh_stage_visual()
 	return true
 

@@ -46,7 +46,6 @@ res://
 ├── data/
 │   ├── items/
 │   ├── plants/
-│   ├── drop_tables/
 │   ├── npc_schedules/
 │   └── catalogs/
 ├── scenes/
@@ -68,8 +67,8 @@ res://
 │   ├── actors/
 │   ├── items/
 │   │   ├── item.gd
-│   │   ├── plant_item.gd
-│   │   └── harvestable_item.gd
+│   │   ├── plant.gd
+│   │   └── harvestable.gd
 │   ├── world/
 │   │   ├── base_map.gd
 │   │   ├── map_cell.gd
@@ -143,8 +142,8 @@ signal load_completed(slot: int)
 ### 5.2 DataCatalog
 
 - 扫描明确配置的 catalog Resource，不做运行时目录猜测。
-- Autoload 依赖在初始化时显式注入并缓存；Player、BaseMap、ScenePort 等场景 Node 只在入口解析一次。Tool 等 RefCounted 领域对象不访问 SceneTree、EventBus 或 AudioManager，只返回 `ToolUseResult`，由 Player 统一发出工具事实和反馈。
-- 建立 `StringName -> ItemMeta/PlantMeta/DropTable/NpcSchedule` 只读索引。
+- Autoload 依赖在初始化时显式注入并缓存；Player、BaseMap、ScenePort 等场景 Node 只在入口解析一次。Tool 等 RefCounted 领域对象不访问 SceneTree、EventBus 或 AudioManager，只返回 `ToolOutcome`，由 Player 统一发出工具事实和反馈。
+- 建立 `StringName -> ItemMeta/PlantMeta/NpcSchedule` 只读索引。
 - 启动时检查 ID 唯一、场景/贴图引用存在、种子与作物互相匹配、掉落数量合法。
 - 提供 `get_item(id)` 等窄 API，未知 ID 返回 `null` 并记录错误。
 
@@ -152,6 +151,7 @@ signal load_completed(slot: int)
 
 唯一持有：
 
+- `PlayerState` 新游戏模板：由 Inspector 编辑 `default_player_state.tres`，GameManager 新游戏时深复制为独立状态；模板本身不进入存档。
 - `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币，以及其归属的 `InventoryState`、`ToolbarState`、`ItembarState`。
 - `PlayerState.active_hand_source`：当前唯一手持来源（NONE/TOOLBAR/ITEMBAR）。
 - `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内 Item 状态。
@@ -160,6 +160,7 @@ signal load_completed(slot: int)
 
 GameManager 不实例化节点、不加载 PackedScene、不渲染 UI。
 `GameManager` 不提供玩家容器的代理 API；运行时命令由 `FarmPlayer` 调用自身绑定的 `PlayerState`，UI 通过已注册 Player 读取和修改容器。
+新游戏由 `GameManager` 将 `PlayerState` 模板交给 `PlayerState.initialize()` 深复制并校验 Item；读档只使用快照恢复 PlayerState，修改模板不会改变存档结构或阻止读取。
 
 ### 5.4 GameManager 的时间与存档职责
 
@@ -184,7 +185,44 @@ GameManager 不实例化节点、不加载 PackedScene、不渲染 UI。
 
 ## 6. 静态定义模型
 
-### 6.1 ItemMeta
+### 6.1 Meta、State 与 Runtime Object 选择模型
+
+三层表示不同维度，不是固定继承模板：
+
+| 层 | 建立条件 | 所有内容 | 不得包含 |
+|---|---|---|---|
+| Meta | 一份静态类型定义被多个实例共享 | ID、贴图、价格、阶段、规则、类型能力 | 当前生命、坐标、成长进度、Node |
+| State | 单个实例的变化需要跨卸载或存档保留 | 当前值、稳定实例 ID、关联 Meta ID | Texture、PackedScene、Node、运行时判断 |
+| Runtime Object | 需要行为、生命周期或 Godot 集成 | 业务方法、表现、碰撞、输入、State/Meta 绑定 | 第二份权威持久数据 |
+
+构建时先判断共享性，再判断持久化，最后判断运行行为：
+
+```text
+静态定义是否被多个实例共享？
+├── 是：建立 Meta，并由稳定 ID/Catalog 管理
+└── 否：配置放到唯一 Runtime Object 或 State 模板
+
+单个实例变化是否需要跨卸载/存档？
+├── 是：建立 State
+└── 否：不建立 State
+
+是否需要生命周期、行为或 Godot API？
+├── 是：建立 Runtime Object
+└── 否：保持为纯数据 Resource/DTO
+```
+
+因此项目同时存在四种合法关系：
+
+```text
+ItemMeta -> ItemState -> Item       # 共享定义、持久实例、运行行为
+PlayerState -> FarmPlayer           # 唯一类型、持久实例、运行行为
+CellState -> MapCell                # 场景重建静态能力，保存动态实例
+ItemsGenerator                      # 唯一场景组件，配置和行为同属节点
+```
+
+`ItemsGeneratorCandidate` 虽然是 Resource，但只是 `ItemsGenerator` 为 Inspector 数组使用的结构化值，不属于 Meta；`default_player_state.tres` 虽然可编辑，但只是新游戏 State 模板，也不属于 PlayerMeta。Resource 是 Godot 的存储形式，Meta 是数据职责，两者不得等同判断。
+
+### 6.2 ItemMeta
 
 所有 Item Meta 共用 `GameCatalog.items` 集合和同一个 ID 命名空间。共同字段：
 
@@ -196,29 +234,30 @@ item_type: enum
 stack_limit: int
 buy_price: int
 sell_price: int
-use_kind: enum
 ```
 
-`use_kind` 只用于选择对应的 Item/Tool 运行时行为；不为 grid/harvest/seed/drop 额外建立 Action 类。`ToolMeta` 继承 ItemMeta，并额外保存 `tool_kind` 和 `base_stamina_cost`，供具体 Tool 行为、可采集对象匹配及 Toolbar 类型校验。数据中不保存 Callable。
+物品行为通过 `ItemMeta` 的具体子类分发：`SeedMeta` 对应种植行为，`ToolMeta` 对应工具行为，不再保存与类层级重复的行为枚举。`ToolMeta` 额外保存 `tool_kind` 和 `base_stamina_cost`；`tool_kind` 用于区分共享 `ToolMeta` 的具体工具行为、可采集对象匹配和作用目标类型。数据中不保存 Callable。
 
-### 6.2 HarvestableMeta 与 PlantMeta
+### 6.3 HarvestableMeta 与 PlantMeta
 
 ```text
-id / seed_item_id
-stages: Array[PlantStageMeta]
+id / plant_id (SeedMeta)
+stages: Array[PlantStage]
 requires_water: bool
 required_tool: enum
 max_health: int
-drop_table_id
+drops: Array[HarvestableDrop]
 ```
 
-HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。PlantMeta 继承 HarvestableMeta，额外提供成长阶段、浇水需求和可选 seed_item_id；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。seed_item_id 为空表示不能由玩家播种。每个 `PlantStageMeta` 配置成长阈值、贴图、视觉偏移、生命、标签和掉落表，并由 CatalogValidator 校验；普通单格植物共享 `plant.tscn`，阶段贴图通过 Inspector 在 catalog 中替换。
+HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。普通 Harvestable 通过 `HarvestableStage.min_health/texture/visual_offset` 配置健康、受损等阶段；受击修改 HarvestableState.health 后由运行时 Item 显式刷新贴图。PlantMeta 继承 HarvestableMeta并提供成长阶段与浇水需求；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。SeedMeta 继承 ItemMeta，以 `plant_id` 单向引用对应 PlantMeta；PlantMeta 不反向保存种子 ID。Seed 初始化时通过 Catalog 解析并缓存 PlantMeta，use 阶段不得扫描 Catalog。每个 `PlantStage` 配置成长阈值、贴图、视觉偏移、生命、标签和掉落表，并由 `DataCatalogService.validate_catalog()` 校验。普通 Item、Plant 和 Harvestable 分别使用通用场景，BaseMap 根据 State/Meta 子类选择；特殊节点结构由独立 Scene 和运行时工厂负责，Meta 不保存 Scene 引用。贴图、阶段和数值均在 Meta Inspector 中配置。
 
-### 6.3 DropTable
+Plant 和 Harvestable 的 Meta 使用 `data/items` 下的独立 `.tres` 资源。开发者直接在 Inspector 编辑这些资源中的 stages、成长天数、生命阈值、贴图和 `Array[HarvestableDrop]`，Catalog 只维护 Item Meta 资源引用。State 不保存这些静态定义；它只记录当前成长天数、当前生命等运行时值。场景也不挂载 State 配置节点，避免把静态定义、运行时数据和节点生命周期混在一起。
+
+### 6.4 HarvestableDrop
 
 每项包含 item ID、min/max、权重/概率。随机数生成器从世界 seed 与对象稳定 ID 派生；测试可注入固定 seed。
 
-### 6.4 NpcSchedule
+### 6.5 NpcSchedule
 
 每个日程事件包含适用季节/月/星期、开始分钟、持续时间、地图 ID、目标出生点或格子、行为 ID。无匹配日程时使用明确 fallback，不随机消失。
 
@@ -236,7 +275,7 @@ InventoryPanel 使用唯一键盘 focus 和两段式交换：方向 action 移�
 
 ### 7.2 MapCell
 
-`BaseMap` 为边界内每个坐标创建 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。configure_state 后每个 MapCell 绑定 MapState.cells 中同坐标的 CellState。MapCell 是行走、耕种、浇水、放置和占用的运行时入口；静态 flag 从 authored TileMapLayer 叠加重建并写入 DTO。
+`BaseMap` 为边界内每个坐标创建 MapCell，并以 `Dictionary[Vector2i, MapCell]` 持有。configure_state 后每个 MapCell 绑定 MapState.cells 中同坐标的 CellState。MapCell 是行走、耕种、浇水、放置和占用的运行时入口；静态 flag 从 authored TileMapLayer 叠加重建，只存在于运行时，不写入 DTO。
 
 MapCell 不继承 Node，不持有 TileMapLayer 或 Item 节点。它只通过绑定的 CellState 读写数据，所有业务判断保留在 MapCell。
 
@@ -251,15 +290,15 @@ item_ids: Array[StringName]   # 同格地图 Item 稳定 ID 引用
 
 MapState 分别持有 CellState 和 ItemState。两个 State 都是无运行时操作的 DTO；MapCell/Item 绑定 DTO 后提供行为与场景表现。TileMapLayer 和 Sprite 只是投影。
 
-ItemState 是 State 基类，只保存 instance_id、meta_id、cell、random_seed、flags 等共有可变数据。HarvestableState 增加 health；PlantState 继承 HarvestableState，再增加 growth_days、planted_on_day。各 State 仍是纯 DTO，不复制 item_type、seed_item_id 等 Meta 字段。
+ItemState 是 State 基类，保存 instance_id、meta_id、cell、random_seed、flags 等共有可变数据；CellState.item_ids 保存同一归属以支持按格查询，BaseMap 保证两者同步。HarvestableState 增加 health；PlantState 继承 HarvestableState，再增加 growth_days、planted_on_day。各 State 仍是纯 DTO，不复制 item_type、plant_id 等 Meta 字段。
 
-`meta_id` 是 State 到 Meta 的唯一连接。DataCatalog 用它从 `GameCatalog.items` 解析共享只读 ItemMeta；`state_type` 只作为 JSON 恢复 ItemState 子类的序列化判别字段。BaseMap 必须验证 ItemMeta/ItemState 子类匹配，再创建对应运行时 Item 并根据 `ItemMeta.world_type()` 选择 host。一个 ItemMeta 可以同时被多个同类 ItemState 和 ItemStack 引用，保存时只写 ID，不复制或序列化 `.tres` Meta。
+`meta_id` 是 State 到 Meta 的唯一连接。DataCatalog 用它从 `GameCatalog.items` 解析共享只读 ItemMeta；`state_type` 只作为 JSON 恢复 ItemState 子类的序列化判别字段。BaseMap 必须验证 ItemMeta/ItemState 子类匹配，再创建对应运行时 Item，并根据 Meta 真实子类选择 host。一个 ItemMeta 可以同时被多个同类 ItemState 和 ItemStack 引用，保存时只写 ID，不复制或序列化 `.tres` Meta。
 
 ```text
 静态信息              动态实例信息             运行时主体
 ItemMeta          -> ItemState          -> Item
-HarvestableMeta   -> HarvestableState   -> HarvestableItem
-PlantMeta         -> PlantState         -> PlantItem
+HarvestableMeta   -> HarvestableState   -> Harvestable
+PlantMeta         -> PlantState         -> Plant
 ```
 
 ### 7.4 MapState
@@ -269,13 +308,14 @@ map_id
 cells                        # Vector2i -> CellState
 items                        # instance_id -> ItemState
 generator_initialized
+generation_epoch
 ```
 
 MapState 只保存 cells/items DTO，不持有 NPC，也不实现 Item 事务或场景操作。地图加载时 BaseMap 绑定 CellState，通过 ItemState.meta_id 解析 Meta 后创建运行时 Item。手工放置的静态装饰不写入存档。
 
 MapState 与 BaseMap 不合并：MapState 是可在无场景树时创建和反序列化的纯数据容器，BaseMap 是随地图切换实例化和释放的 Node2D，并拥有当前地图的 MapCell/Item 运行时对象。
 
-NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 Actor 节点。NPC 不是 Item，不进入 MapState.items 或 BaseMap.item_hosts。
+NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 Actor 节点。NPC 不是 Item，不进入 MapState.items 或 BaseMap 的 Item host。
 
 ## 8. 场景领域组件
 
@@ -308,11 +348,13 @@ Farm (BaseMap)
 └── Ports
 ```
 
-`BaseMap` 负责所有地图的身份、坐标转换、边界、MapCell/Item 运行时字典、状态绑定、cell_flags、item_hosts 和 TileMapLayer 对齐。`get_map_size()` 从 BASE layer 的 used rect 获取地图尺寸，`get_tile_size()` 从 BASE layer 的 TileSet 获取 tile 尺寸；每个 flag layer 只映射一个 CellState.CellFlag，同坐标通过多个 layer 组合 flag；三张地图都直接挂 BaseMap。
+`BaseMap` 负责所有地图的身份、坐标转换、边界、MapCell/Item 运行时字典、状态绑定、cell_flags、分类 Item host 和 TileMapLayer 对齐。`get_map_size()` 从 BASE layer 的 used rect 获取地图尺寸，`get_tile_size()` 从 BASE layer 的 TileSet 获取 tile 尺寸；每个 flag layer 只映射一个 CellState.CellFlag，同坐标通过多个 layer 组合到 MapCell.static_flags；三张地图都直接挂 BaseMap。
 
-Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 flag mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 flag，不创建动态状态 TileMapLayer。
+Ground/Base、Road、Resource、Boundary、Floor、Wall 和不可见 flag mask 等静态 layer 的 cells 直接保存在地图 `.tscn` 中。BaseMap 启动时只读取 used cells 并叠加 flag；DugLayer/WateredLayer 在场景中预置为空层，运行时不创建新的 TileMapLayer。
 
-Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 通过 ItemState.meta_id 查询 DataCatalog，验证 Meta/State 子类组合后创建 Item、HarvestableItem 或 PlantItem，再按 `ItemMeta.world_type()` 通过 item_hosts 挂入对应 host。运行时子类保存下转后的强类型引用，专属逻辑不从基类 State 猜测字段。
+每张可生成地图直接挂载一个 `ItemsGenerator` 子节点。该节点通过导出属性保存本地图的 flags、candidates、safe_radius 和 seed_salt，不建立只被这个节点使用的 GenerationMeta，也不重复配置地图尺寸或 regions。`ItemsGeneratorCandidate` 只是为了在 Inspector 中编辑结构化数组而存在的 Resource 值。BaseMap 恢复 CellState/ItemState 后，只有 `generator_initialized=false` 时才调用子节点，并将 `get_map_size()`、world seed 和 `generation_epoch` 数值显式传入；Generator 不接收或修改 MapState，而是从运行时 MapCell 查询占用，根据 map_id、epoch 和 seed_salt 派生确定 RNG，再统一通过 `add_item_state()` 提交。BaseMap 在生成成功后更新 MapState。生成结果直接成为普通 MapState 数据，后续地图切换只恢复，不维护第二份 generator 状态。
+
+Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 通过 ItemState.meta_id 查询 DataCatalog，验证 Meta/State 子类组合后创建 Item、Harvestable 或 Plant，再按 Meta 的真实子类挂入 `items_host`、`harvestables_host` 或 `plants_host`。运行时子类保存下转后的强类型引用，专属逻辑不从基类 State 猜测字段。
 
 与某个地图强耦合的网格和地图 Item 生命周期统一放在地图根脚本中，不再抽出 `MapGrid` 或独立 ItemManager。Farm/Field/Cabin 将各自的 Ground/Base/Road/Resource/Boundary 或 Floor/Wall 统一作为 `TileMaps` 的直接子节点，不创建无额外行为的地图脚本，也不得在 TileMaps 内继续添加包装层。
 
@@ -331,26 +373,23 @@ Item 是运行时 Node2D 基类，同时绑定 ItemState 和 ItemMeta。BaseMap 
  -> EventBus 事实事件 + 音画反馈
 ```
 
-Hoe 和 WateringCan 使用运行时 `Tool` 执行多格事务，并返回 `ToolUseResult`。Tool 只调用 MapCell 的 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，Cursor preview 复用同一查询入口。InteractionCursor.begin 直接接收 PlayerState，从中读取 cell、facing、active stack 和 stamina；地图 revision 在 Cursor 内部从 BaseMap 保存为事务快照。Tool 只接收快照体力值并在结果中返回 `stamina_spent`，由 Player 在成功提交后修改 PlayerState。成功后 BaseMap 增加 interaction revision 并让 `CellStateProjection` 从 MapCell 重绘；投影不拥有状态，删除或加载地图后都可从 CellState 重建。
+Hoe 和 WateringCan 使用运行时 `Tool` 执行多格事务，并返回 `CellToolOutcome`。Tool 只调用 MapCell 的 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，Cursor preview 复用同一查询入口。InteractionCursor.begin 直接接收 PlayerState，从中读取 cell、facing、active stack 和 stamina；地图 revision 在 Cursor 内部从 BaseMap 保存为事务快照。Tool 只接收快照体力值并在 Outcome 中返回 `stamina_spent`，由 Player 在成功提交后修改 PlayerState。成功后 BaseMap 增加 interaction revision，并把 DUG/WATERED 从 CellState 重建到地图预置的空 TileMapLayer；表现层不拥有状态，删除或加载地图后都可重建。
 
-所有可使用物品的结果 DTO 继承 `ItemUseResult`，基类保存通用的 `error` 和 `effect_cells`；`ToolUseResult` 额外保存工具类型、跳过原因、体力和投影错误，`SeedUseResult` 额外保存种子 ID 和新建的植物实例 ID。Player/InteractionCursor 根据具体子类读取专属结果，基类不包含工具或种植业务字段。
+`SeedOutcome` 与 `ToolOutcome` 相互独立，各自直接保存 error、effect_cells 和本领域信息，不建立 ItemOutcome。ToolOutcome 保存 tool_kind、skipped_reasons 和 stamina_spent；`CellToolOutcome` 增加 projection_error，`ItemToolOutcome` 增加命中、销毁、掉落和树倒方向。四个全局类型各自使用独立脚本，统一放在 `scripts/items/outcome/`，不得用单文件内部类削弱类型定位。播种事务创建的植物实例 ID 仅在 `Seed.use()` 内作为失败回滚的局部数据，不暴露给 Outcome 消费者；需要查询植物时通过 effect cell 和 MapCell 的 item_ids 获取。
 
 范围顺序必须确定：从起始格开始，按面向方向的行列顺序扩展。预览不得重新随机；提交使用预览中已确定的对象 ID。
 
-### 8.4 WorldItem 层次
+### 8.4 Item 层次
 
 Godot 不要求复制 C# 的每层继承，但保留等价职责：
 
 ```text
 Item (Node2D)
-├── PickupItem (Area2D)
-└── HarvestableItem (StaticBody2D/Area2D)
-    ├── PlantItem
-    ├── TreeWorldItem
-    └── ObstacleItem
+└── Harvestable
+    └── Plant
 ```
 
-共享行为优先组合为 Health/Harvest/Drop/Pickup 组件，避免深继承。Tree 的倒向和 stump 转换可以是 TreeWorldItem 专属策略。
+普通 Item 是否可拾取由 ItemMeta.can_pickup 决定，不建立 PickupItem 子类。Harvestable 处理 health、受损阶段和掉落，Plant 在其上增加成长阶段；Tree -> Stump 等差异由 Meta 配置，不为每种资源建立运行时子类。
 
 ### 8.5 NPC
 
@@ -408,7 +447,7 @@ GameManager reaches day boundary
   "toolbar": {"selected_index": 0, "slots": []},
   "itembar": {"selected_index": 0, "slots": []},
   "maps": [
-    {"map_id": "farm", "generator_initialized": false, "cells": [], "items": []}
+    {"map_id": "farm", "generator_initialized": false, "generation_epoch": 0, "cells": [], "items": []}
   ],
   "npcs": [
     {"npc_id": "npc_villager", "map_id": "farm", "cell": {"x": 12, "y": 8}}

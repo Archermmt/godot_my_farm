@@ -1,8 +1,11 @@
-class_name ItemUseResult
+class_name ToolOutcome
 extends RefCounted
 
 var error: Error = OK
 var effect_cells: Array[Vector2i] = []
+var tool_kind: ToolMeta.ToolKind = ToolMeta.ToolKind.NONE
+var skipped_reasons: Dictionary[Vector2i, StringName] = {}
+var stamina_spent: int = 0
 
 
 func succeeded() -> bool:

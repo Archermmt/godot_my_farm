@@ -1,0 +1,30 @@
+[gd_resource type="Resource" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_meta.gd" id="1_meta"]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_stage.gd" id="2_stage"]
+[ext_resource type="Texture2D" path="res://assets/art/items/harvestable_stages.svg" id="3_texture"]
+[ext_resource type="Script" path="res://scripts/data/item/harvestable_drop.gd" id="4_drop"]
+[sub_resource type="Resource" id="DropGrass"]
+script = ExtResource("4_drop")
+item_id = &"material_grass"
+min_amount = 1
+max_amount = 2
+chance = 0.8
+[sub_resource type="AtlasTexture" id="Texture"]
+atlas = ExtResource("3_texture")
+region = Rect2(384, 0, 48, 64)
+[sub_resource type="Resource" id="Stage"]
+script = ExtResource("2_stage")
+texture = SubResource("Texture")
+visual_offset = Vector2(0, -32)
+[resource]
+script = ExtResource("1_meta")
+id = &"grass"
+display_name = "Grass"
+item_type = 5
+can_pickup = false
+required_tool = 3
+max_health = 1
+drops = Array[ExtResource("4_drop")]([SubResource("DropGrass")])
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+visual_stages = Array[ExtResource("2_stage")]([SubResource("Stage")])

@@ -9,7 +9,7 @@ func _init(slot_count: int = DEFAULT_CAPACITY) -> void:
 
 
 func accepts(meta: ItemMeta) -> bool:
-	return meta != null and not meta.is_tool() and meta.use_kind != ItemMeta.UseKind.NONE
+	return meta != null and not meta is ToolMeta and not meta is HarvestableMeta
 
 
 static func from_dict(data: Dictionary) -> ItembarState:

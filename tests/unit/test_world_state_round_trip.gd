@@ -5,7 +5,6 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	var crop := PlantState.new()
 	crop.instance_id = &"crop_7_-2"
 	crop.meta_id = &"crop_parsnip"
-	crop.cell = Vector2i(7, -2)
 	crop.growth_days = 4
 	crop.health = 2
 	crop.planted_on_day = 3
@@ -13,7 +12,7 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 
 	var cell := CellState.new()
 	cell.cell = Vector2i(7, -2)
-	cell.flags = CellState.CellFlag.BASE | CellState.CellFlag.DIGGABLE | CellState.CellFlag.DUG | CellState.CellFlag.WATERED
+	cell.flags = CellState.CellFlag.DUG | CellState.CellFlag.WATERED
 	cell.item_ids = [crop.instance_id]
 
 	var item_cell := CellState.new()
@@ -21,7 +20,6 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	var item := HarvestableState.new()
 	item.instance_id = &"tree_001"
 	item.meta_id = &"tree"
-	item.cell = Vector2i(10, 5)
 	item.health = 3
 	item.random_seed = 99
 	item.flags = [&"persistent", &"blocks"]
@@ -30,6 +28,7 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	var map_state := MapState.new()
 	map_state.map_id = &"farm"
 	map_state.generator_initialized = true
+	map_state.generation_epoch = 3
 	map_state.cells[cell.cell] = cell
 	map_state.cells[item_cell.cell] = item_cell
 	map_state.items[crop.instance_id] = crop
@@ -45,7 +44,7 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	assert_equal(typeof(restored.map_id), TYPE_STRING_NAME)
 	assert_equal(restored_cell.cell, Vector2i(7, -2))
 	assert_equal(typeof(restored_cell.cell), TYPE_VECTOR2I)
-	assert_equal(restored_cell.flags, CellState.CellFlag.BASE | CellState.CellFlag.DIGGABLE | CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
+	assert_equal(restored_cell.flags, CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
 	assert_equal(restored_crop.meta_id, &"crop_parsnip")
 	assert_equal(restored_crop.growth_days, 4)
 	assert_equal(restored_crop.health, 2)
@@ -56,6 +55,7 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	assert_equal(restored_item.flags, [&"persistent", &"blocks"])
 	assert_equal(typeof(restored_item.flags[0]), TYPE_STRING_NAME)
 	assert_true(restored.generator_initialized)
+	assert_equal(restored.generation_epoch, 3)
 func test_dynamic_cell_flags_survive_state_binding() -> void:
 	var cell := MapCell.new()
 	var state := CellState.new()

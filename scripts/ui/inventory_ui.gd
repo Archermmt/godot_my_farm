@@ -12,7 +12,6 @@ var marked_container: StringName = &""
 var marked_index := -1
 var _slot_nodes: Dictionary[StringName, Array] = {}
 
-@onready var held_status: Label = $HeldStatus/Label
 @onready var inventory_panel: ColorRect = $InventoryPanel
 @onready var toolbar_slots: HBoxContainer = $InventoryPanel/ToolbarSlots
 @onready var itembar_slots: HBoxContainer = $InventoryPanel/ItembarSlots
@@ -23,10 +22,7 @@ var _slot_nodes: Dictionary[StringName, Array] = {}
 
 func _ready() -> void:
 	var player := SceneManager.registered_player()
-	if player != null and player.state != null:
-		_build_slots(&"toolbar", toolbar_slots, player.state.toolbar.capacity())
-		_build_slots(&"itembar", itembar_slots, player.state.itembar.capacity())
-		_build_slots(&"inventory", inventory_slots, player.state.inventory.capacity())
+	_ensure_slots(player)
 	if not EventBus.container_changed.is_connected(_on_container_changed):
 		EventBus.container_changed.connect(_on_container_changed)
 	if not EventBus.bar_selection_changed.is_connected(_on_bar_selection_changed):
@@ -85,6 +81,7 @@ func _open_panel() -> void:
 	var player := SceneManager.registered_player()
 	if player == null or player.state == null:
 		return
+	_ensure_slots(player)
 	if player.lock_input(INVENTORY_LOCK) != OK or GameManager.pause(INVENTORY_LOCK) != OK:
 		player.unlock_input(INVENTORY_LOCK)
 		return
@@ -174,10 +171,29 @@ func _build_slots(container_id: StringName, parent: Container, count: int) -> vo
 	_slot_nodes[container_id] = nodes
 
 
+func _ensure_slots(player: FarmPlayer) -> void:
+	if player == null or player.state == null:
+		return
+	_ensure_container_slots(&"toolbar", toolbar_slots, player.state.toolbar.capacity())
+	_ensure_container_slots(&"itembar", itembar_slots, player.state.itembar.capacity())
+	_ensure_container_slots(&"inventory", inventory_slots, player.state.inventory.capacity())
+
+
+func _ensure_container_slots(container_id: StringName, parent: Container, count: int) -> void:
+	var nodes: Array = _slot_nodes.get(container_id, []) as Array
+	if nodes.size() == count:
+		return
+	for node: Node in nodes:
+		if is_instance_valid(node):
+			parent.remove_child(node)
+			node.queue_free()
+	_build_slots(container_id, parent, count)
+
+
 func _refresh_all() -> void:
+	_ensure_slots(SceneManager.registered_player())
 	for container_id: StringName in CONTAINER_ORDER:
 		_refresh_container(container_id)
-	_refresh_held_status()
 	_refresh_details()
 
 
@@ -197,17 +213,6 @@ func _refresh_container(container_id: StringName) -> void:
 		slot.color = Color("d75c52") if is_marked else Color("76c7bd") if is_focus else Color("e5b94f") if is_active else Color("244543")
 		label.add_theme_color_override("font_color", Color("102827") if is_focus or is_active else Color("eaf0df"))
 		label.text = _stack_label(stack)
-
-
-func _refresh_held_status() -> void:
-	var player := SceneManager.registered_player()
-	var stack := player.active_stack() if player != null else null
-	var source_name := "TOOLS" if player != null and player.state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR else "ITEMS" if player != null and player.state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR else "EMPTY"
-	if stack == null or stack.is_empty():
-		held_status.text = "%s  |  EMPTY" % source_name
-		return
-	var meta := DataCatalog.get_item(stack.item_id)
-	held_status.text = "%s  |  %s%s" % [source_name, meta.display_name if meta != null else String(stack.item_id), " x%d" % stack.amount if stack.amount > 1 else ""]
 
 
 func _refresh_details() -> void:

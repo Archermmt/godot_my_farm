@@ -128,7 +128,7 @@ func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> E
 	var error := map.validate_alignment()
 	if error != OK:
 		return error
-	error = map.configure_state(state)
+	error = map.configure_state(state, _game_manager_service.world_seed, true)
 	if error != OK:
 		return error
 	var spawn := map.spawn_position(spawn_id)
