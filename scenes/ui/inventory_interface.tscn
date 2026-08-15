@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="1_ui"]
+[ext_resource type="Theme" path="res://data/ui/game_theme.tres" id="2_theme"]
 
 [node name="InventoryInterface" type="Control"]
 layout_mode = 3
@@ -10,15 +11,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_ui")
 
 [node name="InventoryPanel" type="ColorRect" parent="."]
 visible = false
-layout_mode = 0
-offset_left = 20.0
-offset_top = 28.0
-offset_right = 620.0
-offset_bottom = 340.0
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -156.0
+offset_right = 300.0
+offset_bottom = 156.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.027451, 0.0705882, 0.0666667, 0.97)
 mouse_filter = 1
 

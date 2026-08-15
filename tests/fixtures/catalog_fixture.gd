@@ -1,15 +1,16 @@
 extends Node
 
-const CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
+const DATA_CATALOG_SCENE := "res://scenes/autoload/data_catalog.tscn"
 
 
 func _ready() -> void:
-	var catalog: GameCatalog = load(CATALOG_PATH) as GameCatalog
+	var packed := load(DATA_CATALOG_SCENE) as PackedScene
+	var catalog := packed.instantiate() as DataCatalogService if packed != null else null
 	if catalog == null:
-		push_error("[T01Fixture] failed to load %s" % CATALOG_PATH)
+		push_error("[T01Fixture] failed to load %s" % DATA_CATALOG_SCENE)
 		get_tree().quit(1)
 		return
-	var errors: Array[String] = DataCatalogService.validate_catalog(catalog)
+	var errors := DataCatalogService.validate_definitions(catalog.items, catalog.npc_schedules)
 	if not errors.is_empty():
 		for error: String in errors:
 			push_error("[T01Fixture] %s" % error)
@@ -21,6 +22,7 @@ func _ready() -> void:
 		_count_type(catalog.items, HarvestableMeta),
 		catalog.npc_schedules.size(),
 	])
+	catalog.free()
 	get_tree().quit(0)
 
 

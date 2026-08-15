@@ -32,11 +32,11 @@
 | Unity 参考 | 职责 | Godot/GDScript 目标 |
 |---|---|---|
 | `EventHandler` static events | 跨系统事件 | `EventBus` Autoload typed signals |
-| `Singleton<T>` | 持久服务 | 窄职责 Autoload；场景对象用注册/注入 |
+| `Singleton<T>` | 持久服务 | 窄职责 Autoload；全局服务直接访问，业务场景对象显式注册 |
 | `ItemData [Serializable]` | 物品静态定义 | `ItemMeta extends Resource` + `.tres` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
-| `Tool` | 体力和蓄力 | Tool 运行时类型 + InteractionCursor |
+| `Tool` | 体力和蓄力 | Tool 运行时类型 + EffectArea |
 | `GridTool` | 网格行动 | 具体 Tool + MapCell transaction |
 | `ItemTool` | 对对象行动 | 具体 Tool + Harvestable |
 | `Seed` | 种植范围和消耗 | Item 使用逻辑 + PlantMeta |
@@ -46,10 +46,10 @@
 | `Pickable` | 吸附拾取 | `PickupItem (Area2D)` |
 | `FieldGrid` | 单格标签与地图 Item | MapCell/CellState + BaseMap/MapState items |
 | `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_flags` + MapCell |
-| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + InteractionCursor |
-| `Cursor` | 有效/无效目标反馈 | `InteractionCursor` scene |
+| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + EffectArea |
+| `EffectArea` | 有效/无效目标反馈 | `EffectArea` scene |
 | `Generator` | 随机环境对象 | seeded `ItemsGenerator` + MapState |
-| `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `InventoryState` 与 InventoryUI 分离 |
+| `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `BackpackState`/`BackpackSlot` 与 InventoryUI 分离 |
 | `ToolBar` | 快捷栏选择 | 分离的 `ToolbarUI`（工具）+ `ItembarUI`（非工具物品）+ Player 头顶选择提示 |
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
 | `PlayerStatus` | 生命/体力/金币与 UI | PlayerState + HUD 投影 |
@@ -59,14 +59,14 @@
 | `ItemManager` | 定义索引、工厂、地图 item 内存 | DataCatalog + ItemFactory + MapState |
 | `GameLight` | 时段光照 | CanvasModulate/Light2D + LightSchedule Resource |
 | `AudioManager/Sound` | 音频查找与播放 | AudioManager pool + AudioDefinition |
-| `EffectManager` | 特效工厂 | EffectHost + effect PackedScene pool |
+| `EffectManager` | 特效工厂 | 全局 EffectManager + EffectDefinition + 调用方动态 host |
 | `NPC` 自建路径 | 日程、寻路、跨场景 | NpcScheduleController + built-in AStarGrid2D |
 
 ## 4. 必须保留的架构意图
 
 ### 4.1 同一套地块查询驱动所有行动
 
-参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 Cursor。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套目标坐标逻辑；目标由 Player facing 计算，不再读取鼠标位置。
+参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 EffectArea。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套目标坐标逻辑；目标由 Player facing 计算，不再读取鼠标位置。
 
 ### 4.2 工具类别与目标能力匹配
 
@@ -91,7 +91,7 @@ Godot 主场景中的 Player 不随 MapHost 被替换。地图卸载前写回 Ma
 | Manager 经常按 tag/名称搜索场景树 | 显式注册、导出引用、窄 API | 防止换场景时绑定错误，便于测试 |
 | ItemData、行为、Prefab 路径部分靠名称约定 | Resource 直接引用 PackedScene，稳定 ID 索引 | 重命名安全，可在启动时校验 |
 | FieldLayer 同时承载表现、标签和存档 | CellState/ItemState 持久化，MapCell/Item 运行，TileMapLayer 仅投影 | 存档、测试与重建更可靠 |
-| Inventory Slot 同时持有数据和 UI | InventoryState 与 Control 分离 | UI 销毁不丢状态，便于存档 |
+| Inventory Slot 同时持有数据和 UI | BackpackState 与 Control 分离 | UI 销毁不丢状态，便于存档 |
 | 工具应用可能跨多个对象逐个修改 | 先完整校验，再原子提交 | 避免体力/数量不足时只执行一半 |
 | Scene item 状态仅在进程内缓存 | MapState + 单槽版本化存档 | 支持真正退出/读取 |
 | NPC 手写路径搜索 | Godot `AStarGrid2D` | 使用内建成熟实现并保留道路 penalty |

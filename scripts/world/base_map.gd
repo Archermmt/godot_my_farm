@@ -19,8 +19,6 @@ var interaction_revision: int = 0
 var _map_state: MapState = null
 var _dug_layer: TileMapLayer = null
 var _watered_layer: TileMapLayer = null
-var _catalog_service: DataCatalogService = null
-var _event_bus_service: EventBusService = null
 var _world_seed: int = 0
 var drop_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var last_generation_summary: Dictionary = {}
@@ -28,32 +26,29 @@ var last_generation_summary: Dictionary = {}
 @onready var items_generator: ItemsGenerator = get_node_or_null("ItemsGenerator") as ItemsGenerator
 
 func _ready() -> void:
-	configure_services(DataCatalog, EventBus)
+	if not EventBus.day_advanced.is_connected(_on_day_advanced):
+		EventBus.day_advanced.connect(_on_day_advanced)
 	_build_cells()
 
 
-func collect_pickups(player: FarmPlayer, center: Vector2, radius: float, delta: float) -> void:
-	if player == null or radius <= 0.0:
-		return
-	var completed: Array[StringName] = []
+func pickup_items_in_radius(center: Vector2, radius: float) -> Array[Item]:
+	var result: Array[Item] = []
+	if radius <= 0.0:
+		return result
 	for item: Item in items.values():
-		if item == null or item is Harvestable or item.collected or item.meta == null or not item.meta.can_pickup:
+		if item == null or item is Harvestable or item.meta == null or not item.meta.can_pickup:
 			continue
-		if item.global_position.distance_to(center) <= radius and item.attract_to(player, delta):
-			completed.append(item.item_id())
-	for item_id: StringName in completed:
-		remove_item(item_id)
+		if item.global_position.distance_to(center) <= radius:
+			result.append(item)
+	result.sort_custom(func(left: Item, right: Item) -> bool:
+		var left_distance := left.global_position.distance_squared_to(center)
+		var right_distance := right.global_position.distance_squared_to(center)
+		if not is_equal_approx(left_distance, right_distance):
+			return left_distance < right_distance
+		return String(left.item_id()) < String(right.item_id())
+	)
+	return result
 
-
-func configure_services(catalog_service: DataCatalogService, event_bus_service: EventBusService = null) -> void:
-	_catalog_service = catalog_service
-	_event_bus_service = event_bus_service
-	if _event_bus_service != null and not _event_bus_service.day_advanced.is_connected(_on_day_advanced):
-		_event_bus_service.day_advanced.connect(_on_day_advanced)
-
-
-func catalog() -> DataCatalogService:
-	return _catalog_service
 
 func configure_state(map_state: MapState, world_seed: int = 0, run_generation: bool = false) -> Error:
 	if map_state == null or map_state.map_id != map_id:
@@ -83,10 +78,9 @@ func configure_state(map_state: MapState, world_seed: int = 0, run_generation: b
 	var restored_items: Array[Item] = []
 	for item_id: StringName in map_state.items:
 		var item_state: ItemState = map_state.items[item_id]
-		var catalog := _catalog_service
-		if item_state == null or item_state.instance_id != item_id or catalog == null or not catalog.has_item(item_state.meta_id):
+		if item_state == null or item_state.instance_id != item_id or not DataCatalog.has_item(item_state.meta_id):
 			return ERR_INVALID_DATA
-		var item_meta := catalog.get_item(item_state.meta_id)
+		var item_meta := DataCatalog.get_item(item_state.meta_id)
 		if not _state_matches_meta(item_state, item_meta):
 			return ERR_INVALID_DATA
 		if _item_host_for_meta(item_meta) == null:
@@ -114,7 +108,7 @@ func configure_state(map_state: MapState, world_seed: int = 0, run_generation: b
 		if items_generator == null:
 			map_state.generator_initialized = true
 		else:
-			last_generation_summary = items_generator.generate(self, get_map_size(), world_seed, map_state.generation_epoch, _catalog_service)
+			last_generation_summary = items_generator.generate(self, get_map_size(), world_seed, map_state.generation_epoch)
 			var generation_error: Error = int(last_generation_summary.get("error", ERR_INVALID_DATA))
 			if generation_error != OK:
 				return generation_error
@@ -205,8 +199,7 @@ func add_item_state(item_state: ItemState, coordinates: Vector2i = Vector2i.ZERO
 		return ERR_INVALID_PARAMETER
 	if _map_state.items.has(item_state.instance_id) or items.has(item_state.instance_id):
 		return ERR_ALREADY_EXISTS
-	var catalog := _catalog_service
-	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
+	var item_meta := DataCatalog.get_item(item_state.meta_id)
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return ERR_INVALID_PARAMETER
 	var cell := get_cell(coordinates)
@@ -238,7 +231,7 @@ func create_item_instance_id(meta_id: StringName) -> StringName:
 
 
 func spawn_pickup(meta_id: StringName, coordinates: Vector2i) -> StringName:
-	var item_meta := _catalog_service.get_item(meta_id) if _catalog_service != null else null
+	var item_meta := DataCatalog.get_item(meta_id)
 	if item_meta == null or item_meta is ToolMeta or not item_meta.can_pickup or get_cell(coordinates) == null:
 		return &""
 	var item_state := ItemState.new()
@@ -293,7 +286,7 @@ func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
 	if remove_error != OK:
 		return pickup_ids
 	if replacement_id != &"":
-		var replacement_meta := _catalog_service.get_item(replacement_id) as HarvestableMeta if _catalog_service != null else null
+		var replacement_meta := DataCatalog.get_item(replacement_id) as HarvestableMeta
 		if replacement_meta != null:
 			var replacement_state := HarvestableState.new()
 			replacement_state.meta_id = replacement_id
@@ -332,17 +325,7 @@ func settle_day(current_day: int) -> Array[StringName]:
 
 
 func get_item(item_id: StringName) -> Item:
-	var item := items.get(item_id, null) as Item
-	if item != null and item.collected:
-		items.erase(item_id)
-		if _map_state != null:
-			_map_state.items.erase(item_id)
-		var cell := get_cell(item.state.cell)
-		if cell != null:
-			cell.remove_item_id(item_id)
-		item.queue_free()
-		return null
-	return item
+	return items.get(item_id, null) as Item
 
 
 func move_item(item_id: StringName, target_coordinates: Vector2i) -> Error:
@@ -395,7 +378,10 @@ func remove_item(item_id: StringName) -> Error:
 		return remove_error
 	items.erase(item_id)
 	_map_state.items.erase(item_id)
-	item.queue_free()
+	if item is Harvestable and (item as Harvestable).is_depleted():
+		(item as Harvestable).play_depletion_flash_then_free()
+	else:
+		item.queue_free()
 	interaction_revision += 1
 	return OK
 
@@ -469,7 +455,7 @@ func _on_day_advanced(_previous_day: int, current_day: int) -> void:
 	if _map_state == null or items_generator == null or not items_generator.regenerate_daily:
 		return
 	_map_state.generation_epoch += 1
-	last_generation_summary = items_generator.generate(self, get_map_size(), _world_seed, _map_state.generation_epoch, _catalog_service)
+	last_generation_summary = items_generator.generate(self, get_map_size(), _world_seed, _map_state.generation_epoch)
 	var generation_error: Error = int(last_generation_summary.get("error", ERR_INVALID_DATA))
 	if generation_error != OK:
 		push_error("[BaseMap] daily generation failed for %s: %s" % [map_id, error_string(generation_error)])
@@ -521,8 +507,7 @@ func _ensure_cell_state_layers() -> void:
 
 
 func _create_item(item_state: ItemState) -> Item:
-	var catalog := _catalog_service
-	var item_meta := catalog.get_item(item_state.meta_id) if catalog != null else null
+	var item_meta := DataCatalog.get_item(item_state.meta_id)
 	if item_meta == null or not _state_matches_meta(item_state, item_meta):
 		return null
 	var item: Item

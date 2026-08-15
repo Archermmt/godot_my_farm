@@ -19,14 +19,13 @@ func generate(
 	map: BaseMap,
 	map_size: Vector2i,
 	world_seed: int,
-	generation_epoch: int,
-	catalog: DataCatalogService
+	generation_epoch: int
 ) -> Dictionary:
 	var summary := {"requested": 0, "spawned": 0, "attempts": 0, "skipped": 0}
-	if map == null or map_size.x <= 0 or map_size.y <= 0 or generation_epoch < 0 or catalog == null:
+	if map == null or map_size.x <= 0 or map_size.y <= 0 or generation_epoch < 0:
 		summary["error"] = ERR_INVALID_PARAMETER
 		return summary
-	var validation_result := validation_error(catalog)
+	var validation_result := validation_error()
 	if validation_result != OK:
 		summary["error"] = validation_result
 		return summary
@@ -41,7 +40,7 @@ func generate(
 	for candidate: ItemsGeneratorCandidate in candidates:
 		if candidate == null or candidate.meta_id == &"":
 			continue
-		var item_meta := catalog.get_item(candidate.meta_id)
+		var item_meta := DataCatalog.get_item(candidate.meta_id)
 		if not _supports_meta(item_meta):
 			summary["skipped"] = int(summary["skipped"]) + 1
 			continue
@@ -79,8 +78,8 @@ func generate(
 	return summary
 
 
-func validation_error(catalog: DataCatalogService) -> Error:
-	if catalog == null or max_attempts_per_item <= 0 or safe_radius < 0 or candidates.is_empty():
+func validation_error() -> Error:
+	if max_attempts_per_item <= 0 or safe_radius < 0 or candidates.is_empty():
 		return ERR_INVALID_DATA
 	var candidate_ids: Dictionary[StringName, bool] = {}
 	for candidate: ItemsGeneratorCandidate in candidates:
@@ -92,7 +91,7 @@ func validation_error(catalog: DataCatalogService) -> Error:
 			return ERR_INVALID_DATA
 		if candidate.density < 0.0 or candidate.density > 1.0 or candidate.min_distance < 0.0:
 			return ERR_INVALID_DATA
-		if not catalog.has_item(candidate.meta_id) or not _supports_meta(catalog.get_item(candidate.meta_id)):
+		if not DataCatalog.has_item(candidate.meta_id) or not _supports_meta(DataCatalog.get_item(candidate.meta_id)):
 			return ERR_INVALID_DATA
 		candidate_ids[candidate.meta_id] = true
 	return OK

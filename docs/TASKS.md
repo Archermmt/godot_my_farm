@@ -25,9 +25,9 @@
 | T07 | [翻地与浇水](./tasks/T07_TILL_AND_WATER.md) | T06 | B 核心切片 | completed |
 | T08 | [播种、成长与作物阶段](./tasks/T08_CROPS.md) | T07 | B 核心切片 | completed |
 | T09 | [采集对象、掉落与拾取](./tasks/T09_HARVEST_AND_PICKUP.md) | T06, T08 | B 核心切片 | completed |
-| T10 | [时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md) | T08, T09 | C 活世界 | in_progress |
-| T11 | [环境生成与地图状态恢复](./tasks/T11_WORLD_GENERATION.md) | T09, T10 | C 活世界 | pending |
-| T12 | [HUD、背包界面、音频与特效](./tasks/T12_PRESENTATION.md) | T05, T09, T10 | C 活世界 | pending |
+| T10 | [时间、天气、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md) | T08, T09 | C 活世界 | completed |
+| T11 | [环境生成与地图状态恢复](./tasks/T11_WORLD_GENERATION.md) | T09, T10 | C 活世界 | completed |
+| T12 | [HUD、背包界面、音频与特效](./tasks/T12_PRESENTATION.md) | T05, T09, T10 | C 活世界 | completed |
 | T13 | [NPC 日程与跨地图导航](./tasks/T13_NPC_SCHEDULE.md) | T04, T10, T11 | C 活世界 | pending |
 | T14 | [版本化保存与读取](./tasks/T14_SAVE_AND_LOAD.md) | T11, T13 | D 完整性 | pending |
 | T15 | [完整流程集成与稳定性](./tasks/T15_INTEGRATION.md) | T12, T14 | D 完整性 | pending |

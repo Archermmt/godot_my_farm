@@ -17,25 +17,18 @@ enum ActiveHandSource {
 @export_range(0, 999, 1) var stamina: int = 100
 @export_range(0, 999999, 1) var gold: int = 500
 @export var active_hand_source: ActiveHandSource = ActiveHandSource.NONE
-@export var inventory: InventoryState = InventoryState.new(20, &"inventory")
-@export var toolbar: ToolbarState = ToolbarState.new(6)
-@export var itembar: ItembarState = ItembarState.new(10)
+@export var backpack_state: BackpackState = BackpackState.new(20, 6, 10)
 
 
-func initialize(template: PlayerState, catalog: DataCatalogService) -> Error:
-	if template == null or template.inventory == null or template.toolbar == null or template.itembar == null or catalog == null or not catalog.is_ready_for_game():
+func initialize(template: PlayerState) -> Error:
+	if template == null or template.backpack_state == null:
 		return ERR_UNCONFIGURED
+	template.backpack_state.ensure_layout()
 	var restored := from_dict(template.to_dict())
 	if restored == null:
 		return ERR_INVALID_DATA
 	_copy_from(restored)
 	active_hand_source = ActiveHandSource.NONE
-	for container_id: StringName in [&"inventory", &"toolbar", &"itembar"]:
-		var container := get_container(container_id)
-		for stack: ItemStack in container.slots:
-			var item_meta := catalog.get_item(stack.item_id) if not stack.is_empty() else null
-			if not container_accepts_stack(container_id, stack, item_meta):
-				return ERR_INVALID_DATA
 	return OK
 
 
@@ -73,38 +66,25 @@ func set_max_stamina(value: int) -> void:
 	set_stamina(stamina)
 
 
-func get_container(container_id: StringName) -> InventoryState:
-	match container_id:
-		&"inventory":
-			return inventory
-		&"toolbar":
-			return toolbar
-		&"itembar":
-			return itembar
-	return null
-
-
-func active_stack() -> ItemStack:
-	match active_hand_source:
-		ActiveHandSource.TOOLBAR:
-			return toolbar.selected_stack()
-		ActiveHandSource.ITEMBAR:
-			return itembar.selected_stack()
-	return ItemStack.new()
+func active_stack() -> BackpackSlot:
+	if backpack_state == null:
+		return BackpackSlot.new()
+	var selected := backpack_state.selected_slot(active_hand_source)
+	return selected if selected != null else BackpackSlot.new()
 
 
 func select_bar_relative(source: ActiveHandSource, offset: int) -> Error:
-	if offset == 0:
+	if offset == 0 or backpack_state == null:
 		return ERR_INVALID_PARAMETER
-	var container := _bar_for_source(source)
-	if container == null or container.capacity() == 0:
+	var capacity := backpack_state.capacity(_container_for_source(source))
+	if capacity == 0:
 		return ERR_INVALID_PARAMETER
-	return select_bar_index(source, wrapi(container.selected_index + offset, 0, container.capacity()))
+	var current := backpack_state.selected_toolbar_index if source == ActiveHandSource.TOOLBAR else backpack_state.selected_itembar_index
+	return select_bar_index(source, wrapi(current + offset, 0, capacity))
 
 
 func select_bar_index(source: ActiveHandSource, index: int) -> Error:
-	var container := _bar_for_source(source)
-	if container == null or not container.select_slot(index):
+	if backpack_state == null or not backpack_state.select_bar_index(source, index):
 		return ERR_INVALID_PARAMETER
 	active_hand_source = source
 	return OK
@@ -118,52 +98,39 @@ func exchange_container_slots(
 	source_meta: ItemMeta,
 	target_meta: ItemMeta
 ) -> Error:
-	var source := get_container(source_id)
-	var target := get_container(target_id)
+	if backpack_state == null:
+		return ERR_INVALID_PARAMETER
+	var source := backpack_state.get_slot(source_id, source_index)
+	var target := backpack_state.get_slot(target_id, target_index)
 	if source == null or target == null:
 		return ERR_INVALID_PARAMETER
-	var source_stack := source.get_slot(source_index)
-	var target_stack := target.get_slot(target_index)
-	if source_stack == null or target_stack == null:
-		return ERR_INVALID_PARAMETER
-	if source == target and source_index == target_index:
+	if source_id == target_id and source_index == target_index:
 		return OK
-	if not container_accepts_stack(target_id, source_stack, source_meta) or not container_accepts_stack(source_id, target_stack, target_meta):
+	if not _container_accepts_slot(target_id, source, source_meta) or not _container_accepts_slot(source_id, target, target_meta):
 		return ERR_UNAVAILABLE
-	if not source_stack.is_empty() and source_stack.can_merge(target_stack):
-		if source_meta == null or source_stack.amount + target_stack.amount > source_meta.stack_limit:
+	if not source.is_empty() and source.can_merge(target):
+		if source_meta == null or source.amount + target.amount > source_meta.stack_limit:
 			return ERR_UNAVAILABLE
-		target_stack.amount += source_stack.amount
-		source_stack.clear()
-	else:
-		var source_copy := source_stack.duplicate_stack()
-		var target_copy := target_stack.duplicate_stack()
-		if not source.set_slot(source_index, target_copy) or not target.set_slot(target_index, source_copy):
-			return ERR_CANT_ACQUIRE_RESOURCE
+		target.amount += source.amount
+		source.clear()
+		return OK
+	if not backpack_state.switch_item(source_id, source_index, target_id, target_index):
+		return ERR_CANT_ACQUIRE_RESOURCE
 	return OK
 
 
-func container_accepts_stack(container_id: StringName, stack: ItemStack, meta: ItemMeta) -> bool:
-	if stack == null or stack.is_empty():
-		return true
-	if meta == null or meta.id != stack.item_id:
-		return false
-	match container_id:
-		&"inventory":
-			return true
-		&"toolbar":
-			return toolbar.accepts(meta)
-		&"itembar":
-			return itembar.accepts(meta)
-	return false
+func container_accepts_slot(container_id: StringName, slot: BackpackSlot, meta: ItemMeta) -> bool:
+	return _container_accepts_slot(container_id, slot, meta)
 
 
 func used_inventory_slots() -> int:
-	return _used_slots(inventory)
+	return backpack_state.used_slot_count(&"inventory") if backpack_state != null else 0
 
 
 func used_slot_count() -> int:
-	return _used_slots(inventory) + _used_slots(toolbar) + _used_slots(itembar)
+	if backpack_state == null:
+		return 0
+	return backpack_state.used_slot_count(&"inventory") + backpack_state.used_slot_count(&"toolbar") + backpack_state.used_slot_count(&"itembar")
 
 
 func to_dict() -> Dictionary:
@@ -178,9 +145,7 @@ func to_dict() -> Dictionary:
 		"stamina": stamina,
 		"gold": gold,
 		"active_hand_source": int(active_hand_source),
-		"inventory": inventory.to_dict(),
-		"toolbar": toolbar.to_dict(),
-		"itembar": itembar.to_dict(),
+		"backpack": backpack_state.to_dict() if backpack_state != null else {},
 	}
 
 
@@ -191,11 +156,8 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	for key: String in ["max_health", "health", "max_stamina", "stamina", "gold", "active_hand_source"]:
 		if not SerializationUtil.has_valid_int(data, key):
 			return null
-	if not SerializationUtil.has_valid_vector2i(data, "cell"):
+	if not SerializationUtil.has_valid_vector2i(data, "cell") or not SerializationUtil.has_valid_dictionary(data, "backpack"):
 		return null
-	for key: String in ["inventory", "toolbar", "itembar"]:
-		if not SerializationUtil.has_valid_dictionary(data, key):
-			return null
 	if int(data.get("max_health", 100)) <= 0 or int(data.get("max_stamina", 100)) <= 0:
 		return null
 	if int(data.get("health", 100)) < 0 or int(data.get("stamina", 100)) < 0 or int(data.get("gold", 0)) < 0:
@@ -205,6 +167,10 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	var restored_source := int(data.get("active_hand_source", ActiveHandSource.NONE)) as ActiveHandSource
 	if restored_source < ActiveHandSource.NONE or restored_source > ActiveHandSource.ITEMBAR:
 		return null
+	var restored_backpack := BackpackState.from_dict(data.get("backpack", {}) as Dictionary)
+	if restored_backpack == null:
+		return null
+	restored_backpack.ensure_layout()
 	var restored := PlayerState.new()
 	restored.map_id = StringName(str(data.get("map_id", "farm")))
 	restored.spawn_id = StringName(str(data.get("spawn_id", "default")))
@@ -216,16 +182,7 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	restored.set_stamina(int(data.get("stamina", restored.max_stamina)))
 	restored.set_gold(int(data.get("gold", 0)))
 	restored.active_hand_source = restored_source
-	var restored_inventory := InventoryState.from_dict(data.get("inventory", {}) as Dictionary)
-	var restored_toolbar := ToolbarState.from_dict(data.get("toolbar", {}) as Dictionary)
-	var restored_itembar := ItembarState.from_dict(data.get("itembar", {}) as Dictionary)
-	if restored_inventory == null or restored_toolbar == null or restored_itembar == null:
-		return null
-	if restored_inventory.owner_id != &"inventory":
-		return null
-	restored.inventory = restored_inventory
-	restored.toolbar = restored_toolbar
-	restored.itembar = restored_itembar
+	restored.backpack_state = restored_backpack
 	return restored
 
 
@@ -240,22 +197,20 @@ func _copy_from(other: PlayerState) -> void:
 	stamina = other.stamina
 	gold = other.gold
 	active_hand_source = other.active_hand_source
-	inventory = other.inventory
-	toolbar = other.toolbar
-	itembar = other.itembar
+	backpack_state = other.backpack_state
 
 
-func _bar_for_source(source: ActiveHandSource) -> InventoryState:
+func _container_accepts_slot(container_id: StringName, slot: BackpackSlot, meta: ItemMeta) -> bool:
+	if slot == null or slot.is_empty():
+		return true
+	if meta == null or meta.id != slot.item_id:
+		return false
+	return backpack_state.accepts(container_id, meta) if backpack_state != null else false
+
+
+func _container_for_source(source: ActiveHandSource) -> StringName:
 	if source == ActiveHandSource.TOOLBAR:
-		return toolbar
+		return &"toolbar"
 	if source == ActiveHandSource.ITEMBAR:
-		return itembar
-	return null
-
-
-func _used_slots(container: InventoryState) -> int:
-	var used := 0
-	for stack: ItemStack in container.slots:
-		if not stack.is_empty():
-			used += 1
-	return used
+		return &"itembar"
+	return &""

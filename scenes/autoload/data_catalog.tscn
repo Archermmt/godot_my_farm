@@ -1,6 +1,6 @@
-[gd_resource type="Resource" load_steps=110 format=3]
+[gd_scene load_steps=110 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/game_catalog.gd" id="1_catalog"]
+[ext_resource type="Script" path="res://scripts/autoload/data_catalog.gd" id="1_catalog"]
 [ext_resource type="Script" path="res://scripts/data/item/item_meta.gd" id="2_item"]
 [ext_resource type="Script" path="res://scripts/data/item/plant_meta.gd" id="4_plant"]
 [ext_resource type="Script" path="res://scripts/data/item/harvestable_meta.gd" id="7_harvestable"]
@@ -261,7 +261,7 @@ fallback_map_id = &"cabin"
 fallback_cell = Vector2i(5, 4)
 events = Array[ExtResource("8_event")]([SubResource("ScheduleEventFarm")])
 
-[resource]
+[node name="DataCatalog" type="Node"]
 script = ExtResource("1_catalog")
 items = Array[ExtResource("2_item")]([SubResource("ItemHoe"), SubResource("ItemWateringCan"), SubResource("ItemSickle"), SubResource("ItemBasket"), SubResource("ItemPickaxe"), SubResource("ItemAxe"), SubResource("ItemSeedParsnip"), SubResource("ItemSeedPumpkin"), SubResource("ItemSeedPotato"), ExtResource("40_plant_parsnip"), ExtResource("41_plant_pumpkin"), ExtResource("42_plant_potato"), SubResource("ProduceParsnip"), SubResource("ProducePumpkin"), SubResource("ProducePotato"), SubResource("ItemWood"), SubResource("ItemStone"), SubResource("ItemGrass"), SubResource("ItemFood"), ExtResource("43_tree_meta"), ExtResource("44_stump_meta"), ExtResource("45_rock_meta"), ExtResource("46_grass_meta")])
 npc_schedules = Array[ExtResource("9_schedule")]([SubResource("ScheduleVillager")])

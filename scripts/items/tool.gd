@@ -9,40 +9,13 @@ func tool_meta() -> ToolMeta:
 	return meta as ToolMeta
 
 
-static func perform(
-	meta: ToolMeta,
-	map: BaseMap,
-	target_cells: Array[Vector2i],
-	available_stamina: int,
-	source_cell: Vector2i = Vector2i(-999999, -999999)
-) -> ToolOutcome:
-	var tool := Tool.new(meta)
-	var result := tool.use(map, target_cells, available_stamina, source_cell)
-	tool.free()
-	return result
-
-
-static func cell_rejection_reason(meta: ToolMeta, cell: MapCell) -> StringName:
-	var tool := Tool.new(meta)
-	var reason := tool.rejection_reason(cell)
-	tool.free()
-	return reason
-
-
-static func item_rejection_reason(meta: ToolMeta, map: BaseMap, coordinates: Vector2i) -> StringName:
-	var tool := Tool.new(meta)
-	var reason := tool.harvest_rejection_reason(map, coordinates)
-	tool.free()
-	return reason
-
-
-static func targets_cells(meta: ToolMeta) -> bool:
-	return meta != null and meta.tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]
+func targets_cells() -> bool:
+	var typed_meta := tool_meta()
+	return typed_meta != null and typed_meta.tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]
 
 
 func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int, source_cell: Vector2i = Vector2i(-999999, -999999)) -> ToolOutcome:
-	var typed_meta := tool_meta()
-	if targets_cells(typed_meta):
+	if targets_cells():
 		return use_on_cells(map, target_cells, available_stamina)
 	return use_on_items(map, target_cells, available_stamina, source_cell)
 

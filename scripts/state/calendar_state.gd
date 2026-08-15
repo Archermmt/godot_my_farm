@@ -11,11 +11,18 @@ var day: int = 1
 var weekday: int = 1
 var hour: int = 6
 var minute: int = 0
+var season_id: StringName = &""
 
 
 func season() -> StringName:
+	if season_id != &"":
+		return season_id
 	var index: int = floori(float(clampi(month, 1, 12) - 1) / 3.0)
 	return SEASONS[index]
+
+
+func set_season(value: StringName) -> void:
+	season_id = value
 
 
 func minute_of_day() -> int:
@@ -53,6 +60,7 @@ func to_dict() -> Dictionary:
 		"weekday": weekday,
 		"hour": hour,
 		"minute": minute,
+		"season_id": season_id,
 	}
 
 
@@ -66,6 +74,7 @@ static func from_dict(data: Dictionary) -> CalendarState:
 	var raw_weekday: int = int(data.get("weekday", 1))
 	var raw_hour: int = int(data.get("hour", 6))
 	var raw_minute: int = int(data.get("minute", 0))
+	var raw_season_id := StringName(str(data.get("season_id", &"")))
 	if raw_year < 1 or raw_month < 1 or raw_month > MONTHS_PER_YEAR or raw_day < 1 or raw_day > DAYS_PER_MONTH:
 		return null
 	if raw_weekday < 1 or raw_weekday > 7 or raw_hour < 0 or raw_hour > 23 or raw_minute < 0 or raw_minute > 59:
@@ -77,4 +86,5 @@ static func from_dict(data: Dictionary) -> CalendarState:
 	restored.weekday = raw_weekday
 	restored.hour = raw_hour
 	restored.minute = raw_minute
+	restored.season_id = raw_season_id
 	return restored

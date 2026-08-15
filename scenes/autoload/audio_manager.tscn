@@ -1,0 +1,160 @@
+[gd_scene load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts/autoload/audio_manager.gd" id="1_catalog"]
+[ext_resource type="Script" uid="uid://dpulndsv7rj3f" path="res://scripts/data/audio_definition.gd" id="2_definition"]
+
+[sub_resource type="Resource" id="Till"]
+script = ExtResource("2_definition")
+event_id = &"till"
+placeholder_frequency = 185.0
+
+[sub_resource type="Resource" id="Water"]
+script = ExtResource("2_definition")
+event_id = &"water"
+placeholder_frequency = 620.0
+
+[sub_resource type="Resource" id="Cut"]
+script = ExtResource("2_definition")
+event_id = &"cut"
+placeholder_frequency = 780.0
+
+[sub_resource type="Resource" id="Harvest"]
+script = ExtResource("2_definition")
+event_id = &"harvest"
+placeholder_frequency = 920.0
+
+[sub_resource type="Resource" id="Mine"]
+script = ExtResource("2_definition")
+event_id = &"mine"
+placeholder_frequency = 150.0
+
+[sub_resource type="Resource" id="Chop"]
+script = ExtResource("2_definition")
+event_id = &"chop"
+placeholder_frequency = 230.0
+
+[sub_resource type="Resource" id="ToolUse"]
+script = ExtResource("2_definition")
+event_id = &"tool_use"
+placeholder_frequency = 320.0
+
+[sub_resource type="Resource" id="Pickup"]
+script = ExtResource("2_definition")
+event_id = &"pickup"
+cooldown_msec = 40
+placeholder_frequency = 1040.0
+placeholder_duration = 0.09
+
+[sub_resource type="Resource" id="Footstep"]
+script = ExtResource("2_definition")
+event_id = &"footstep"
+volume_db = -16.0
+cooldown_msec = 180
+max_instances = 1
+placeholder_frequency = 110.0
+placeholder_duration = 0.05
+
+[sub_resource type="Resource" id="UiConfirm"]
+script = ExtResource("2_definition")
+event_id = &"ui_confirm"
+channel = 3
+cooldown_msec = 40
+placeholder_frequency = 760.0
+placeholder_duration = 0.06
+
+[sub_resource type="Resource" id="UiCancel"]
+script = ExtResource("2_definition")
+event_id = &"ui_cancel"
+channel = 3
+cooldown_msec = 40
+placeholder_frequency = 330.0
+placeholder_duration = 0.07
+
+[sub_resource type="Resource" id="Invalid"]
+script = ExtResource("2_definition")
+event_id = &"invalid"
+channel = 3
+cooldown_msec = 120
+max_instances = 1
+placeholder_frequency = 145.0
+placeholder_duration = 0.1
+
+[sub_resource type="Resource" id="AmbientFarm"]
+script = ExtResource("2_definition")
+event_id = &"ambient_farm"
+channel = 1
+volume_db = -24.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 260.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="AmbientField"]
+script = ExtResource("2_definition")
+event_id = &"ambient_field"
+channel = 1
+volume_db = -24.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 310.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="AmbientCabin"]
+script = ExtResource("2_definition")
+event_id = &"ambient_cabin"
+channel = 1
+volume_db = -26.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 196.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="MusicFarm"]
+script = ExtResource("2_definition")
+event_id = &"music_farm"
+channel = 0
+volume_db = -28.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 392.0
+placeholder_duration = 2.0
+loop = true
+
+[sub_resource type="Resource" id="MusicField"]
+script = ExtResource("2_definition")
+event_id = &"music_field"
+channel = 0
+volume_db = -28.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_duration = 2.0
+loop = true
+
+[sub_resource type="Resource" id="MusicCabin"]
+script = ExtResource("2_definition")
+event_id = &"music_cabin"
+channel = 0
+volume_db = -30.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 330.0
+placeholder_duration = 2.0
+loop = true
+
+[node name="AudioManager" type="Node"]
+script = ExtResource("1_catalog")
+definitions = Array[ExtResource("2_definition")]([SubResource("Till"), SubResource("Water"), SubResource("Cut"), SubResource("Harvest"), SubResource("Mine"), SubResource("Chop"), SubResource("ToolUse"), SubResource("Pickup"), SubResource("Footstep"), SubResource("UiConfirm"), SubResource("UiCancel"), SubResource("Invalid"), SubResource("AmbientFarm"), SubResource("AmbientField"), SubResource("AmbientCabin"), SubResource("MusicFarm"), SubResource("MusicField"), SubResource("MusicCabin")])
+master_volume_db = 0.0
+music_volume_db = 0.0
+ambient_volume_db = 0.0
+sfx_volume_db = 0.0
+ui_volume_db = 0.0
+crossfade_duration = 0.45
+crossfade_floor_db = -40.0
+music_pool_limit = 2
+ambient_pool_limit = 2
+sfx_pool_limit = 10
+ui_pool_limit = 4

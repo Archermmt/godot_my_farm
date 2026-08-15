@@ -1,19 +1,21 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/game_status_panel.gd" id="1_status"]
+[ext_resource type="Theme" path="res://data/ui/game_theme.tres" id="2_theme"]
 
 [node name="GameStatusPanel" type="Control"]
 layout_mode = 3
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -132.0
+offset_left = -172.0
 offset_top = 7.0
 offset_right = -7.0
 offset_bottom = 79.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_status")
 
 [node name="Panel" type="ColorRect" parent="."]
@@ -37,18 +39,18 @@ mouse_filter = 2
 layout_mode = 0
 offset_left = 8.0
 offset_top = 5.0
-offset_right = 121.0
-offset_bottom = 23.0
+offset_right = 161.0
+offset_bottom = 30.0
 theme_override_colors/font_color = Color(0.945098, 0.776471, 0.294118, 1)
-theme_override_font_sizes/font_size = 9
-text = "D01  06:00  SPRING Y1"
+theme_override_font_sizes/font_size = 8
+text = "Y1 M1 D1 W1 06:00\nSPR / CLEAR"
 
 [node name="Player" type="Label" parent="Panel"]
 layout_mode = 0
 offset_left = 8.0
-offset_top = 27.0
-offset_right = 121.0
-offset_bottom = 43.0
+offset_top = 32.0
+offset_right = 161.0
+offset_bottom = 48.0
 theme_override_colors/font_color = Color(0.862745, 0.909804, 0.827451, 1)
 theme_override_font_sizes/font_size = 8
 text = "HP 100/100  EN 100/100  G 500"
@@ -56,9 +58,9 @@ text = "HP 100/100  EN 100/100  G 500"
 [node name="Hand" type="Label" parent="Panel"]
 layout_mode = 0
 offset_left = 8.0
-offset_top = 49.0
-offset_right = 121.0
-offset_bottom = 66.0
+offset_top = 52.0
+offset_right = 161.0
+offset_bottom = 69.0
 theme_override_colors/font_color = Color(0.917647, 0.94902, 0.866667, 1)
 theme_override_font_sizes/font_size = 7
 text = "HAND  EMPTY  |  EMPTY"

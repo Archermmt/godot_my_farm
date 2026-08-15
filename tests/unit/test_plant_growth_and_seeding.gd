@@ -8,14 +8,16 @@ func test_seed_only_plants_dug_empty_cells_and_consumes_targets() -> void:
 	map.get_cell(Vector2i(1, 1)).add_state_flag(CellState.CellFlag.DUG)
 	map.get_cell(Vector2i(2, 1)).add_state_flag(CellState.CellFlag.DUG)
 	map.commit_cell_changes([Vector2i(1, 1), Vector2i(2, 1)])
-	var result := Seed.perform(DataCatalog.get_seed(&"seed_parsnip"), DataCatalog, map, [Vector2i(0, 0), Vector2i(1, 1), Vector2i(2, 1)], 1, 2)
+	var seed := Seed.new(DataCatalog.get_seed(&"seed_parsnip"))
+	var result := seed.use(map, [Vector2i(0, 0), Vector2i(1, 1), Vector2i(2, 1)], 1, 2)
 	assert_equal(result.error, ERR_UNAVAILABLE)
 	assert_equal(map.item_count(), 0)
-	var valid := Seed.perform(DataCatalog.get_seed(&"seed_parsnip"), DataCatalog, map, [Vector2i(1, 1), Vector2i(2, 1)], 1, 2)
+	var valid := seed.use(map, [Vector2i(1, 1), Vector2i(2, 1)], 1, 2)
 	assert_true(valid.succeeded())
 	assert_equal(valid.consumed_count(), 2)
 	assert_equal(map.item_count(), 2)
 	assert_true(map.get_cell(Vector2i(1, 1)).has_occupant())
+	seed.free()
 	map.free()
 
 
@@ -27,7 +29,8 @@ func test_growth_uses_meta_thresholds_and_water_is_idempotent() -> void:
 	var cell := map.get_cell(Vector2i(1, 1))
 	cell.add_state_flag(CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
 	map.commit_cell_changes([Vector2i(1, 1)])
-	var planted := Seed.perform(DataCatalog.get_seed(&"seed_parsnip"), DataCatalog, map, [Vector2i(1, 1)], 1, 1)
+	var seed := Seed.new(DataCatalog.get_seed(&"seed_parsnip"))
+	var planted := seed.use(map, [Vector2i(1, 1)], 1, 1)
 	assert_true(planted.succeeded())
 	var planted_ids := cell.cell_state().item_ids
 	assert_equal(planted_ids.size(), 1)
@@ -47,6 +50,7 @@ func test_growth_uses_meta_thresholds_and_water_is_idempotent() -> void:
 	plant.plant_state().growth_days = 6
 	assert_true(plant.is_mature())
 	assert_true(plant.is_harvestable())
+	seed.free()
 	map.free()
 
 
@@ -67,7 +71,6 @@ func test_plant_state_round_trip_preserves_stage_and_instance_id() -> void:
 func _make_map() -> BaseMap:
 	var map := BaseMap.new()
 	map.map_id = &"farm"
-	map.configure_services(DataCatalog)
 	var host := Node2D.new()
 	host.name = "Plants"
 	map.add_child(host)

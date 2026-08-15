@@ -15,12 +15,13 @@ func test_harvest_tools_validate_damage_and_single_stamina_cost() -> void:
 	_add_harvestable(map, &"rock_a", &"rock", Vector2i(1, 1), 3)
 	_add_harvestable(map, &"grass_a", &"grass", Vector2i(2, 1), 1)
 	var axe_meta := DataCatalog.get_item(&"tool_axe") as ToolMeta
-	assert_equal(Tool.item_rejection_reason(axe_meta, map, Vector2i(1, 1)), &"wrong_tool")
-	assert_equal(Tool.perform(axe_meta, map, [Vector2i(1, 1)], 10).error, ERR_UNAVAILABLE)
+	var axe := _tool(axe_meta)
+	assert_equal(axe.harvest_rejection_reason(map, Vector2i(1, 1)), &"wrong_tool")
+	assert_equal(axe.use(map, [Vector2i(1, 1)], 10).error, ERR_UNAVAILABLE)
 	assert_equal((map.get_item(&"rock_a") as Harvestable).harvestable_state().health, 3)
 
 	var pickaxe_meta := DataCatalog.get_item(&"tool_pickaxe") as ToolMeta
-	var result := Tool.perform(pickaxe_meta, map, [Vector2i(1, 1), Vector2i(1, 1)], 10)
+	var result := _tool(pickaxe_meta).use(map, [Vector2i(1, 1), Vector2i(1, 1)], 10)
 	assert_equal(result.error, OK)
 	assert_equal(result.stamina_spent, pickaxe_meta.base_stamina_cost)
 	assert_equal(result.effect_cells, [Vector2i(1, 1)])
@@ -31,10 +32,13 @@ func test_harvest_tools_validate_damage_and_single_stamina_cost() -> void:
 func test_death_drops_once_and_tree_becomes_stump() -> void:
 	var map := _make_map()
 	map.drop_rng.seed = 77
-	_add_harvestable(map, &"tree_a", &"tree", Vector2i(2, 2), 1)
-	var result := Tool.perform(DataCatalog.get_item(&"tool_axe") as ToolMeta, map, [Vector2i(2, 2)], 10, Vector2i(1, 2)) as ItemToolOutcome
+	var tree := _add_harvestable(map, &"tree_a", &"tree", Vector2i(2, 2), 1)
+	var axe := _tool(DataCatalog.get_item(&"tool_axe") as ToolMeta)
+	var result := axe.use(map, [Vector2i(2, 2)], 10, Vector2i(1, 2)) as ItemToolOutcome
 	assert_equal(result.error, OK)
 	assert_true(map.get_item(&"tree_a") == null)
+	assert_true(is_instance_valid(tree))
+	assert_true(not tree.is_queued_for_deletion())
 	assert_equal(result.destroyed_item_ids, [&"tree_a"])
 	assert_true(result.pickup_ids.size() >= 2 and result.pickup_ids.size() <= 4)
 	assert_equal(result.tree_fall_directions[&"tree_a"], 1)
@@ -44,10 +48,12 @@ func test_death_drops_once_and_tree_becomes_stump() -> void:
 	assert_equal(map.resolve_depleted_item(&"tree_a"), [])
 	assert_equal(_pickup_count(map), result.pickup_ids.size())
 	stump.harvestable_state().health = 1
-	var stump_result := Tool.perform(DataCatalog.get_item(&"tool_axe") as ToolMeta, map, [Vector2i(2, 2)], 10)
+	var stump_result := axe.use(map, [Vector2i(2, 2)], 10)
 	assert_equal(stump_result.error, OK)
 	assert_true(map.harvestable_at(Vector2i(2, 2)) == null)
 	assert_equal(_pickup_count(map), result.pickup_ids.size())
+	tree._hit_flash_tween.custom_step(1.0)
+	assert_true(tree.is_queued_for_deletion())
 
 
 func test_harvestable_health_changes_stage_texture() -> void:
@@ -66,15 +72,56 @@ func test_harvestable_health_changes_stage_texture() -> void:
 	assert_equal(tree.health_stage().min_health, 1)
 	assert_true(visual.texture != damaged_texture)
 
+
+func test_harvestable_hit_flash_uses_instance_local_shader_material() -> void:
+	var map := _make_map()
+	var first := _add_harvestable(map, &"tree_flash_a", &"tree", Vector2i(2, 2), 5)
+	var second := _add_harvestable(map, &"tree_flash_b", &"tree", Vector2i(3, 2), 5)
+	var first_material := (first.get_node("StageVisual") as Sprite2D).material as ShaderMaterial
+	var second_material := (second.get_node("StageVisual") as Sprite2D).material as ShaderMaterial
+	assert_true(first_material != null)
+	assert_true(second_material != null)
+	assert_true(first_material != second_material)
+	assert_equal(float(first_material.get_shader_parameter(&"flash_amount")), 0.0)
+	assert_equal(first.apply_tool(ToolMeta.ToolKind.PICKAXE, 1), ERR_UNAVAILABLE)
+	assert_equal(float(first_material.get_shader_parameter(&"flash_amount")), 0.0)
+	assert_equal(first.apply_tool(ToolMeta.ToolKind.AXE, 1), OK)
+	assert_equal(float(first_material.get_shader_parameter(&"flash_amount")), 1.0)
+	assert_equal(float(second_material.get_shader_parameter(&"flash_amount")), 0.0)
+	first._hit_flash_tween.custom_step(1.0)
+	assert_equal(float(first_material.get_shader_parameter(&"flash_amount")), 0.0)
+	var plant := _add_plant(map, &"plant_flash", Vector2i(4, 2), 6)
+	var plant_material := (plant.get_node("StageVisual") as Sprite2D).material as ShaderMaterial
+	assert_true(plant_material != null)
+	assert_equal(plant.apply_tool(ToolMeta.ToolKind.BASKET, 1), OK)
+	assert_equal(float(plant_material.get_shader_parameter(&"flash_amount")), 1.0)
+
+
+func test_depleted_grass_keeps_visual_until_flash_finishes() -> void:
+	var map := _make_map()
+	var grass := _add_harvestable(map, &"grass_flash", &"grass", Vector2i(2, 2), 1)
+	var visual := grass.get_node("StageVisual") as Sprite2D
+	assert_true(visual.texture != null)
+	var result := _tool(DataCatalog.get_item(&"tool_sickle") as ToolMeta).use(map, [Vector2i(2, 2)], 10) as ItemToolOutcome
+	assert_equal(result.error, OK)
+	assert_true(map.get_item(&"grass_flash") == null)
+	assert_true(visual.texture != null)
+	assert_equal(float((visual.material as ShaderMaterial).get_shader_parameter(&"flash_amount")), 1.0)
+	assert_true(not grass.is_queued_for_deletion())
+	grass._hit_flash_tween.custom_step(1.0)
+	assert_true(grass.is_queued_for_deletion())
+
+
 func test_mature_plant_harvest_preserves_dug_and_immature_is_rejected() -> void:
 	var map := _make_map(CellState.CellFlag.BASE | CellState.CellFlag.DROPABLE, CellState.CellFlag.DUG)
 	var immature := _add_plant(map, &"parsnip_a", Vector2i(1, 1), 0)
 	assert_true(map.check_cell(Vector2i(1, 1), BaseMap.CellCondition.HAS_OCCUPANT))
 	var basket_meta := DataCatalog.get_item(&"tool_basket") as ToolMeta
-	assert_equal(Tool.item_rejection_reason(basket_meta, map, Vector2i(1, 1)), &"not_mature")
+	var basket := _tool(basket_meta)
+	assert_equal(basket.harvest_rejection_reason(map, Vector2i(1, 1)), &"not_mature")
 	immature.plant_state().growth_days = 6
 	immature.harvestable_state().health = 1
-	var result := Tool.perform(basket_meta, map, [Vector2i(1, 1)], 10) as ItemToolOutcome
+	var result := basket.use(map, [Vector2i(1, 1)], 10) as ItemToolOutcome
 	assert_equal(result.error, OK)
 	assert_true(result.pickup_ids.size() >= 1 and result.pickup_ids.size() <= 2)
 	assert_true(map.get_cell(Vector2i(1, 1)).is_dug())
@@ -89,37 +136,33 @@ func test_pickup_is_non_blocking_and_persists_while_inventory_is_full() -> void:
 	assert_true(not map.check_cell(Vector2i(1, 1), BaseMap.CellCondition.HAS_OCCUPANT))
 	assert_true(map.check_cell(Vector2i(1, 1), BaseMap.CellCondition.PLANTABLE))
 	assert_true(map.check_cell(Vector2i(1, 1), BaseMap.CellCondition.DROPABLE))
-	var player := FarmPlayer.new()
-	_nodes.append(player)
+	var player := _make_pickup_player()
 	player.state = PlayerState.new()
-	player.state.itembar = ItembarState.new(1)
-	player.state.itembar.set_slot(0, ItemStack.new(&"material_wood", 99))
-	player.state.inventory = InventoryState.new(1)
-	player.state.inventory.set_slot(0, ItemStack.new(&"material_wood", 99))
+	player.state.backpack_state = BackpackState.new(1, 0, 1)
+	player.state.backpack_state.set_slot(&"itembar", 0, BackpackSlot.new(&"itembar_0", &"material_wood", 99))
+	player.state.backpack_state.set_slot(&"inventory", 0, BackpackSlot.new(&"inventory_0", &"material_wood", 99))
 	player.global_position = pickup.global_position
-	assert_true(not pickup.attract_to(player, 0.0))
+	assert_true(not player._process_pickup(pickup, map, 0.0))
 	assert_true(map.get_item(&"pickup_stone") == pickup)
 
-	player.state.itembar.get_slot(0).clear()
-	assert_true(pickup.attract_to(player, 0.0))
-	assert_equal(player.state.itembar.count_item(&"material_stone"), 1)
-	assert_equal(player.state.inventory.count_item(&"material_stone"), 0)
+	player.state.backpack_state.get_slot(&"itembar", 0).clear()
+	assert_true(player._process_pickup(pickup, map, 0.0))
+	assert_equal(player.state.backpack_state.count_item(&"itembar", &"material_stone"), 1)
+	assert_equal(player.state.backpack_state.count_item(&"inventory", &"material_stone"), 0)
 	assert_true(map.get_item(&"pickup_stone") == null)
 
 
 func test_pickup_overflows_from_itembar_to_inventory() -> void:
 	var map := _make_map()
 	var pickup := _add_pickup(map, &"pickup_stone_overflow", &"material_stone", Vector2i(1, 1))
-	var player := FarmPlayer.new()
-	_nodes.append(player)
+	var player := _make_pickup_player()
 	player.state = PlayerState.new()
-	player.state.itembar = ItembarState.new(1)
-	player.state.itembar.set_slot(0, ItemStack.new(&"material_wood", 99))
-	player.state.inventory = InventoryState.new(1)
+	player.state.backpack_state = BackpackState.new(1, 0, 1)
+	player.state.backpack_state.set_slot(&"itembar", 0, BackpackSlot.new(&"itembar_0", &"material_wood", 99))
 	player.global_position = pickup.global_position
-	assert_true(pickup.attract_to(player, 0.0))
-	assert_equal(player.state.itembar.count_item(&"material_stone"), 0)
-	assert_equal(player.state.inventory.count_item(&"material_stone"), 1)
+	assert_true(player._process_pickup(pickup, map, 0.0))
+	assert_equal(player.state.backpack_state.count_item(&"itembar", &"material_stone"), 0)
+	assert_equal(player.state.backpack_state.count_item(&"inventory", &"material_stone"), 1)
 
 
 func test_pickup_state_round_trip_and_cell_sync() -> void:
@@ -138,17 +181,15 @@ func test_pickup_state_round_trip_and_cell_sync() -> void:
 func test_pickup_partially_fills_stack_and_retains_remainder() -> void:
 	var map := _make_map()
 	var pickup := _add_pickup(map, &"pickup_wood_partial", &"material_wood", Vector2i(1, 1))
-	var player := FarmPlayer.new()
-	_nodes.append(player)
+	var player := _make_pickup_player()
 	player.state = PlayerState.new()
-	player.state.itembar = ItembarState.new(1)
-	player.state.itembar.set_slot(0, ItemStack.new(&"material_wood", 97))
-	player.state.inventory = InventoryState.new(1)
-	player.state.inventory.set_slot(0, ItemStack.new(&"material_stone", 99))
+	player.state.backpack_state = BackpackState.new(1, 0, 1)
+	player.state.backpack_state.set_slot(&"itembar", 0, BackpackSlot.new(&"itembar_0", &"material_wood", 97))
+	player.state.backpack_state.set_slot(&"inventory", 0, BackpackSlot.new(&"inventory_0", &"material_stone", 99))
 	player.global_position = pickup.global_position
-	assert_true(pickup.attract_to(player, 0.0))
-	assert_equal(player.state.itembar.count_item(&"material_wood"), 98)
-	assert_equal(player.state.inventory.count_item(&"material_wood"), 0)
+	assert_true(player._process_pickup(pickup, map, 0.0))
+	assert_equal(player.state.backpack_state.count_item(&"itembar", &"material_wood"), 98)
+	assert_equal(player.state.backpack_state.count_item(&"inventory", &"material_wood"), 0)
 	assert_true(map.get_item(&"pickup_wood_partial") == null)
 
 
@@ -165,15 +206,36 @@ func test_drop_roll_is_seeded_and_within_catalog_bounds() -> void:
 	assert_true(int(first[0]["amount"]) <= 3)
 
 
+func test_map_pickup_query_only_returns_loose_items_inside_radius() -> void:
+	var map := _make_map()
+	var near := _add_pickup(map, &"pickup_near", &"material_stone", Vector2i(1, 1))
+	var far := _add_pickup(map, &"pickup_far", &"material_wood", Vector2i(4, 4))
+	_add_harvestable(map, &"grass_near", &"grass", Vector2i(1, 2), 1)
+	var center := near.global_position
+	var found := map.pickup_items_in_radius(center, 40.0)
+	assert_equal(found, [near])
+	assert_true(far not in found)
+
+
+func test_player_moves_pickup_before_collecting_and_map_only_deletes_after_success() -> void:
+	var map := _make_map()
+	var pickup := _add_pickup(map, &"pickup_moving", &"material_stone", Vector2i(2, 1))
+	var player := _make_pickup_player()
+	player.state = PlayerState.new()
+	player.global_position = pickup.global_position + Vector2(40.0, 0.0)
+	var before := pickup.global_position
+	assert_true(not player._process_pickup(pickup, map, 0.05))
+	assert_true(pickup.global_position.distance_to(player.global_position) < before.distance_to(player.global_position))
+	assert_true(map.get_item(&"pickup_moving") == pickup)
+
+
 func test_new_game_farm_generation_populates_runtime_hosts() -> void:
 	var game_manager := GameManagerService.new()
 	_nodes.append(game_manager)
-	game_manager.configure(DataCatalog, null)
 	assert_equal(game_manager.new_game(31415), OK)
 	var map := (load("res://scenes/maps/farm/farm.tscn") as PackedScene).instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	map.configure_services(DataCatalog, null)
 	assert_equal(map.configure_state(game_manager.maps[&"farm"], game_manager.world_seed, true), OK)
 	assert_true(map.items.size() > 0)
 	var harvestable_count := 0
@@ -200,7 +262,6 @@ func _make_map(meta_flags: int = CellState.CellFlag.BASE, state_flags: int = 0) 
 	var map := (load("res://scenes/maps/field/field.tscn") as PackedScene).instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	map.configure_services(DataCatalog, null)
 	var state := MapState.new()
 	state.map_id = map.map_id
 	assert_equal(map.configure_state(state), OK)
@@ -238,6 +299,18 @@ func _add_pickup(map: BaseMap, id: StringName, meta_id: StringName, cell: Vector
 	state.cell = cell
 	assert_equal(map.add_item_state(state, cell), OK)
 	return map.get_item(id) as Item
+
+
+func _make_pickup_player() -> FarmPlayer:
+	var player := FarmPlayer.new()
+	_nodes.append(player)
+	return player
+
+
+func _tool(meta: ToolMeta) -> Tool:
+	var tool := Tool.new(meta)
+	_nodes.append(tool)
+	return tool
 
 
 func _pickup_count(map: BaseMap) -> int:

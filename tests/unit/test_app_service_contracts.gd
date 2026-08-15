@@ -9,14 +9,15 @@ func test_event_bus_declares_only_confirmed_signal_surface() -> void:
 		&"map_changed",
 		&"time_advanced",
 		&"day_advanced",
+		&"weather_changed",
 		&"inventory_changed",
 		&"container_changed",
 		&"bar_selection_changed",
 		&"active_hand_changed",
-		&"interaction_committed",
 		&"cells_tool_used",
 		&"cell_projection_failed",
 		&"request_tool_feedback",
+		&"request_invalid_feedback",
 		&"save_completed",
 		&"load_completed",
 	]:
@@ -44,12 +45,15 @@ func test_scene_manager_requires_explicit_hosts() -> void:
 	router.free()
 
 
-func test_save_and_audio_unavailable_operations_return_errors() -> void:
+func test_unconfigured_save_and_audio_operations_return_errors() -> void:
 	var game_manager := GameManagerService.new()
 	var audio_manager := AudioManagerService.new()
+	var effect_manager := EffectManagerService.new()
 	assert_equal(game_manager.save_slot(0), ERR_UNAVAILABLE)
 	assert_equal(game_manager.load_slot(0), ERR_UNAVAILABLE)
-	assert_equal(audio_manager.play_event(&"ui_confirm"), ERR_UNAVAILABLE)
-	assert_equal(audio_manager.stop_event(&"ui_confirm"), ERR_UNAVAILABLE)
+	assert_equal(audio_manager.play_event(&"ui_confirm"), ERR_UNCONFIGURED)
+	assert_equal(audio_manager.stop_event(&"ui_confirm"), ERR_DOES_NOT_EXIST)
+	assert_equal(effect_manager.definition_count(), 0)
 	game_manager.free()
 	audio_manager.free()
+	effect_manager.free()

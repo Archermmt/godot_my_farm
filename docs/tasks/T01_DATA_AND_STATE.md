@@ -11,18 +11,18 @@
 ## 交付范围
 
 - `scripts/data/item/`：ItemMeta、ToolMeta、HarvestableMeta、PlantMeta、PlantStage、HarvestableStage、HarvestableDrop；`scripts/data/`：NpcSchedule/event。Meta 仅用于被多个实例共享的类型定义。
-- `scripts/state/item/`：ItemState、HarvestableState、PlantState；`scripts/state/inventory/`：ItemStack、InventoryState、ToolbarState、ItembarState；`scripts/state/`：PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/items/` 保存运行时 Item、Harvestable 和 Plant，与 `scripts/world/` 同级；`scripts/world/` 保存 BaseMap 与 MapCell。
-- `data/`：最小测试 catalog，包括 6 个工具、欧洲防风草种子/作物、木材、石头、草、食物占位定义。
+- `scripts/state/item/`：ItemState、HarvestableState、PlantState；`scripts/state/inventory/`：BackpackState、BackpackSlot；`scripts/state/`：PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/items/` 保存运行时 Item、Harvestable 和 Plant，与 `scripts/world/` 同级；`scripts/world/` 保存 BaseMap 与 MapCell。
+- `DataCatalog` 配置：最小测试定义集合，包括 6 个工具、欧洲防风草种子/作物、木材、石头、草、食物占位定义。
 - `tests/unit/`：catalog/state/round-trip 测试。
 
 ## 实现要求
 
 1. 所有定义继承 Resource，字段类型明确；运行中视为只读。
 2. 所有 ID 为稳定 StringName，显示名独立；交叉引用用 ID 或直接静态 Resource，不用文件名推断。
-3. ItemStack/InventoryState 完成堆叠、添加、移除、交换、合并、容量和选择 API；调用失败不改变部分状态。
+3. BackpackState/BackpackSlot 完成命名槽位、堆叠、添加、移除、交换、合并、容量和选择 API；调用失败不改变部分状态。
 4. PlayerState 对生命、体力、金币做范围保护。
-5. PlayerState 是 InventoryState、ToolbarState 和 ItembarState 的唯一状态所有者；GameManager 只持有整体 PlayerState，快照将三个容器嵌套在 `player` 字典内。
-6. PlayerState、InventoryState、ToolbarState、ItembarState 和 ItemStack 是可由 Inspector 编辑的 Resource；`default_player_state.tres` 作为新游戏模板，GameManager 深复制它，读档不依赖模板。Player 和 Cell 等唯一运行时类型不建立 Meta。
+5. PlayerState 通过唯一的 BackpackState 持有背包数据；GameManager 只持有整体 PlayerState，快照将 backpack 嵌套在 `player` 字典内。
+6. PlayerState、BackpackState 和 BackpackSlot 是可由 Inspector 编辑的 Resource；`default_player_state.tres` 作为新游戏模板，GameManager 深复制它，读档不依赖模板。Player 和 Cell 等唯一运行时类型不建立 Meta。
 7. MapState 只持有 CellState/ItemState DTO，不提供运行时事务；ItemState 子类只保存对应 Meta 类型的专属可变数据，并用 meta_id 连接共享 Meta。BaseMap 校验 Meta/State 子类组合，绑定强类型 State/Meta，创建对应 Item 子类并管理运行时 cells/items。
 8. 所有需存档状态实现纯 Dictionary `to_dict()` 和严格 factory；Vector/ID 按技术规则序列化。
 9. 定义校验函数能发现重复/空 ID、非法 stack、负价格、错误掉落范围、非递增成长阶段和缺交叉引用。
@@ -30,7 +30,7 @@
 
 ## 自动化验收
 
-- 测试 ItemStack 添加到 stack limit、溢出到空格、满包退回、移除不足、跨容器交换和选择。
+- 测试 BackpackSlot 添加到 stack limit、溢出到空格、满包退回、移除不足、跨容器交换和选择。
 - 测试 PlayerState 上下限。
 - 测试 Farm/Plant/MapState 深度 round-trip，并断言恢复后的 Vector2i/StringName/数值类型。
 - 测试每一种无效定义，确认校验失败且消息包含 ID/字段。

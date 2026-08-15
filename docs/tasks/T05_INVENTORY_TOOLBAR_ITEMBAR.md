@@ -18,7 +18,7 @@
 
 ## 实现要求
 
-1. Inventory、Toolbar、Itembar 都只通过状态 API 修改 ItemStack；Slot Control 不持有权威副本。
+1. Backpack、Toolbar、Itembar 都只通过 BackpackState/BackpackSlot API 修改命名槽位；Slot Control 不持有权威副本。
 2. Toolbar 只接受 `ItemMeta.item_type == TOOL` 的工具，Itembar 只接受种子、食物、材料等可选择非工具物品；非法跨栏交换必须拒绝并保持原状态。
 3. `toolbar_previous/toolbar_next` 与 `itembar_previous/itembar_next` 循环改变各自高亮。最近操作的 bar 成为唯一 active source；切换 Toolbar 时手持工具，切换 Itembar 时手持物品，同一时间绝不同时持有两者。
 4. 每次切换在 Player 头顶短暂显示对应 Toolbar 或 Itembar，并高亮当前格；提示自动隐藏，但选中状态持续存在。HUD 常驻显示当前手持来源、图标、名称和数量。
@@ -27,7 +27,7 @@
 7. 背包界面同时展示 Inventory、Toolbar、Itembar。方向输入在格子间移动唯一焦点；按 `inventory_swap` 标记源格，再移动并再次按键完成 swap/merge。取消键先取消待交换状态，再关闭面板。
 8. 交换操作必须原子执行，支持不同物品交换、同物品合并和无效目标回滚；不得通过鼠标点击、拖拽或拖放修改任何容器。
 9. Tooltip/详情面板跟随当前键盘焦点，显示名称、类型、说明、数量和价格字段，并保持在设计视口内。
-10. Hands 根据唯一 active ItemStack 的 ItemMeta held_scene/icon 更新；连续切换时释放旧实例或复用 cache，不得累计隐藏节点。
+10. Hands 根据唯一 active BackpackSlot 的 ItemMeta held_scene/icon 更新；连续切换时释放旧实例或复用 cache，不得累计隐藏节点。
 11. GameManager.new_game 通过 PlayerState 初始化 6 个工具、种子和空 Inventory；UI 重建不得重复添加物品。
 12. 默认键盘映射沿用 project.godot：Q/E 切 Toolbar，Z/C 切 Itembar，P 打开背包，WASD/方向 action 移动焦点，X 执行交换，F 确认，Escape 取消；业务代码只读取 action 名。
 

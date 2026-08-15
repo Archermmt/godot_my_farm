@@ -15,18 +15,9 @@ var _transition_overlay: CanvasItem = null
 var _player: FarmPlayer = null
 var _current_map: BaseMap = null
 var _transitioning := false
-var transition_duration := 0.12
-var _event_bus_service: EventBusService = null
-var _game_manager_service: GameManagerService = null
+@export_category("Transition")
+@export_range(0.0, 5.0, 0.01, "or_greater") var transition_duration: float = 0.12
 
-
-func _ready() -> void:
-	configure(EventBus, GameManager)
-
-
-func configure(event_bus_service: EventBusService, game_manager_service: GameManagerService) -> void:
-	_event_bus_service = event_bus_service
-	_game_manager_service = game_manager_service
 
 func register_hosts(map_host: Node2D, actor_host: Node2D, ui_layer: CanvasLayer, transition_overlay: CanvasItem) -> Error:
 	if map_host == null or actor_host == null or ui_layer == null or transition_overlay == null:
@@ -36,6 +27,8 @@ func register_hosts(map_host: Node2D, actor_host: Node2D, ui_layer: CanvasLayer,
 	_ui_layer = ui_layer
 	_transition_overlay = transition_overlay
 	_transition_overlay.modulate = Color(1, 1, 1, 0)
+	if _transition_overlay is Control:
+		(_transition_overlay as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return OK
 
 func unregister_hosts(map_host: Node2D) -> void:
@@ -91,8 +84,7 @@ func load_initial_map(map_id: StringName, spawn_id: StringName) -> Error:
 		map.queue_free()
 		return error
 	_current_map = map
-	if _event_bus_service != null:
-		_event_bus_service.map_changed.emit(map_id)
+	EventBus.map_changed.emit(map_id)
 	return OK
 
 func request_map_change(map_id: StringName, spawn_id: StringName) -> Error:
@@ -120,15 +112,15 @@ func _instantiate_map(map_id: StringName) -> BaseMap:
 func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> Error:
 	if map == null or map.map_id != map_id:
 		return ERR_INVALID_DATA
-	if _game_manager_service == null or _player.state == null:
+	if _player.state == null:
 		return ERR_UNCONFIGURED
-	var state: MapState = _game_manager_service.maps.get(map_id, null) as MapState
+	var state: MapState = GameManager.maps.get(map_id, null) as MapState
 	if state == null:
 		return ERR_DOES_NOT_EXIST
 	var error := map.validate_alignment()
 	if error != OK:
 		return error
-	error = map.configure_state(state, _game_manager_service.world_seed, true)
+	error = map.configure_state(state, GameManager.world_seed, true)
 	if error != OK:
 		return error
 	var spawn := map.spawn_position(spawn_id)
@@ -150,15 +142,14 @@ func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
 	else:
 		error = _player.lock_input(TRANSITION_LOCK)
 		if error == OK:
-			error = _game_manager_service.pause(TRANSITION_LOCK) if _game_manager_service != null else ERR_UNCONFIGURED
+			error = GameManager.pause(TRANSITION_LOCK)
 	if error != OK:
 		if next_map != null:
 			next_map.queue_free()
 		_finish_failed(map_id, error)
 		return
 
-	if _event_bus_service != null:
-		_event_bus_service.map_will_change.emit(current_map_id(), map_id)
+	EventBus.map_will_change.emit(current_map_id(), map_id)
 	await _fade(1.0)
 	_map_host.add_child(next_map)
 	await get_tree().process_frame
@@ -173,28 +164,31 @@ func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
 	_current_map = next_map
 	if old_map != null:
 		old_map.queue_free()
-	if _event_bus_service != null:
-		_event_bus_service.map_changed.emit(map_id)
+	EventBus.map_changed.emit(map_id)
 	await _fade(0.0)
-	_game_manager_service.resume(TRANSITION_LOCK)
+	GameManager.resume(TRANSITION_LOCK)
 	_player.unlock_input(TRANSITION_LOCK)
 	_transitioning = false
 
 func _finish_failed(map_id: StringName, error: Error) -> void:
-	if _game_manager_service != null:
-		_game_manager_service.resume(TRANSITION_LOCK)
+	GameManager.resume(TRANSITION_LOCK)
 	if _player != null:
 		_player.unlock_input(TRANSITION_LOCK)
 	_transitioning = false
-	if _event_bus_service != null:
-		_event_bus_service.map_change_failed.emit(map_id, error)
+	EventBus.map_change_failed.emit(map_id, error)
 
 func _fade(alpha: float) -> void:
 	if _transition_overlay == null:
 		return
+	if _transition_overlay is Control and alpha > 0.0:
+		(_transition_overlay as Control).mouse_filter = Control.MOUSE_FILTER_STOP
 	if transition_duration <= 0.0:
 		_transition_overlay.modulate.a = alpha
+		if _transition_overlay is Control and alpha <= 0.0:
+			(_transition_overlay as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return
 	var tween := create_tween()
 	tween.tween_property(_transition_overlay, "modulate:a", alpha, transition_duration)
 	await tween.finished
+	if _transition_overlay is Control and alpha <= 0.0:
+		(_transition_overlay as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE

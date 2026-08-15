@@ -47,4 +47,7 @@
 
 ## 完成记录
 
-STATUS 记录视口截图、音频/特效实例峰值、run_id 和日志；总表 T12 completed。
+- 2026-08-14 完成。HUD、背包、共享 Theme、Toast、转场输入阻断、昼夜 CanvasModulate、Player 头顶选择提示和手持状态均已接入。
+- AudioManager 使用 18 条 AudioDefinition、Music/Ambient/SFX/UI 四类 bus 与有界 player pool；地图切换同时交叉淡化 ambient/music，高频脚步按事件节流。
+- 工具成功反馈按一次 action 合并为一个 ActionEffect，最多保留 8 个并自动淡出；失败只显示 invalid toast/音效，不产生成功特效。
+- 自动化为 112 tests / 5155 assertions；godot-ai session `godot-my-farm@c274`、run `r121844889-5` 无运行错误，640x360 与 960x540 的 HUD/背包、夜间画面和头顶提示无裁切或重叠。

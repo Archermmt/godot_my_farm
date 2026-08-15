@@ -1,11 +1,11 @@
 extends ProjectTestCase
 
-const CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
+const DATA_CATALOG_SCENE := "res://scenes/autoload/data_catalog.tscn"
 
 
 func test_service_loads_explicit_catalog_and_indexes_ids() -> void:
-	var service := DataCatalogService.new()
-	assert_true(service.load_catalog(CATALOG_PATH, false))
+	var service := (load(DATA_CATALOG_SCENE) as PackedScene).instantiate() as DataCatalogService
+	assert_true(service.initialize(false))
 	assert_true(service.is_ready_for_game())
 	assert_equal(service.item_count(), 23)
 	assert_equal(service.get_item(&"tool_hoe").display_name, "Hoe")
@@ -20,10 +20,9 @@ func test_bad_catalog_blocks_readiness_with_locatable_error() -> void:
 	item_a.id = &"duplicate"
 	var item_b := ItemMeta.new()
 	item_b.id = &"duplicate"
-	var bad_catalog := GameCatalog.new()
-	bad_catalog.items = [item_a, item_b]
 	var service := DataCatalogService.new()
-	assert_true(not service.initialize_from_catalog(bad_catalog, false))
+	var items: Array[ItemMeta] = [item_a, item_b]
+	assert_true(not service.initialize_from_definitions(items, [], false))
 	assert_true(not service.is_ready_for_game())
 	var errors: Array[String] = service.validation_errors()
 	assert_true(not errors.is_empty())

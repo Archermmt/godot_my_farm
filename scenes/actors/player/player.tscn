@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actors/player.gd" id="1_player"]
 [ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
 [ext_resource type="AnimationLibrary" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
-[ext_resource type="PackedScene" path="res://scenes/world/interaction_cursor.tscn" id="7_cursor"]
-[ext_resource type="Script" path="res://scripts/actors/collect_area.gd" id="8_collect"]
+[ext_resource type="PackedScene" path="res://scenes/world/effect_area.tscn" id="7_effect_area"]
+[ext_resource type="Script" path="res://scripts/actors/backpack.gd" id="8_backpack"]
 
 [sub_resource type="CapsuleShape2D" id="CapsulePlayer"]
 radius = 6.0
@@ -107,10 +107,10 @@ one_shot = true
 [node name="InteractionOrigin" type="Marker2D" parent="." unique_id=101471676]
 position = Vector2(0, 8)
 
-[node name="InteractionCursor" parent="." unique_id=218021092 instance=ExtResource("7_cursor")]
+[node name="EffectArea" parent="." unique_id=218021092 instance=ExtResource("7_effect_area")]
 
-[node name="CollectArea" type="Area2D" parent="." unique_id=903681241]
-script = ExtResource("8_collect")
+[node name="Backpack" type="Node" parent="." unique_id=931873519]
+script = ExtResource("8_backpack")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1862161815]
 position = Vector2(0, -8)

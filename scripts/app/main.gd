@@ -1,12 +1,11 @@
 extends Node
 
-@export_range(0.1, 120.0, 0.1, "or_greater") var time_scale: float = 1.2
-
 @onready var map_host: Node2D = $World/MapHost
 @onready var actor_host: Node2D = $World/ActorHost
 @onready var player: FarmPlayer = $World/ActorHost/Player
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var transition_overlay: ColorRect = $UILayer/TransitionOverlay
+@onready var presentation_layer: PresentationController = $UILayer/PresentationLayer
 @onready var status_dot: ColorRect = %StatusDot
 @onready var status_label: Label = %StatusLabel
 @onready var service_panel: ColorRect = %ServicePanel
@@ -26,10 +25,6 @@ func _ready() -> void:
 		return
 	if not GameManager.is_initialized():
 		_show_boot_error(["GameManager did not create a new game"])
-		return
-	var time_scale_error := GameManager.configure_time_scale(time_scale)
-	if time_scale_error != OK:
-		_show_boot_error(["Invalid game time scale: %s" % time_scale])
 		return
 	var register_error: Error = SceneManager.register_hosts(
 		map_host,
@@ -74,6 +69,8 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if SceneManager != null:
 		SceneManager.unregister_hosts(map_host)
+	if AudioManager != null:
+		AudioManager.shutdown()
 
 
 func _on_map_changed(map_id: StringName) -> void:

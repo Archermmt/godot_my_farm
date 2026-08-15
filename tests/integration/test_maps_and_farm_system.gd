@@ -20,7 +20,7 @@ func test_all_maps_have_aligned_layers_and_spawn_points() -> void:
 		assert_equal(map.get_map_size(), map.coordinate_layer().get_used_rect().size)
 		assert_equal(map.get_tile_size(), map.coordinate_layer().tile_set.tile_size)
 		assert_true(map.spawn_position(&"default") != Vector2.ZERO)
-		assert_true(not map.has_node("InteractionCursor"))
+		assert_true(not map.has_node("EffectArea"))
 		map.free()
 
 func test_static_tile_cells_are_serialized_in_map_scenes() -> void:
@@ -94,11 +94,13 @@ func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
 	var player_state := PlayerState.new()
 	player_state.set_stamina(10)
 	var coordinates := Vector2i(8, 10)
-	var hoe_result := Tool.perform(DataCatalog.get_item(&"tool_hoe") as ToolMeta, farm, [coordinates], player_state.stamina) as CellToolOutcome
+	var hoe := Tool.new(DataCatalog.get_item(&"tool_hoe") as ToolMeta)
+	var hoe_result := hoe.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
 	assert_true(hoe_result.succeeded())
 	assert_equal(hoe_result.projection_error, OK)
 	player_state.set_stamina(player_state.stamina - hoe_result.stamina_spent)
-	var water_result := Tool.perform(DataCatalog.get_item(&"tool_watering_can") as ToolMeta, farm, [coordinates], player_state.stamina) as CellToolOutcome
+	var watering_can := Tool.new(DataCatalog.get_item(&"tool_watering_can") as ToolMeta)
+	var water_result := watering_can.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
 	assert_true(water_result.succeeded())
 	assert_equal(water_result.projection_error, OK)
 	assert_true(map_state.cells[coordinates].flags & CellState.CellFlag.DUG)
@@ -115,6 +117,8 @@ func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
 	assert_true(restored_farm.get_cell(coordinates).is_watered())
 	assert_true(restored_farm.get_node_or_null("TileMaps/DugLayer") is TileMapLayer)
 	restored_farm.free()
+	hoe.free()
+	watering_can.free()
 	farm.free()
 
 func test_base_map_restores_and_operates_on_state_dtos() -> void:

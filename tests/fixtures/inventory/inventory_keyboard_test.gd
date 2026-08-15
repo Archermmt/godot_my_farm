@@ -25,7 +25,7 @@ func _run() -> void:
 		_fail("toolbar activation failed")
 		return
 	await _tap(&"toolbar_next")
-	if player.state.toolbar.selected_index != 1 or player.active_stack().item_id != &"tool_watering_can" or not player.selection_popup.visible or not player.held_visual.visible:
+	if player.state.backpack_state.selected_toolbar_index != 1 or player.active_stack().item_id != &"tool_watering_can" or not player.selection_popup.visible or not player.held_visual.visible:
 		_fail("toolbar keyboard selection failed")
 		return
 	await _tap(&"itembar_next")
@@ -48,7 +48,7 @@ func _run() -> void:
 	await _tap(&"inventory_swap")
 	await _tap(&"move_down")
 	await _tap(&"inventory_swap")
-	if player.state.toolbar.get_slot(1).item_id != &"tool_watering_can" or ui.mode_label.text != "INVALID TARGET":
+	if player.state.backpack_state.get_slot(&"toolbar", 1).item_id != &"tool_watering_can" or ui.mode_label.text != "INVALID TARGET":
 		_fail("invalid toolbar to itembar exchange mutated state")
 		return
 	ui.focus_container = &"toolbar"
@@ -56,7 +56,7 @@ func _run() -> void:
 	await _tap(&"inventory_swap")
 	await _tap(&"move_up")
 	await _tap(&"inventory_swap")
-	if not player.state.toolbar.get_slot(1).is_empty() or player.state.inventory.get_slot(1).item_id != &"tool_watering_can":
+	if not player.state.backpack_state.get_slot(&"toolbar", 1).is_empty() or player.state.backpack_state.get_slot(&"inventory", 1).item_id != &"tool_watering_can":
 		_fail("toolbar to inventory exchange failed")
 		return
 	ui.focus_container = &"itembar"
@@ -64,7 +64,7 @@ func _run() -> void:
 	await _tap(&"inventory_swap")
 	await _tap(&"move_down")
 	await _tap(&"inventory_swap")
-	if not player.state.itembar.get_slot(0).is_empty() or player.state.inventory.get_slot(0).item_id != &"seed_parsnip":
+	if not player.state.backpack_state.get_slot(&"itembar", 0).is_empty() or player.state.backpack_state.get_slot(&"inventory", 0).item_id != &"seed_parsnip":
 		_fail("itembar to inventory exchange failed")
 		return
 	await _tap(&"cancel")

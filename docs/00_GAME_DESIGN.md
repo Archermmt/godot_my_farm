@@ -21,7 +21,7 @@
 - Player 当前朝向决定交互方向；Toolbar 与 Itembar 的键盘选择共同决定唯一手持物。
 - `Shift` 为慢走，默认移动为跑步，与参考成品一致。
 - `use_held` 按住进行工具或种子蓄力、释放执行；`drop_held` 将当前非工具物品放到面向格。选择、使用和丢下都不得依赖鼠标。
-- Toolbar 只管理工具，Itembar 只管理可选择非工具物品；最近切换的 bar 成为唯一 active source，同一时间手中只能有一个 ItemStack。
+- Toolbar 只管理工具，Itembar 只管理可选择非工具物品；最近切换的 bar 成为唯一 active source，同一时间手中只能有一个 BackpackSlot。
 - 切换时在 Player 头顶短暂显示对应 bar 并高亮选中格；HUD 常驻显示当前拿着的工具或物品。
 - 背包支持打开/关闭、堆叠、方向焦点和按键交换。背包、Toolbar、Itembar 之间的交换只使用方向 action、确认/交换键和取消键，不支持点击或拖拽。
 

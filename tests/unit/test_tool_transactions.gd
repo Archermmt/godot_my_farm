@@ -49,12 +49,8 @@ func test_multi_cell_tool_use_is_atomic_at_stamina_boundaries() -> void:
 		var player := PlayerState.new()
 		player.set_stamina(starting_stamina)
 		var before := _cell_flags(map)
-		var result := Tool.perform(
-			_tool_meta(ToolMeta.ToolKind.HOE, 2),
-			map,
-			[Vector2i(0, 0), Vector2i(1, 0)],
-			player.stamina
-		)
+		var tool := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2))
+		var result := tool.use(map, [Vector2i(0, 0), Vector2i(1, 0)], player.stamina)
 		if starting_stamina < 2:
 			assert_equal(result.error, ERR_CANT_ACQUIRE_RESOURCE)
 			assert_equal(_cell_flags(map), before)
@@ -65,6 +61,7 @@ func test_multi_cell_tool_use_is_atomic_at_stamina_boundaries() -> void:
 			assert_equal(result.effect_cells.size(), 2)
 			assert_equal(player.stamina, starting_stamina)
 			assert_equal(map.interaction_revision, 1)
+		tool.free()
 		map.free()
 
 
@@ -76,28 +73,27 @@ func test_max_charge_hoe_changes_nine_by_nine_for_one_use_cost() -> void:
 	for y: int in 9:
 		for x: int in 9:
 			targets.append(Vector2i(x, y))
-	var result := Tool.perform(_tool_meta(ToolMeta.ToolKind.HOE, 2), map, targets, player.stamina)
+	var tool := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2))
+	var result := tool.use(map, targets, player.stamina)
 	assert_true(result.succeeded())
 	assert_equal(result.effect_cells.size(), 81)
 	assert_equal(result.stamina_spent, 2)
 	assert_equal(player.stamina, 100)
 	assert_equal(map.interaction_revision, 1)
+	tool.free()
 	map.free()
 
 
 func test_tool_result_reports_one_successful_batch() -> void:
 	var map := _make_map(3, 1, CellState.CellFlag.DIGGABLE)
 	var available_stamina := 10
-	var result := Tool.perform(
-		_tool_meta(ToolMeta.ToolKind.HOE, 2),
-		map,
-		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
-		available_stamina
-	)
+	var tool := Tool.new(_tool_meta(ToolMeta.ToolKind.HOE, 2))
+	var result := tool.use(map, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], available_stamina)
 	assert_true(result.succeeded())
 	assert_equal(result.tool_kind, ToolMeta.ToolKind.HOE)
 	assert_equal(result.effect_cells.size(), 3)
 	assert_equal(result.stamina_spent, 2)
+	tool.free()
 	map.free()
 
 

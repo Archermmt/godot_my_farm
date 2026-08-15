@@ -1,20 +1,25 @@
 extends ProjectTestCase
 
 
-func test_item_stack_rejects_invalid_amount_and_missing_id() -> void:
-	assert_true(ItemStack.from_dict({"item_id": "material_wood", "amount": "3"}) == null)
-	assert_true(ItemStack.from_dict({"item_id": "", "amount": 3}) == null)
-	assert_true(ItemStack.from_dict({"item_id": "material_wood", "amount": -1}) == null)
+func test_backpack_slot_rejects_invalid_amount_and_missing_id() -> void:
+	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "material_wood", "amount": "3"}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "", "amount": 3}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "material_wood", "amount": -1}) == null)
 
 
-func test_inventory_rejects_invalid_nested_stack_and_selection() -> void:
-	assert_true(InventoryState.from_dict({"slots": ["bad"], "selected_index": 0}) == null)
-	assert_true(InventoryState.from_dict({
-		"slots": [{"item_id": "material_wood", "amount": 2}],
-		"selected_index": 4,
+func test_backpack_rejects_invalid_nested_slot() -> void:
+	assert_true(BackpackState.from_dict({
+		"slots": {"inventory_0": "bad"},
+		"toolbar": [],
+		"itembar": [],
+		"inventory_capacity": 1,
 	}) == null)
-	assert_true(ToolbarState.from_dict({"owner_id": "itembar", "slots": [], "selected_index": 0}) == null)
-	assert_true(ItembarState.from_dict({"owner_id": "toolbar", "slots": [], "selected_index": 0}) == null)
+	assert_true(BackpackState.from_dict({
+		"slots": {"inventory_0": {"slot_id": "inventory_0", "item_id": "material_wood", "amount": -1}},
+		"toolbar": [],
+		"itembar": [],
+		"inventory_capacity": 1,
+	}) == null)
 
 
 func test_player_and_calendar_reject_out_of_range_state() -> void:
@@ -24,6 +29,7 @@ func test_player_and_calendar_reject_out_of_range_state() -> void:
 		"map_id": "farm", "spawn_id": "default", "facing": "down",
 		"cell": {"x": 0, "y": 0}, "max_health": 100, "health": 100,
 		"max_stamina": 100, "stamina": 100, "gold": 0, "active_hand_source": 99,
+		"backpack": BackpackState.new().to_dict(),
 	}) == null)
 	assert_true(CalendarState.from_dict({"month": 13}) == null)
 	assert_true(CalendarState.from_dict({"minute": 60}) == null)

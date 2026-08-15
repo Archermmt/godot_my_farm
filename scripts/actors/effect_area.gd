@@ -1,4 +1,4 @@
-class_name InteractionCursor
+class_name EffectArea
 extends Node2D
 
 enum InteractionState {
@@ -21,36 +21,25 @@ var charge_level: int = 0
 var charge_elapsed: float = 0.0
 var preview: Array[CellState] = []
 var player_state: PlayerState = null
-var last_tool_outcome: ToolOutcome = null
-var last_seed_outcome: SeedOutcome = null
 
 var _map: BaseMap = null
-var _meta: ItemMeta = null
+var _item: Item = null
 var _map_revision: int = 0
-var _commit_emitted := false
-var _event_bus_service: EventBusService = null
 
 
-func configure(event_bus_service: EventBusService) -> void:
-	_event_bus_service = event_bus_service
-
-
-func begin(next_player_state: PlayerState, map: BaseMap, meta: ItemMeta) -> Error:
+func begin(next_player_state: PlayerState, map: BaseMap, item: Item) -> Error:
 	if state == InteractionState.CHARGING:
 		return ERR_BUSY
-	if next_player_state == null or map == null or meta == null:
+	if next_player_state == null or map == null or item == null or item.meta == null:
 		return ERR_INVALID_PARAMETER
-	if not meta is ToolMeta and not meta is SeedMeta:
+	if not item is Tool and not item is Seed:
 		return ERR_UNAVAILABLE
 	player_state = next_player_state
 	_map = map
-	_meta = meta
+	_item = item
 	_map_revision = map.interaction_revision
 	charge_level = 0
 	charge_elapsed = 0.0
-	_commit_emitted = false
-	last_tool_outcome = null
-	last_seed_outcome = null
 	state = InteractionState.CHARGING
 	_refresh_preview()
 	return OK
@@ -79,49 +68,24 @@ func move_origin(next_cell: Vector2i) -> Error:
 	return OK
 
 
-func release() -> Error:
+func release_preview() -> Error:
 	if state != InteractionState.CHARGING:
 		return ERR_UNAVAILABLE
 	if _map == null or player_state == null or _map.interaction_revision != _map_revision:
 		cancel()
 		return ERR_INVALID_DATA
 	state = InteractionState.COMMITTED
-	var valid_cells: Array[Vector2i] = []
-	if _meta is ToolMeta:
-		var target_cells: Array[Vector2i] = []
-		for cell_state: CellState in preview:
-			target_cells.append(cell_state.cell)
-		last_tool_outcome = Tool.perform(_meta as ToolMeta, _map, target_cells, player_state.stamina, player_state.cell)
-		if last_tool_outcome.error != OK:
-			var tool_error := last_tool_outcome.error
-			_clear_to_idle()
-			return tool_error
-		valid_cells = last_tool_outcome.effect_cells.duplicate()
-	elif _meta is SeedMeta:
-		var seed_cells: Array[Vector2i] = []
-		for cell_state: CellState in preview:
-			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
-				seed_cells.append(cell_state.cell)
-		var stack := player_state.active_stack()
-		last_seed_outcome = Seed.perform(_meta as SeedMeta, _map.catalog(), _map, seed_cells, GameManager.calendar.day, stack.amount)
-		if last_seed_outcome.error != OK:
-			var seed_error := last_seed_outcome.error
-			_clear_to_idle()
-			return seed_error
-		valid_cells = last_seed_outcome.effect_cells.duplicate()
-	else:
-		for cell_state: CellState in preview:
-			if (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0:
-				valid_cells.append(cell_state.cell)
-	if valid_cells.is_empty():
-		cancel()
-		return ERR_UNAVAILABLE
-	if not _commit_emitted:
-		_commit_emitted = true
-		if _event_bus_service != null:
-			_event_bus_service.interaction_committed.emit(_action_id(), valid_cells)
 	_clear_to_idle()
 	return OK
+
+
+func preview_cells(valid_only: bool = false) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell_state: CellState in preview:
+		if valid_only and (cell_state.interaction_flags & CellState.InteractionFlag.VALID) == 0:
+			continue
+		result.append(cell_state.cell)
+	return result
 
 
 func cancel() -> void:
@@ -142,7 +106,7 @@ func _refresh_preview() -> void:
 
 func _build_preview() -> Array[CellState]:
 	var result: Array[CellState] = []
-	if player_state == null or _map == null or _meta == null:
+	if player_state == null or _map == null or _item == null or _item.meta == null:
 		return result
 	var stack := player_state.active_stack()
 	if stack == null or stack.is_empty() or player_state.stamina <= 0:
@@ -159,7 +123,7 @@ func _build_preview() -> Array[CellState]:
 		preview_state.cell = source_state.cell
 		preview_state.flags = source_state.flags
 		preview_state.item_ids = source_state.item_ids.duplicate()
-		var has_seed := not _meta is SeedMeta or index < stack.amount
+		var has_seed := not _item is Seed or index < stack.amount
 		preview_state.interaction_flags = CellState.InteractionFlag.VALID if has_seed and _cell_accepts(map_cell) else CellState.InteractionFlag.INVALID
 		if not source_state.item_ids.is_empty():
 			preview_state.interaction_flags |= CellState.InteractionFlag.ENTITY
@@ -188,10 +152,10 @@ func _dimensions(level: int) -> Vector2i:
 
 
 func _charge_levels() -> Array[Vector2i]:
-	if _meta is ToolMeta:
-		return (_meta as ToolMeta).charge_levels
-	if _meta is SeedMeta:
-		return (_meta as SeedMeta).charge_levels
+	if _item != null and _item.meta is ToolMeta:
+		return (_item.meta as ToolMeta).charge_levels
+	if _item != null and _item.meta is SeedMeta:
+		return (_item.meta as SeedMeta).charge_levels
 	return []
 
 
@@ -209,24 +173,17 @@ func _target_cells(origin: Vector2i, facing: StringName, length: int, width: int
 func _cell_accepts(cell: MapCell) -> bool:
 	if cell == null:
 		return false
-	if _meta is SeedMeta:
+	if _item is Seed:
 		return _map.check_cell(cell.coordinates, BaseMap.CellCondition.PLANTABLE)
-	if not _meta is ToolMeta:
+	if not _item is Tool:
 		return false
-	var tool_meta := _meta as ToolMeta
-	if Tool.targets_cells(tool_meta):
-		return Tool.cell_rejection_reason(tool_meta, cell) == &""
-	if tool_meta.tool_kind == ToolMeta.ToolKind.NONE:
+	var tool := _item as Tool
+	var tool_meta := tool.tool_meta()
+	if tool.targets_cells():
+		return tool.rejection_reason(cell) == &""
+	if tool_meta == null or tool_meta.tool_kind == ToolMeta.ToolKind.NONE:
 		return cell.has_occupant()
-	return Tool.item_rejection_reason(tool_meta, _map, cell.coordinates) == &""
-
-
-func _action_id() -> StringName:
-	if _meta is SeedMeta:
-		return &"seed"
-	if _meta is ToolMeta:
-		return &"grid_tool" if Tool.targets_cells(_meta as ToolMeta) else &"harvest_tool"
-	return &"use"
+	return tool.harvest_rejection_reason(_map, cell.coordinates) == &""
 
 
 func _clear_to_idle() -> void:
@@ -236,8 +193,7 @@ func _clear_to_idle() -> void:
 	preview.clear()
 	player_state = null
 	_map = null
-	_meta = null
-	_commit_emitted = false
+	_item = null
 	queue_redraw()
 func _draw() -> void:
 	if _map == null:

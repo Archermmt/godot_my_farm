@@ -1,7 +1,11 @@
 class_name Harvestable
 extends Item
 
+const HIT_FLASH_HOLD_DURATION := 0.04
+const HIT_FLASH_FADE_DURATION := 0.12
+
 @onready var harvestable_visual: Sprite2D = get_node_or_null("StageVisual") as Sprite2D
+var _hit_flash_tween: Tween = null
 
 
 func _ready() -> void:
@@ -45,13 +49,23 @@ func apply_tool(tool_kind: ToolMeta.ToolKind, damage: int) -> Error:
 		return ERR_UNAVAILABLE
 	var typed_state := harvestable_state()
 	typed_state.health = maxi(0, typed_state.health - maxi(1, damage))
-	_refresh_health_visual()
+	if not is_depleted():
+		_refresh_health_visual()
+	_play_hit_flash()
 	return OK
 
 
 func is_depleted() -> bool:
 	var typed_state := harvestable_state()
 	return typed_state != null and typed_state.health <= 0
+
+
+func play_depletion_flash_then_free() -> void:
+	var tween := _play_hit_flash()
+	if tween == null:
+		queue_free()
+		return
+	tween.tween_callback(Callable(self, "queue_free"))
 
 
 func active_drops() -> Array[HarvestableDrop]:
@@ -87,6 +101,26 @@ func _refresh_health_visual() -> void:
 	var stage := health_stage()
 	harvestable_visual.texture = stage.texture if stage != null else null
 	harvestable_visual.position = stage.visual_offset if stage != null else Vector2.ZERO
+
+
+func _play_hit_flash() -> Tween:
+	if harvestable_visual == null:
+		harvestable_visual = get_node_or_null("StageVisual") as Sprite2D
+	if harvestable_visual == null or not harvestable_visual.material is ShaderMaterial:
+		return null
+	if _hit_flash_tween != null and _hit_flash_tween.is_valid():
+		_hit_flash_tween.kill()
+	var flash_material := harvestable_visual.material as ShaderMaterial
+	flash_material.set_shader_parameter(&"flash_amount", 1.0)
+	_hit_flash_tween = create_tween()
+	_hit_flash_tween.tween_interval(HIT_FLASH_HOLD_DURATION)
+	_hit_flash_tween.tween_property(
+		flash_material,
+		"shader_parameter/flash_amount",
+		0.0,
+		HIT_FLASH_FADE_DURATION
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	return _hit_flash_tween
 
 
 func _ensure_obstacle_collision() -> void:

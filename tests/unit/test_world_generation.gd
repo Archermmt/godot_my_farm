@@ -122,7 +122,7 @@ func test_generator_rejects_duplicate_candidate_types() -> void:
 	duplicate.meta_id = &"tree"
 	duplicate.max_count = 1
 	generator.candidates = [first, duplicate]
-	assert_equal(generator.validation_error(DataCatalog), ERR_INVALID_DATA)
+	assert_equal(generator.validation_error(), ERR_INVALID_DATA)
 
 
 func test_field_generation_uses_resource_cells_within_map_size() -> void:
@@ -131,7 +131,6 @@ func test_field_generation_uses_resource_cells_within_map_size() -> void:
 	var map := FIELD_SCENE.instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	map.configure_services(DataCatalog, null)
 	assert_equal(map.configure_state(state, 4021, true), OK)
 	assert_true(state.items.size() > 0)
 	for item_state: ItemState in state.items.values():
@@ -162,7 +161,6 @@ func _farm() -> BaseMap:
 	var map := FARM_SCENE.instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	map.configure_services(DataCatalog, null)
 	return map
 
 
@@ -170,7 +168,6 @@ func _field() -> BaseMap:
 	var map := FIELD_SCENE.instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	map.configure_services(DataCatalog, null)
 	return map
 
 

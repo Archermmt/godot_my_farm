@@ -21,11 +21,16 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.get_node("SelectionPopup") is Control)
 	assert_true(player.get_node("SelectionTimer") is Timer)
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
-	var interaction_cursor := player.get_node("InteractionCursor") as InteractionCursor
-	assert_true(interaction_cursor != null)
-	assert_true(interaction_cursor.top_level)
+	assert_equal(player.pickup_radius, 72.0)
+	assert_equal(player.pickup_collect_distance, 10.0)
+	assert_equal(player.pickup_attraction_speed, 180.0)
+	assert_true(not player.has_node("PickupRange"))
+	assert_true(not player.has_node("CollectArea"))
+	var effect_area := player.get_node("EffectArea") as EffectArea
+	assert_true(effect_area != null)
+	assert_true(effect_area.top_level)
 	player.position = Vector2(100, 100)
-	assert_equal(interaction_cursor.global_position, Vector2.ZERO)
+	assert_equal(effect_area.global_position, Vector2.ZERO)
 	var camera: Camera2D = player.get_node("Camera2D") as Camera2D
 	assert_true(camera.enabled)
 	assert_equal(camera.process_callback, Camera2D.CAMERA2D_PROCESS_PHYSICS)
@@ -55,4 +60,5 @@ func test_main_actor_host_contains_exactly_one_player() -> void:
 	assert_true(inventory_ui.get_node("InventoryPanel/ToolbarSlots") is HBoxContainer)
 	assert_true(inventory_ui.get_node("InventoryPanel/ItembarSlots") is HBoxContainer)
 	assert_true(inventory_ui.get_node("InventoryPanel/InventorySlots") is GridContainer)
+	assert_true(main.get_node("UILayer/PresentationLayer") is PresentationController)
 	main.free()

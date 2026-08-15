@@ -1,8 +1,8 @@
-# T10 时间、状态、睡眠与光照
+# T10 时间、天气、状态、睡眠与光照
 
 ## 目标
 
-完成日历推进、时钟 HUD、体力/生命/金币状态、深夜/耗尽换日、回小屋起床、作物成长和室内外光照调度。
+完成日历推进、季节天气、时钟 HUD、体力/生命/金币状态、深夜/耗尽换日、回小屋起床、作物成长和室内外天光调度。
 
 ## 依赖
 
@@ -11,21 +11,24 @@
 ## 交付范围
 
 - 完善 GameManager 内的时间控制与 CalendarState。
-- `scripts/world/day_cycle_controller.gd` 或等价应用协调器。
-- Clock/PlayerStatus 最小 HUD；LightSchedule Resource 与地图光照节点。
-- 常驻“游戏状态 + 人物状态”显示面板：同一面板显示日期、时间、季节、地图、生命、体力和金币，并随运行时状态实时更新。
-- time/day-cycle 单元和集成测试。
+- 场景型 `WeatherManager` Autoload：每日天气选择和全局 CanvasModulate 天光。
+- Inspector 可配置的 `SeasonMeta`：每季一份，记录 season_id、月份集合、天气选择权重和天光色调。
+- 常驻“游戏状态 + 人物状态”显示面板：同一面板显示日期、时间、季节、天气、生命、体力、金币和手持状态，并随运行时状态实时更新。
+- time/weather/day-cycle 单元和集成测试。
 
 ## 实现要求
 
 1. 现实时间按配置倍率转换为游戏分钟；HUD 每 5 游戏分钟刷新，但底层时间精确到分钟。
-2. year/month/day/week_day/hour/minute 边界依次推进，30 天/月、12 月/年，季节从 month 派生；测试大 delta。
+2. year/month/day/week_day/hour/minute 边界依次推进，30 天/月、12 月/年；月份到季节的归属由 WeatherManager 的 `SeasonMeta.months` 决定，并同步到 CalendarState 的派生 `season_id`；测试大 delta。
 3. 到 23:00 只发起一次 end-day。体力或生命归零也请求同一协调流程，不能递归/重复加天。
 4. 换日顺序遵循架构：记录 previous -> 日历加一天 -> crop/generator/NPC 更新 -> Player 恢复 -> SceneManager 到 cabin -> 06:00 醒来。
 5. 工具/播种/采集使用统一 PlayerState.consume_energy；不足时行动原子失败。Food Item 可恢复体力但不超过上限。
 6. inventory、scene_transition 等 pause reason 阻止时间 tick；解除顺序正确。
-7. LightSchedule 数据定义时段颜色/能量，室外用 CanvasModulate/Light2D，室内使用独立 profile；时间跳跃后直接采样正确状态。
-8. 受控推进时间只在 debug feature/test fixture 开启，不作为发行快捷键。
+7. `WeatherManager` 根节点使用 CanvasModulate，统一拥有早晨、中午、傍晚、夜间天光颜色；室内使用中和混合，时间跳跃后直接采样正确状态，不从旧时段补间。
+8. 每天开始时仅从当前 `SeasonMeta` 的天气权重中按正权重随机选择一次天气；配置必须覆盖四季和 12 个月，重复季节、重复月份、空候选和非正权重在启动时拒绝。
+9. 天气抽取使用 world seed、日期和可配置 salt，保证同一存档日期重复加载得到同一天气；当日天气不复制进 CalendarState。
+10. `weather_changed` 只通知天气事实；地图和 HUD 查询 WeatherManager，禁止各自重复选择天气。WeatherManager 不搜索业务场景树。
+11. 受控推进时间只在 debug feature/test fixture 开启，不作为发行快捷键。
 
 ## 自动化验收
 
@@ -34,16 +37,18 @@
 - 已浇作物成长一次，未浇不成长；Player 恢复且 06:00 在 cabin。
 - 工具体力恰好/不足、Food 上限。
 - pause reason 叠加；加载 18:00 时光照直接正确，不从早晨补间。
+- 四季配置均有候选、12 个月均有唯一季节归属且权重独立；同 seed/日期结果稳定，不会跨季节选中候选。
+- 天气色调参与室外天光；cabin 的同一时间颜色更接近中性白；HUD 随天气信号更新。
 
 ## godot-ai 验收
 
-运行时观察早晨/中午/傍晚/夜间四个受控时间截图；从 22:55 推进到换日，检查 cabin、06:00、状态条和作物阶段。日志确认 day_advanced 只一次，game/editor 无错误。
+运行时观察早晨/中午/傍晚/夜间四个受控时间截图；从 22:55 推进到换日，检查 cabin、06:00、天气字段、天光色调、状态条和作物阶段。连续跳过数日确认每日只选择一次天气且符合当前季节候选。日志确认 day_advanced/weather_changed 各自只发生一次，game/editor 无错误。
 
 ## 不做
 
-- 不实现天气、季节作物限制或睡觉确认 UI。
+- 不实现降雨/降雪粒子、地面积雪、天气音频、天气对作物的加成、季节作物限制或睡觉确认 UI。
 - 不加入可由玩家滥用的发行时间作弊键。
 
 ## 完成记录
 
-STATUS 记录时间倍率、边界测试、day 事件计数、run_id 和四时段/次日截图；总表 T10 completed。
+STATUS 记录时间倍率、季节天气权重、day/weather 事件计数、run_id 和四时段/次日截图；总表 T10 completed。

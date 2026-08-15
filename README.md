@@ -27,7 +27,7 @@
 
 ## 已实现能力
 
-- 5 个有明确职责的游戏 Autoload：EventBus、DataCatalog、GameManager、SceneManager、AudioManager；GameManager 统一持有游戏状态、时间和存档入口。
+- 6 个有明确职责的游戏 Autoload：EventBus、DataCatalog、GameManager、SceneManager、WeatherManager、AudioManager；GameManager 统一持有游戏状态、时间和存档入口，WeatherManager 负责每日天气与天光。
 - 12 个物品定义、1 种作物及 4 个成长阶段、3 个采集物、4 张掉落表和 1 份 NPC 日程定义。
 - 可 JSON round-trip 的玩家、背包、日历、地图、农田、作物、世界 Item 和 NPC 状态模型。
 - 固定容量背包的堆叠、添加、移除、交换、合并和跨容器交换逻辑。

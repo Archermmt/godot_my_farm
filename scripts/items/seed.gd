@@ -4,24 +4,10 @@ extends Item
 var plant_meta: PlantMeta = null
 
 
-func _init(next_meta: SeedMeta = null, catalog: DataCatalogService = null) -> void:
+func _init(next_meta: SeedMeta = null) -> void:
 	meta = next_meta
-	if next_meta != null and catalog != null and next_meta.plant_id != &"":
-		plant_meta = catalog.get_plant(next_meta.plant_id)
-
-
-static func perform(
-	meta: SeedMeta,
-	catalog_service: DataCatalogService,
-	map: BaseMap,
-	target_cells: Array[Vector2i],
-	planted_on_day: int,
-	available_count: int
-) -> SeedOutcome:
-	var seed := Seed.new(meta, catalog_service)
-	var result := seed.use(map, target_cells, planted_on_day, available_count)
-	seed.free()
-	return result
+	if next_meta != null and next_meta.plant_id != &"":
+		plant_meta = DataCatalog.get_plant(next_meta.plant_id)
 
 
 func use(map: BaseMap, target_cells: Array[Vector2i], planted_on_day: int, available_count: int) -> SeedOutcome:

@@ -20,15 +20,16 @@ func test_gameplay_selection_and_inventory_actions_are_keyboard_only() -> void:
 		assert_true(not InputMap.has_action(removed_action), "legacy input action still registered: %s" % removed_action)
 
 
-func test_input_direction_normalizes_diagonal_and_preserves_zero() -> void:
+func test_input_direction_stays_continuous_and_normalized() -> void:
 	var diagonal := FarmPlayer.normalized_direction(Vector2(1.0, 1.0))
 	assert_true(is_equal_approx(diagonal.length(), 1.0))
 	assert_true(is_equal_approx(diagonal.x, diagonal.y))
 	assert_equal(FarmPlayer.normalized_direction(Vector2.ZERO), Vector2.ZERO)
 	var player := FarmPlayer.new()
-	assert_equal(player._cardinal_input_direction(Vector2(0.8, 0.4)), Vector2i.RIGHT)
-	assert_equal(player._cardinal_input_direction(Vector2(-0.2, -0.9)), Vector2i.UP)
-	assert_equal(player._cardinal_input_direction(Vector2.ZERO), Vector2i.ZERO)
+	var velocity := player.velocity_for(Vector2(0.8, 0.4), false)
+	assert_true(is_equal_approx(velocity.length(), player.run_speed))
+	assert_true(not is_zero_approx(velocity.x))
+	assert_true(not is_zero_approx(velocity.y))
 	player.free()
 
 

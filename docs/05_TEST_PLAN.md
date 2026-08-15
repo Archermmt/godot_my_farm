@@ -28,7 +28,7 @@ godot --headless --path . --quit
 测试规则：
 
 - 每个 `test_*` 至少一个断言；环境不满足时显式 skip 并说明原因。
-- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、ItemStack amount、PlantState meta_id/growth_days。
+- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、BackpackSlot amount、PlantState meta_id/growth_days。
 - 随机行为固定 seed，并断言边界与确定结果。
 - 测试结束清理 `user://` 下测试专用文件，不能覆盖真实 `slot_0.json`。
 - 测试套件之间不共享可变 Autoload 状态；每个套件 reset 或构造独立实例。
@@ -38,7 +38,7 @@ godot --headless --path . --quit
 | 模块 | 必测成功路径 | 必测失败/边界 |
 |---|---|---|
 | DataCatalog | ID 索引和交叉引用 | 重复 ID、缺失 crop/drop 引用 |
-| InventoryState | 堆叠、交换、合并、移除 | 满包、不足数量、越界 slot |
+| BackpackState | 命名槽位、堆叠、交换、合并、移除 | 满包、不足数量、越界 slot |
 | PlayerState | 体力/生命/金币上下限 | 负数和超过上限 |
 | CellState/MapCell | DTO round-trip、status、翻地、浇水日、item_ids | 不可挖、重复 ID、坐标不匹配、占用冲突 |
 | Targeting | 各蓄力范围和稳定顺序 | 地图边缘、阻挡、可用目标不足 |
@@ -65,7 +65,7 @@ godot --headless --path . --quit
 
 ### I04 掉落到背包
 
-破坏固定对象，生成固定掉落，Player 进入吸附半径；检查世界 Item 移除和 ItemStack 增加。满包时 Item 保留。
+破坏固定对象，生成固定掉落，Player 进入吸附半径；检查世界 Item 移除和 BackpackSlot 增加。满包时 Item 保留。
 
 ### I05 地图往返
 

@@ -6,6 +6,11 @@ const MOTION_STATES := [&"idle", &"walk", &"run"]
 
 @export_range(1.0, 500.0, 1.0) var run_speed: float = 96.0
 @export_range(1.0, 500.0, 1.0) var walk_speed: float = 48.0
+@export_group("Pickup")
+@export_range(1.0, 160.0, 1.0) var pickup_radius: float = 72.0
+@export_range(1.0, 64.0, 1.0) var pickup_collect_distance: float = 10.0
+@export_range(1.0, 600.0, 1.0) var pickup_attraction_speed: float = 180.0
+@export_group("")
 
 var input_direction: Vector2 = Vector2.ZERO
 var facing: StringName = &"down"
@@ -14,12 +19,7 @@ var walking: bool = false
 var state: PlayerState = null
 
 var _lock_reasons: Dictionary[StringName, bool] = {}
-var _event_bus_service: EventBusService = null
-var _catalog_service: DataCatalogService = null
-var _scene_manager_service: SceneManagerService = null
-var _audio_manager_service: AudioManagerService = null
-var _interaction_move_cooldown: float = 0.0
-var _interaction_move_direction: Vector2i = Vector2i.ZERO
+var _footstep_elapsed: float = 0.0
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var camera: Camera2D = $Camera2D
@@ -30,35 +30,21 @@ var _interaction_move_direction: Vector2i = Vector2i.ZERO
 @onready var selection_title: Label = $SelectionPopup/Background/Title
 @onready var selection_slots: HBoxContainer = $SelectionPopup/Background/Slots
 @onready var selection_timer: Timer = $SelectionTimer
-@onready var interaction_cursor: InteractionCursor = $InteractionCursor
-@onready var collect_area: Area2D = $CollectArea
+@onready var effect_area: EffectArea = $EffectArea
+@onready var backpack: PlayerBackpack = get_node_or_null("Backpack") as PlayerBackpack
 
 
 func _ready() -> void:
 	assert(walk_speed < run_speed, "walk_speed must be lower than run_speed")
-	configure(EventBus, DataCatalog, SceneManager, AudioManager)
 	_play_animation()
 	selection_timer.timeout.connect(_hide_selection_popup)
 	_refresh_held_visual()
-
-
-func configure(
-	event_bus_service: EventBusService,
-	catalog_service: DataCatalogService,
-	scene_manager_service: SceneManagerService,
-	audio_manager_service: AudioManagerService
-) -> void:
-	_event_bus_service = event_bus_service
-	_catalog_service = catalog_service
-	_scene_manager_service = scene_manager_service
-	_audio_manager_service = audio_manager_service
-	interaction_cursor.configure(event_bus_service)
-	if _event_bus_service != null and not _event_bus_service.bar_selection_changed.is_connected(_on_bar_selection_changed):
-		_event_bus_service.bar_selection_changed.connect(_on_bar_selection_changed)
-	if _event_bus_service != null and not _event_bus_service.active_hand_changed.is_connected(_on_active_hand_changed):
-		_event_bus_service.active_hand_changed.connect(_on_active_hand_changed)
-	if _event_bus_service != null and not _event_bus_service.player_state_changed.is_connected(_on_player_state_changed):
-		_event_bus_service.player_state_changed.connect(_on_player_state_changed)
+	if not EventBus.bar_selection_changed.is_connected(_on_bar_selection_changed):
+		EventBus.bar_selection_changed.connect(_on_bar_selection_changed)
+	if not EventBus.active_hand_changed.is_connected(_on_active_hand_changed):
+		EventBus.active_hand_changed.connect(_on_active_hand_changed)
+	if not EventBus.player_state_changed.is_connected(_on_player_state_changed):
+		EventBus.player_state_changed.connect(_on_player_state_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -94,12 +80,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if interaction_cursor == null:
+	if effect_area == null:
 		return
-	if interaction_cursor.is_charging() and is_input_locked():
+	if effect_area.is_charging() and is_input_locked():
 		_cancel_interaction()
 		return
-	interaction_cursor.update(delta)
+	effect_area.update(delta)
 
 
 func _notification(what: int) -> void:
@@ -110,10 +96,13 @@ func _notification(what: int) -> void:
 func _physics_process(delta: float) -> void:
 	input_direction = movement_vector()
 	walking = wants_walk()
-	if interaction_cursor != null and interaction_cursor.is_charging():
-		_process_interaction_grid_move(delta)
-		velocity = Vector2.ZERO
-		set_motion(&"idle", facing)
+	if effect_area != null and effect_area.is_charging():
+		# Keep movement continuous while locking facing. The cursor itself only
+		# refreshes after _sync_state_cell() observes a crossed cell boundary.
+		velocity = velocity_for(input_direction, walking)
+		move_and_slide()
+		set_motion(resolve_motion_state(input_direction, walking), facing)
+		_process_footsteps(delta)
 		_sync_state_cell()
 		return
 	else:
@@ -121,47 +110,47 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity_for(input_direction, walking)
 	move_and_slide()
 	set_motion(resolve_motion_state(input_direction, walking), facing)
+	_process_footsteps(delta)
 	_sync_state_cell()
 	_process_pickups(delta)
 
 
 func _process_pickups(delta: float) -> void:
-	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
-	if map == null or collect_area == null:
+	var map: BaseMap = SceneManager.current_map()
+	if map == null:
 		return
-	map.collect_pickups(self, global_position, 72.0, delta)
+	for item: Item in map.pickup_items_in_radius(global_position, pickup_radius):
+		_process_pickup(item, map, delta)
 
 
-func _process_interaction_grid_move(delta: float) -> void:
-	_interaction_move_cooldown = maxf(0.0, _interaction_move_cooldown - delta)
-	var direction: Vector2i = _cardinal_input_direction(input_direction)
-	if direction == Vector2i.ZERO:
-		_interaction_move_direction = Vector2i.ZERO
-		return
-	if direction == _interaction_move_direction and _interaction_move_cooldown > 0.0:
-		return
-	_interaction_move_direction = direction
-	_interaction_move_cooldown = 0.14
-	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
-	if map == null or state == null:
-		return
-	var target_cell: Vector2i = state.cell + direction
-	if not map.contains_cell(target_cell) or not map.is_walkable(target_cell):
-		return
-	var target_position := map.cell_to_world_center(target_cell)
-	var movement := target_position - global_position
-	if test_move(global_transform, movement):
-		return
-	global_position = target_position
-	interaction_cursor.move_origin(target_cell)
+func _process_pickup(item: Item, map: BaseMap, delta: float) -> bool:
+	if item == null or map == null or state == null or item.meta == null or not item.meta.can_pickup:
+		return false
+	var offset := global_position - item.global_position
+	var distance := offset.length()
+	if distance > pickup_collect_distance and distance > 0.0:
+		var speed_scale := 1.0 + clampf(1.0 - distance / pickup_radius, 0.0, 1.0) * 2.0
+		var travel := pickup_attraction_speed * speed_scale * maxf(delta, 0.0)
+		item.global_position += offset / distance * minf(distance, travel)
+		return false
+	if collect_item(item.meta, 1) != 1:
+		return false
+	var remove_error := map.remove_item(item.item_id())
+	assert(remove_error == OK, "Collected Item must still belong to the current map")
+	return remove_error == OK
 
 
-func _cardinal_input_direction(direction: Vector2) -> Vector2i:
-	if is_zero_approx(direction.x) and is_zero_approx(direction.y):
-		return Vector2i.ZERO
-	if absf(direction.x) >= absf(direction.y):
-		return Vector2i(signi(roundi(direction.x)), 0)
-	return Vector2i(0, signi(roundi(direction.y)))
+func _process_footsteps(delta: float) -> void:
+	if velocity.is_zero_approx():
+		_footstep_elapsed = 0.0
+		return
+	_footstep_elapsed += maxf(0.0, delta)
+	var interval := 0.34 if walking else 0.24
+	if _footstep_elapsed < interval:
+		return
+	_footstep_elapsed = 0.0
+	AudioManager.play_event(&"footstep")
+
 
 func movement_vector() -> Vector2:
 	if is_input_locked():
@@ -188,7 +177,7 @@ func set_facing(value: StringName) -> void:
 	if value not in DIRECTIONS:
 		return
 	set_motion(motion_state, value)
-	if interaction_cursor != null and interaction_cursor.is_charging():
+	if effect_area != null and effect_area.is_charging():
 		_cancel_interaction()
 
 
@@ -256,7 +245,7 @@ func set_camera_limits(world_rect: Rect2i) -> Error:
 
 
 func debug_snapshot() -> Dictionary:
-	var active_stack: ItemStack = state.active_stack() if state != null else null
+	var active_stack: BackpackSlot = state.active_stack() if state != null else null
 	return {
 		"position": global_position,
 		"velocity": velocity,
@@ -277,6 +266,7 @@ func debug_snapshot() -> Dictionary:
 
 func _on_bar_selection_changed(source: int, _selected_index: int) -> void:
 	_show_selection_popup(source as PlayerState.ActiveHandSource)
+	AudioManager.play_event(&"ui_confirm")
 
 
 func _on_active_hand_changed(_source: int, _item_id: StringName, _amount: int) -> void:
@@ -286,11 +276,11 @@ func _on_active_hand_changed(_source: int, _item_id: StringName, _amount: int) -
 func _refresh_held_visual() -> void:
 	if held_visual == null:
 		return
-	var stack: ItemStack = state.active_stack() if state != null else null
+	var stack: BackpackSlot = state.active_stack() if state != null else null
 	if stack == null or stack.is_empty():
 		held_visual.visible = false
 		return
-	var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
+	var meta: ItemMeta = DataCatalog.get_item(stack.item_id)
 	if meta == null:
 		held_visual.visible = false
 		return
@@ -302,33 +292,35 @@ func _refresh_held_visual() -> void:
 func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
 	if state == null:
 		return
-	var container: InventoryState = state.toolbar if source == PlayerState.ActiveHandSource.TOOLBAR else state.itembar if source == PlayerState.ActiveHandSource.ITEMBAR else null
-	if container == null:
+	var container_id: StringName = &"toolbar" if source == PlayerState.ActiveHandSource.TOOLBAR else &"itembar" if source == PlayerState.ActiveHandSource.ITEMBAR else &""
+	if state.backpack_state == null or container_id == &"":
 		return
+	var capacity := state.backpack_state.capacity(container_id)
+	var selected_index := state.backpack_state.selected_toolbar_index if source == PlayerState.ActiveHandSource.TOOLBAR else state.backpack_state.selected_itembar_index
 	for child: Node in selection_slots.get_children():
 		child.free()
-	for index: int in container.capacity():
-		var stack := container.get_slot(index)
+	for index: int in capacity:
+		var stack := state.backpack_state.get_slot(container_id, index)
 		var slot := ColorRect.new()
 		slot.custom_minimum_size = Vector2(17, 17)
-		slot.color = Color("f2c14e") if index == container.selected_index else Color("284a48")
+		slot.color = Color("f2c14e") if index == selected_index else Color("284a48")
 		var label := Label.new()
 		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		label.add_theme_font_size_override("font_size", 7)
-		label.add_theme_color_override("font_color", Color("142c2b") if index == container.selected_index else Color("e9f0df"))
+		label.add_theme_color_override("font_color", Color("142c2b") if index == selected_index else Color("e9f0df"))
 		if stack != null and not stack.is_empty():
-			var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
+			var meta: ItemMeta = DataCatalog.get_item(stack.item_id)
 			label.text = _short_label(meta) if meta != null else "?"
 		else:
 			label.text = "-"
 		slot.add_child(label)
 		selection_slots.add_child(slot)
-	var selected := container.selected_stack()
+	var selected := state.backpack_state.get_slot(container_id, selected_index)
 	var selected_name := "Empty"
 	if selected != null and not selected.is_empty():
-		var selected_meta: ItemMeta = _catalog_service.get_item(selected.item_id) if _catalog_service != null else null
+		var selected_meta: ItemMeta = DataCatalog.get_item(selected.item_id)
 		selected_name = selected_meta.display_name if selected_meta != null else String(selected.item_id)
 	selection_title.text = "%s  %s" % ["TOOLS" if source == PlayerState.ActiveHandSource.TOOLBAR else "ITEMS", selected_name]
 	selection_popup.visible = true
@@ -366,33 +358,37 @@ func bind_state(next_state: PlayerState) -> Error:
 		return ERR_INVALID_PARAMETER
 	state = next_state
 	facing = state.facing
+	if backpack != null:
+		backpack.sync_from_player_state(state)
 	_refresh_held_visual()
 	return OK
 
 
-func get_container(container_id: StringName) -> InventoryState:
-	return state.get_container(container_id) if state != null else null
-
-
-func active_stack() -> ItemStack:
+func active_stack() -> BackpackSlot:
 	return state.active_stack() if state != null else null
 
 
 func collect_item(item_meta: ItemMeta, amount: int) -> int:
-	if state == null or item_meta == null or item_meta.is_tool() or amount <= 0 or not state.itembar.accepts(item_meta):
+	if state == null or state.backpack_state == null or item_meta == null or item_meta.is_tool() or amount <= 0 or not state.backpack_state.accepts(&"itembar", item_meta):
 		return 0
-	var accepted_by_itembar := state.itembar.add_item_partial(item_meta.id, amount, item_meta.stack_limit)
+	if state.backpack_state == null:
+		return 0
+	if backpack != null:
+		backpack.sync_from_player_state(state)
+	var accepted_by_itembar := state.backpack_state.add_item_partial(&"itembar", item_meta.id, amount, item_meta.stack_limit)
 	var remaining := amount - accepted_by_itembar
-	var accepted_by_inventory := state.inventory.add_item_partial(item_meta.id, remaining, item_meta.stack_limit) if remaining > 0 else 0
-	if _event_bus_service != null:
-		if accepted_by_itembar > 0:
-			_event_bus_service.container_changed.emit(&"itembar")
-		if accepted_by_inventory > 0:
-			_event_bus_service.container_changed.emit(&"inventory")
-		if accepted_by_itembar > 0 and state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR:
-			var active := state.active_stack()
-			_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
-	return accepted_by_itembar + accepted_by_inventory
+	var accepted_by_inventory := state.backpack_state.add_item_partial(&"inventory", item_meta.id, remaining, item_meta.stack_limit) if remaining > 0 else 0
+	if accepted_by_itembar > 0:
+		EventBus.container_changed.emit(&"itembar")
+	if accepted_by_inventory > 0:
+		EventBus.container_changed.emit(&"inventory")
+	if accepted_by_itembar > 0 and state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR:
+		var active := state.active_stack()
+		EventBus.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
+	var accepted := accepted_by_itembar + accepted_by_inventory
+	if accepted > 0:
+		AudioManager.play_event(&"pickup")
+	return accepted
 
 
 func select_bar_relative(source: PlayerState.ActiveHandSource, offset: int) -> Error:
@@ -418,28 +414,26 @@ func select_bar_index(source: PlayerState.ActiveHandSource, index: int) -> Error
 func exchange_container_slots(source_id: StringName, source_index: int, target_id: StringName, target_index: int) -> Error:
 	if state == null:
 		return ERR_UNCONFIGURED
-	var source := state.get_container(source_id)
-	var target := state.get_container(target_id)
-	if source == null or target == null:
+	if state.backpack_state == null:
 		return ERR_INVALID_PARAMETER
-	var source_stack := source.get_slot(source_index)
-	var target_stack := target.get_slot(target_index)
-	var source_meta: ItemMeta = _catalog_service.get_item(source_stack.item_id) if _catalog_service != null and source_stack != null and not source_stack.is_empty() else null
-	var target_meta: ItemMeta = _catalog_service.get_item(target_stack.item_id) if _catalog_service != null and target_stack != null and not target_stack.is_empty() else null
+	var source_stack := state.backpack_state.get_slot(source_id, source_index)
+	var target_stack := state.backpack_state.get_slot(target_id, target_index)
+	var source_meta: ItemMeta = DataCatalog.get_item(source_stack.item_id) if source_stack != null and not source_stack.is_empty() else null
+	var target_meta: ItemMeta = DataCatalog.get_item(target_stack.item_id) if target_stack != null and not target_stack.is_empty() else null
 	var error := state.exchange_container_slots(source_id, source_index, target_id, target_index, source_meta, target_meta)
 	if error == OK:
-		_event_bus_service.container_changed.emit(source_id)
+		EventBus.container_changed.emit(source_id)
 		if source_id != target_id:
-			_event_bus_service.container_changed.emit(target_id)
-		_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active_stack().item_id if active_stack() != null and not active_stack().is_empty() else &"", active_stack().amount if active_stack() != null and not active_stack().is_empty() else 0)
+			EventBus.container_changed.emit(target_id)
+		EventBus.active_hand_changed.emit(int(state.active_hand_source), active_stack().item_id if active_stack() != null and not active_stack().is_empty() else &"", active_stack().amount if active_stack() != null and not active_stack().is_empty() else 0)
 	return error
 
 
 func _emit_selection_changed() -> void:
-	var container := state.get_container("toolbar" if state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR else "itembar")
-	_event_bus_service.bar_selection_changed.emit(int(state.active_hand_source), container.selected_index)
+	var selected_index := state.backpack_state.selected_toolbar_index if state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR else state.backpack_state.selected_itembar_index
+	EventBus.bar_selection_changed.emit(int(state.active_hand_source), selected_index)
 	var stack := state.active_stack()
-	_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), stack.item_id if stack != null and not stack.is_empty() else &"", stack.amount if stack != null and not stack.is_empty() else 0)
+	EventBus.active_hand_changed.emit(int(state.active_hand_source), stack.item_id if stack != null and not stack.is_empty() else &"", stack.amount if stack != null and not stack.is_empty() else 0)
 
 
 func _on_player_state_changed(next_state: PlayerState) -> void:
@@ -448,87 +442,121 @@ func _on_player_state_changed(next_state: PlayerState) -> void:
 
 
 func _begin_interaction() -> void:
-	if interaction_cursor == null or state == null:
+	if effect_area == null or state == null:
 		return
 	var stack := state.active_stack()
 	if stack == null or stack.is_empty():
 		return
-	var meta: ItemMeta = _catalog_service.get_item(stack.item_id) if _catalog_service != null else null
-	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
-	if meta == null or map == null:
+	var map: BaseMap = SceneManager.current_map()
+	if map == null or backpack == null:
+		return
+	if backpack != null:
+		backpack.sync_from_player_state(state)
+	var item := backpack.active_item(state)
+	if item == null:
 		return
 	var player_cell := map.world_to_cell(global_position)
 	state.cell = player_cell
-	_interaction_move_cooldown = 0.0
-	_interaction_move_direction = Vector2i.ZERO
-	interaction_cursor.begin(state, map, meta)
+	effect_area.begin(state, map, item)
 
 
 func _sync_state_cell() -> void:
 	if state == null:
 		return
-	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
+	var map: BaseMap = SceneManager.current_map()
 	if map == null:
 		return
 	var current_cell := map.world_to_cell(global_position)
 	if not map.contains_cell(current_cell):
 		return
-	state.cell = current_cell
-	if interaction_cursor != null and interaction_cursor.is_charging():
-		interaction_cursor.move_origin(current_cell)
+	if effect_area != null and effect_area.is_charging():
+		effect_area.move_origin(current_cell)
+	else:
+		state.cell = current_cell
 
 
 func _release_interaction() -> void:
-	if interaction_cursor != null:
-		var error := interaction_cursor.release()
-		_reset_interaction_grid_move()
-		if error != OK:
+	if effect_area == null or state == null or backpack == null:
+		return
+	var map: BaseMap = SceneManager.current_map()
+	var item := backpack.active_item(state)
+	if map == null or item == null:
+		_cancel_interaction()
+		_emit_invalid_interaction()
+		return
+	var target_cells := effect_area.preview_cells(false)
+	var valid_cells := effect_area.preview_cells(true)
+	var release_error := effect_area.release_preview()
+	if release_error != OK:
+		_emit_invalid_interaction()
+		return
+	if item is Tool:
+		var tool_result := (item as Tool).use(map, target_cells, state.stamina, state.cell)
+		if tool_result.error != OK:
+			_emit_invalid_interaction()
 			return
-		if interaction_cursor.last_tool_outcome != null:
-			var result := interaction_cursor.last_tool_outcome
-			var stamina_spent := result.stamina_spent
-			if stamina_spent > 0 and state != null and state.consume_energy(stamina_spent):
-				if state.stamina <= 0:
-					GameManager.request_end_day()
-			_emit_tool_outcome(result)
-		elif interaction_cursor.last_seed_outcome != null:
-			var seed_outcome := interaction_cursor.last_seed_outcome
-			if seed_outcome.consumed_count() > 0 and state != null:
-				state.itembar.remove_item(seed_outcome.seed_item_id, seed_outcome.consumed_count())
-				_event_bus_service.container_changed.emit(&"itembar")
-				var active := state.active_stack()
-				_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
+		var stamina_spent := tool_result.stamina_spent
+		if stamina_spent > 0 and state.consume_energy(stamina_spent):
+			if state.stamina <= 0:
+				GameManager.request_end_day()
+			EventBus.player_state_changed.emit(state)
+		_emit_tool_outcome(tool_result)
+	elif item is Seed:
+		var stack := state.active_stack()
+		var available_count := stack.amount if stack != null and not stack.is_empty() else 0
+		var seed_outcome := (item as Seed).use(map, valid_cells, GameManager.calendar.day, available_count)
+		if seed_outcome.error != OK:
+			_emit_invalid_interaction()
+			return
+		if seed_outcome.consumed_count() > 0:
+			backpack.remove_item(&"itembar", seed_outcome.seed_item_id, seed_outcome.consumed_count())
+			EventBus.container_changed.emit(&"itembar")
+			backpack.sync_from_player_state(state)
+			var active := state.active_stack()
+			EventBus.active_hand_changed.emit(
+				int(state.active_hand_source),
+				active.item_id if active != null and not active.is_empty() else &"",
+				active.amount if active != null and not active.is_empty() else 0
+			)
+	else:
+		_emit_invalid_interaction()
 
 
 func _drop_held_item() -> void:
 	if state == null or state.active_hand_source != PlayerState.ActiveHandSource.ITEMBAR:
 		return
 	var stack := state.active_stack()
-	var map: BaseMap = _scene_manager_service.current_map() if _scene_manager_service != null else null
+	var map: BaseMap = SceneManager.current_map()
 	if stack == null or stack.is_empty() or map == null:
 		return
-	var facing_offset: Vector2i = InteractionCursor.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
+	var facing_offset: Vector2i = EffectArea.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
 	var target_cell: Vector2i = map.world_to_cell(global_position) + facing_offset
 	if not map.check_cell(target_cell, BaseMap.CellCondition.DROPABLE):
 		return
 	var dropped_item_id := stack.item_id
 	if map.spawn_pickup(dropped_item_id, target_cell) == &"":
 		return
-	state.itembar.remove_item(dropped_item_id, 1)
-	if _event_bus_service != null:
-		_event_bus_service.container_changed.emit(&"itembar")
-		var active := state.active_stack()
-		_event_bus_service.active_hand_changed.emit(int(state.active_hand_source), active.item_id, active.amount)
+	backpack.remove_item(&"itembar", dropped_item_id, 1)
+	EventBus.container_changed.emit(&"itembar")
+	if backpack != null:
+		backpack.sync_from_player_state(state)
+	var active := state.active_stack()
+	EventBus.active_hand_changed.emit(int(state.active_hand_source), active.item_id if active != null and not active.is_empty() else &"", active.amount if active != null and not active.is_empty() else 0)
+
+
+func _emit_invalid_interaction() -> void:
+	EventBus.request_invalid_feedback.emit(&"invalid_target")
+	AudioManager.play_event(&"invalid")
 
 
 func _emit_tool_outcome(result: ToolOutcome) -> void:
-	if result == null or _event_bus_service == null:
+	if result == null:
 		return
-	_event_bus_service.cells_tool_used.emit(result.tool_kind, result.effect_cells, result.stamina_spent)
+	EventBus.cells_tool_used.emit(result.tool_kind, result.effect_cells, result.stamina_spent)
 	if result is CellToolOutcome:
 		var cell_result := result as CellToolOutcome
 		if cell_result.projection_error != OK:
-			_event_bus_service.cell_projection_failed.emit(cell_result.effect_cells, cell_result.projection_error)
+			EventBus.cell_projection_failed.emit(cell_result.effect_cells, cell_result.projection_error)
 	var event_id: StringName
 	match result.tool_kind:
 		ToolMeta.ToolKind.HOE:
@@ -545,20 +573,13 @@ func _emit_tool_outcome(result: ToolOutcome) -> void:
 			event_id = &"chop"
 		_:
 			event_id = &"tool_use"
-	_event_bus_service.request_tool_feedback.emit(event_id, result.effect_cells)
-	if _audio_manager_service != null:
-		_audio_manager_service.play_event(event_id)
+	EventBus.request_tool_feedback.emit(event_id, result.effect_cells)
+	AudioManager.play_event(event_id)
 
 
 func _cancel_interaction() -> void:
-	if interaction_cursor != null:
-		interaction_cursor.cancel()
-	_reset_interaction_grid_move()
-
-
-func _reset_interaction_grid_move() -> void:
-	_interaction_move_cooldown = 0.0
-	_interaction_move_direction = Vector2i.ZERO
+	if effect_area != null:
+		effect_area.cancel()
 
 
 static func normalized_direction(raw: Vector2) -> Vector2:

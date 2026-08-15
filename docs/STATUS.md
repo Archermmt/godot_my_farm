@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：M2 核心农事闭环。
-- 当前任务：[T10 时间、状态、睡眠与光照](./tasks/T10_TIME_AND_DAY_CYCLE.md)（in_progress）。
-- T06-T09 已完成核心链路；T10 已接通 GameManager 时间推进、30 天日历、统一日结入口和游戏/人物状态显示面板，光照/完整验收仍待完成。
+- 当前任务：[T12 HUD、背包界面、音频与特效](./tasks/T12_PRESENTATION.md)（completed）。
+- T10-T12 已完成时间、季节天气、状态显示、日结、环境生成、统一界面、音频与动作反馈；下一任务为 T13 NPC 日程与跨地图导航。
 - 参考基线：`Archermmt/my_farm@bd808154b479f87efc4fc06ff42c683d7db351bc`。
 
 ## 已验证能力
@@ -13,11 +13,11 @@
 - 已固定 GDScript、Godot 场景/状态边界、任务依赖和验收流程。
 - T01 已建立静态定义、纯 DTO 状态和序列化校验链路；MapState、CellState、ItemState 等状态对象不持有 Node、Texture、PackedScene、Callable 或 NodePath。
 - 核心 catalog 包含 19 个物品、3 种作物/各 4 个成长阶段、3 个采集物、4 张掉落表/4 个 entry、1 份 NPC 日程/1 个 event。
-- InventoryState 支持固定容量、堆叠、添加/移除、交换、合并、跨容器交换和选择；失败路径保持事务前状态。
+- BackpackState/BackpackSlot 支持命名槽位、堆叠、添加/移除、交换、合并、跨容器交换和选择；失败路径保持事务前状态。
 - 所有存档状态提供纯 Dictionary `to_dict()` 与显式严格 factory，Vector2i 和 StringName 经 JSON round-trip 后恢复原类型。
-- T02 已接入 5 个游戏 Autoload，顺序为 EventBus -> DataCatalog -> GameManager -> SceneManager -> AudioManager；GameManager 统一持有玩家、地图、NPC、时间和存档入口；godot-ai 的 `_mcp_game_helper` 是开发期附加服务，不属于游戏服务。
-- DataCatalog 使用显式 `core_catalog.tres`，GameManager 新游戏提供 6 个工具、欧洲防风草/南瓜/土豆种子、cabin/wake 起点、生命/体力/金币和三张空 MapState；`N` 键可开发期跳过一天。
-- GameManager 支持 start/stop、多个 pause reason、时间快照和统一存档入口；SceneManager host 注入、AudioManager 播放 API 在未到对应任务时返回明确 `ERR_UNAVAILABLE`。
+- 已接入 6 个游戏 Autoload，顺序为 EventBus -> DataCatalog -> GameManager -> SceneManager -> WeatherManager -> AudioManager；GameManager 统一持有玩家、地图、NPC、时间和存档入口，WeatherManager 按季节和日期控制天气及天光；godot-ai 的 `_mcp_game_helper` 是开发期附加服务，不属于游戏服务。
+- DataCatalog 场景直接配置 23 个 ItemMeta 和 1 份 NpcSchedule，并建立只读 ID 索引；GameManager 新游戏提供 6 个工具、欧洲防风草/南瓜/土豆种子、cabin/wake 起点、生命/体力/金币和三张空 MapState；`N` 键可开发期跳过一天。
+- GameManager 支持 start/stop、多个 pause reason、时间快照和统一存档入口；SceneManager 管理 host 与转场输入阻断；WeatherManager 使用 Inspector 配置的 SeasonMeta 确定月份归属、每日天气和全局 CanvasModulate；AudioManager 场景直接配置 18 个 AudioDefinition，通过四类 bus 和受限 player pool 播放音频，并随地图交叉淡化 ambient/music。
 - T03 已建立唯一持久 Player leaf scene：CharacterBody2D、Capsule 碰撞、四向 Visual、Hands、InteractionOrigin 与 Camera2D；Main 只在 ActorHost 实例化一个 Player，并由 SceneManager 拒绝重复注册。
 - `player.gd` 单一根控制器集中处理 InputMap、多 reason 输入锁、对角归一化、移动碰撞、朝向、动画选择和 Camera2D limits；默认跑速 96、Shift 慢走 48，斜向朝向水平优先。Visual、Hands、碰撞、交互挂点和相机子节点不再挂角色业务脚本。
 - Player 动画已改为 `AnimationPlayer` + `player_animations.tres`，包含 12 个可编辑的 idle/walk/run 四向动画；运行脚本不再设置 Sprite frame、维护动画相位或手写动画时钟。
@@ -25,13 +25,14 @@
 - T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actors/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
 - T04 已建立 farm、field、cabin 三张独立地图，全部直接使用 BaseMap；MapState 保存 CellState/ItemState DTO，BaseMap 通过 ItemState.meta_id 解析 ItemMeta，管理 MapCell/Item 运行时对象并按 Meta 真实子类路由 host；Item 代码位于与 world 同级的 scripts/items，ScenePort/SceneManager 支持持久 Player 的事务式往返切换。
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
-- T05 已实现 6 格 Toolbar、10 格 Itembar 与 20 格 Inventory。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
+- T05 已完成统一 `BackpackState`/`BackpackSlot` 数据模型：命名槽位由 Dictionary 保存，Toolbar/Itembar 通过槽位 ID 数组组织，Backpack 提供 add/remove/switch API；InventoryState/ToolbarState/ItembarState/ItemStack 已删除。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
 - 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
-- T06 已建立统一 `InteractionCursor`；Player 场景持有并直接控制唯一的 Cursor，Cursor 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview。Cursor 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
+- T06 已建立统一 `EffectArea`；Player 场景持有并直接控制唯一的 EffectArea，EffectArea 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview，但不执行 release 动作。Player 通过子节点 PlayerBackpack 复用当前背包中的 Tool/Seed 运行时对象，释放 `use_held` 时由 Player 调用对象 use、扣体力/数量并发反馈。EffectArea 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
 - T07 已实现运行时 `Tool` 与结构化 `ToolOutcome`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
 - T09 已接通 Sickle/Basket/Pickaxe/Axe 到 Harvestable：工具验证、伤害、固定单次体力消耗、成熟 Plant 收获、确定 RNG 掉落、Tree -> Stump -> 清除和旧 instance ID 防重复结算均由结构化结果与 BaseMap 事务完成。
 - T11 环境生成实现已完成：farm/field 各自挂载可在 Inspector 配置的 ItemsGenerator 子节点，以 world seed/map/epoch/salt 确定生成 tree/rock/grass，避开静态否决格和 SpawnPoints/Ports 安全区，并通过 BaseMap 事务写入普通 ItemState。MapState 保存 generation_epoch/initialized，地图恢复不重复生成。
-- 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；Player CollectArea 驱动吸附，支持零距离和满包保留，移动跨格时同步 MapState/CellState。可拾取 Item 保留 CellState 引用但不阻塞播种/放置；`drop_held` 先创建世界 Item 再扣 Itembar。
+- 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；BaseMap 只按 Player 的 `pickup_radius` 返回候选，Player 负责吸附、Itembar 优先入包并在成功后请求 Map 删除。拾取参数直接由 Player Inspector 配置，不建立 PickupRange 或 Area2D；可拾取 Item 保留 CellState 引用但不阻塞播种/放置，`drop_held` 先创建世界 Item 再扣 Itembar。
+- EffectManager 已作为全局服务注册，效果定义在 `scenes/autoload/effect_manager.tscn` 中通过 Inspector 配置；调用方传入动态 host，动作反馈、碎屑、雨雪等效果不再依赖 Main 场景中的固定 EffectHost。
 - 新游戏 farm 的 MapState 在 cabin 出口左侧固定包含草、石、树和成熟欧洲防风草各一份，供 T09 键盘验收；运行节点统一挂入 BaseMap 的分类 Item host。
 
 ## 环境记录
@@ -44,11 +45,16 @@
 
 ## 最近一次验证
 
+- 日期：2026-08-15（Asia/Shanghai）。
+- Catalog 精简：删除无行为的 GameCatalog/AudioCatalog 包装 Resource；DataCatalog 和 AudioManager 改为场景型 Autoload，Inspector 直接配置定义数组，启动时分别建立 Item/NPC 和音频事件索引。原生 runner、资源 import、主场景 smoke 和 `git diff --check` 通过。
+- T10 天气扩展：WeatherManager 作为第 6 个游戏 Autoload 接管全局 CanvasModulate；4 个 SeasonMeta 覆盖四季和 12 个月且每季默认天气权重合计 100。原生 runner 为 121 tests / 5227 assertions，覆盖配置拒绝、季节隔离、同 seed/日期确定性、换日单次 weather_changed、天气天光色调、室内中和和 HUD 文字边界；资源 import、主场景 smoke 与 `git diff --check` 通过。
 - 日期：2026-08-14（Asia/Shanghai）。
+- T12 自动化：资源 import、原生 runner、主场景冒烟和 `git diff --check` 均通过；runner 为 112 tests / 5155 assertions。AudioManager 定义数组含 18 个事件，Music/Ambient/SFX/UI pool 上限分别为 2/2/10/4；连续 100 次脚步保持单事件最多 1 个实例，连续 50 次多格反馈保持最多 8 个 effect。
+- T12 godot-ai：session `godot-my-farm@c274`，run `r121844889-5`，`helper_live=true`、运行错误为空，game log 仅包含正常启动信息；640x360 UI 读回 HUD 为 165x72，背包为 `(20,24)` / `600x312`，全部文字完整。实时 framebuffer 为 1920x1080、`stale_frame=false`；640x360 与 960x540 布局、夜间 CanvasModulate、Player 头顶固定提示已逐项检查，无重叠或残留 effect。
 - T11 自动化：原生 runner 为 107 tests / 4811 assertions；覆盖 farm/field 配置、seed 确定性、格子 flag、安全区、生成标签、无合法格有限退出、完整状态恢复和 20 次地图恢复不增殖。Godot 资源扫描、主场景运行和 `git diff --check` 通过。
 - T11 godot-ai：session `godot-my-farm@c274`；farm 生成 23/23，field 生成 41/44（3 个受最小距离约束跳过），运行错误为空；farm/field 1280x720 framebuffer 均为实时非空画面，`stale_frame=false`。
 - 日期：2026-08-11（Asia/Shanghai）。
-- T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、Cursor 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
+- T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、EffectArea 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
 - 日期：2026-08-10（Asia/Shanghai）。
 - T05 自动化：资源 import、runner、键盘背包 fixture、地图往返 fixture、玩家碰撞 fixture、主场景 quit 和 `git diff --check` 全部 exit 0；runner 为 63 tests / 3936 assertions。
 - T05 键盘流程：`InventoryKeyboardTest` 验证 Toolbar/Itembar 切换、Player 头顶提示、唯一 HeldVisual、空栏清手、非法 tool -> Itembar 回滚、Toolbar/Itembar -> Inventory 交换以及锁释放，输出 `PASS | toolbar/itembar/head-ui/swap/locks`。

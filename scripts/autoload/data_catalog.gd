@@ -1,9 +1,10 @@
 class_name DataCatalogService
 extends Node
 
-const CORE_CATALOG_PATH := "res://data/catalogs/core_catalog.tres"
+@export_category("Definitions")
+@export var items: Array[ItemMeta] = []
+@export var npc_schedules: Array[NpcSchedule] = []
 
-var _catalog: GameCatalog = null
 var _validation_errors: Array[String] = []
 var _items: Dictionary[StringName, ItemMeta] = {}
 var _npc_schedules: Dictionary[StringName, NpcSchedule] = {}
@@ -11,30 +12,26 @@ var _ready_for_game: bool = false
 
 
 func _ready() -> void:
-	load_catalog(CORE_CATALOG_PATH)
+	initialize()
 
 
-func load_catalog(path: String, report_errors: bool = true) -> bool:
-	var resource: Resource = load(path)
-	var loaded_catalog: GameCatalog = resource as GameCatalog
-	if loaded_catalog == null:
-		_clear()
-		_validation_errors = ["catalog path %s did not load a GameCatalog" % path]
-		_report_errors(report_errors)
-		return false
-	return initialize_from_catalog(loaded_catalog, report_errors)
+func initialize(report_errors: bool = true) -> bool:
+	return initialize_from_definitions(items, npc_schedules, report_errors)
 
 
-func initialize_from_catalog(catalog: GameCatalog, report_errors: bool = true) -> bool:
+func initialize_from_definitions(
+	item_definitions: Array[ItemMeta],
+	schedule_definitions: Array[NpcSchedule] = [],
+	report_errors: bool = true
+) -> bool:
 	_clear()
-	_catalog = catalog
-	_validation_errors = validate_catalog(catalog)
+	_validation_errors = validate_definitions(item_definitions, schedule_definitions)
 	if not _validation_errors.is_empty():
 		_report_errors(report_errors)
 		return false
-	for item: ItemMeta in catalog.items:
+	for item: ItemMeta in item_definitions:
 		_items[item.id] = item
-	for schedule: NpcSchedule in catalog.npc_schedules:
+	for schedule: NpcSchedule in schedule_definitions:
 		_npc_schedules[schedule.id] = schedule
 	_ready_for_game = true
 	if report_errors:
@@ -112,15 +109,15 @@ func item_count() -> int:
 	return _items.size()
 
 
-static func validate_catalog(catalog: GameCatalog) -> Array[String]:
+static func validate_definitions(
+	item_definitions: Array[ItemMeta],
+	schedule_definitions: Array[NpcSchedule] = []
+) -> Array[String]:
 	var errors: Array[String] = []
-	if catalog == null:
-		return ["catalog: resource is null"]
+	var item_ids := _collect_ids(item_definitions, "item", errors)
+	_collect_ids(schedule_definitions, "npc_schedule", errors)
 
-	var item_ids := _collect_ids(catalog.items, "item", errors)
-	_collect_ids(catalog.npc_schedules, "npc_schedule", errors)
-
-	for item: ItemMeta in catalog.items:
+	for item: ItemMeta in item_definitions:
 		if item == null:
 			continue
 		if item.stack_limit <= 0:
@@ -139,7 +136,7 @@ static func validate_catalog(catalog: GameCatalog) -> Array[String]:
 		elif item is HarvestableMeta:
 			_validate_harvestable(item as HarvestableMeta, item_ids, errors)
 
-	for schedule: NpcSchedule in catalog.npc_schedules:
+	for schedule: NpcSchedule in schedule_definitions:
 		if schedule == null:
 			continue
 		if schedule.npc_id == &"":
@@ -249,7 +246,6 @@ static func _collect_ids(resources: Array, kind: String, errors: Array[String]) 
 
 
 func _clear() -> void:
-	_catalog = null
 	_validation_errors.clear()
 	_items.clear()
 	_npc_schedules.clear()

@@ -4,10 +4,10 @@
 [ext_resource type="PackedScene" uid="uid://ctuq8r0y26w3g" path="res://scenes/actors/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_interface.tscn" id="3_inventory"]
 [ext_resource type="PackedScene" path="res://scenes/ui/game_status_panel.tscn" id="4_status"]
+[ext_resource type="PackedScene" path="res://scenes/ui/presentation_layer.tscn" id="5_presentation"]
 
 [node name="Main" type="Node" unique_id=946930135]
 script = ExtResource("1_main")
-time_scale = 1.0
 
 [node name="World" type="Node2D" parent="." unique_id=930485198]
 
@@ -18,14 +18,14 @@ time_scale = 1.0
 [node name="Player" parent="World/ActorHost" unique_id=1380478377 instance=ExtResource("2_player")]
 position = Vector2(320, 252)
 
-[node name="EffectHost" type="Node2D" parent="World" unique_id=1699490242]
-
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=797624007]
 layer = 10
 
 [node name="InventoryInterface" parent="UILayer" unique_id=1241386897 instance=ExtResource("3_inventory")]
 
 [node name="GameStatusPanel" parent="UILayer" unique_id=1471086468 instance=ExtResource("4_status")]
+
+[node name="PresentationLayer" parent="UILayer" unique_id=1023944809 instance=ExtResource("5_presentation")]
 
 [node name="BootstrapScreen" type="Control" parent="UILayer" unique_id=1342820809]
 layout_mode = 3
@@ -296,5 +296,4 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 color = Color(0.0196078, 0.0313726, 0.0313726, 0)
