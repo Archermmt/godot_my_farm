@@ -28,6 +28,8 @@ var last_generation_summary: Dictionary = {}
 func _ready() -> void:
 	if not EventBus.day_advanced.is_connected(_on_day_advanced):
 		EventBus.day_advanced.connect(_on_day_advanced)
+	if not EventBus.weather_changed.is_connected(_on_weather_changed):
+		EventBus.weather_changed.connect(_on_weather_changed)
 	_build_cells()
 
 
@@ -114,7 +116,10 @@ func configure_state(map_state: MapState, world_seed: int = 0, run_generation: b
 				return generation_error
 			map_state.generator_initialized = true
 	interaction_revision += 1
-	return rebuild_cell_state_layers()
+	var projection_error := rebuild_cell_state_layers()
+	if projection_error == OK:
+		_apply_current_weather()
+	return projection_error
 
 func validate_alignment() -> Error:
 	var container := tilemap_container()
@@ -232,7 +237,7 @@ func create_item_instance_id(meta_id: StringName) -> StringName:
 
 func spawn_pickup(meta_id: StringName, coordinates: Vector2i) -> StringName:
 	var item_meta := DataCatalog.get_item(meta_id)
-	if item_meta == null or item_meta is ToolMeta or not item_meta.can_pickup or get_cell(coordinates) == null:
+	if item_meta == null or item_meta is ToolMeta or not item_meta.can_pickup or not item_meta.dropable or get_cell(coordinates) == null:
 		return &""
 	var item_state := ItemState.new()
 	item_state.meta_id = meta_id
@@ -429,12 +434,17 @@ func is_walkable(cell: Vector2i) -> bool:
 	var map_cell := get_cell(cell)
 	return map_cell != null and map_cell.is_walkable()
 
-func commit_cell_changes(changed_cells: Array[Vector2i]) -> Error:
+func commit_cell_changes(changed_cells: Array[Vector2i], synchronize_weather: bool = false) -> Error:
 	if changed_cells.is_empty():
 		return ERR_INVALID_PARAMETER
 	for coordinates: Vector2i in changed_cells:
 		if not cells.has(coordinates):
 			return ERR_DOES_NOT_EXIST
+	if synchronize_weather and _is_rainy_weather():
+		for coordinates: Vector2i in changed_cells:
+			var cell: MapCell = cells[coordinates]
+			if cell.is_dug() and not cell.is_watered():
+				cell.add_state_flag(CellState.CellFlag.WATERED)
 	interaction_revision += 1
 	return rebuild_cell_state_layers()
 
@@ -450,8 +460,21 @@ func clear_watered() -> Array[Vector2i]:
 	return changed
 
 
+func water_dug_cells_from_weather() -> Array[Vector2i]:
+	var changed: Array[Vector2i] = []
+	for coordinates: Vector2i in cells:
+		var cell: MapCell = cells[coordinates]
+		if cell.is_dug() and not cell.is_watered():
+			cell.add_state_flag(CellState.CellFlag.WATERED)
+			changed.append(coordinates)
+	if not changed.is_empty():
+		commit_cell_changes(changed)
+	return changed
+
+
 func _on_day_advanced(_previous_day: int, current_day: int) -> void:
 	settle_day(current_day)
+	call_deferred("_apply_current_weather")
 	if _map_state == null or items_generator == null or not items_generator.regenerate_daily:
 		return
 	_map_state.generation_epoch += 1
@@ -459,6 +482,22 @@ func _on_day_advanced(_previous_day: int, current_day: int) -> void:
 	var generation_error: Error = int(last_generation_summary.get("error", ERR_INVALID_DATA))
 	if generation_error != OK:
 		push_error("[BaseMap] daily generation failed for %s: %s" % [map_id, error_string(generation_error)])
+
+
+func _on_weather_changed(weather_id: StringName, _previous_weather_id: StringName) -> void:
+	if weather_id == &"rain" or weather_id == &"storm":
+		call_deferred("water_dug_cells_from_weather")
+
+
+func _apply_current_weather() -> void:
+	if _is_rainy_weather():
+		water_dug_cells_from_weather()
+
+
+func _is_rainy_weather() -> bool:
+	if not is_instance_valid(CalendarManager):
+		return false
+	return CalendarManager.current_weather_id() in [&"rain", &"storm"]
 
 
 func rebuild_cell_state_layers() -> Error:

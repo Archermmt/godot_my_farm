@@ -4,6 +4,7 @@ extends ProjectTestCase
 func test_gameplay_selection_and_inventory_actions_are_keyboard_only() -> void:
 	for action: StringName in [
 		&"use_held",
+		&"drop",
 		&"drop_held",
 		&"toolbar_previous",
 		&"toolbar_next",

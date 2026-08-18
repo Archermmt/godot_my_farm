@@ -1,0 +1,32 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/burst_particles.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/art/effects/stone_chip.svg" id="2_texture"]
+
+[sub_resource type="Gradient" id="Gradient_mine"]
+offsets = PackedFloat32Array(0, 0.6, 1)
+colors = PackedColorArray(0.95, 0.98, 1, 1, 0.55, 0.62, 0.65, 1, 0.24, 0.29, 0.31, 0)
+
+[node name="MineParticles" type="Node2D"]
+z_index = 30
+script = ExtResource("1_script")
+cleanup_delay = 1.15
+
+[node name="EmitterTemplate" type="CPUParticles2D" parent="."]
+emitting = false
+amount = 14
+lifetime = 0.78
+one_shot = true
+explosiveness_ratio = 1.0
+randomness = 0.38
+texture = ExtResource("2_texture")
+direction = Vector2(0, -1)
+spread = 82.0
+gravity = Vector2(0, 245)
+initial_velocity_min = 66.0
+initial_velocity_max = 122.0
+angular_velocity_min = -420.0
+angular_velocity_max = 420.0
+scale_amount_min = 0.55
+scale_amount_max = 1.15
+color_ramp = SubResource("Gradient_mine")

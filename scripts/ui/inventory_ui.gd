@@ -21,7 +21,7 @@ var _slot_nodes: Dictionary[StringName, Array] = {}
 
 
 func _ready() -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	_ensure_slots(player)
 	if not EventBus.container_changed.is_connected(_on_container_changed):
 		EventBus.container_changed.connect(_on_container_changed)
@@ -78,7 +78,7 @@ func _toggle_panel() -> void:
 
 
 func _open_panel() -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	if player == null or player.state == null:
 		return
 	_ensure_slots(player)
@@ -97,7 +97,7 @@ func _close_panel() -> void:
 	panel_open = false
 	inventory_panel.visible = false
 	_clear_mark()
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	if player != null and INVENTORY_LOCK in player.input_lock_reasons():
 		player.unlock_input(INVENTORY_LOCK)
 	if INVENTORY_LOCK in GameManager.pause_reasons():
@@ -110,7 +110,7 @@ func _handle_swap() -> void:
 		marked_container = focus_container
 		marked_index = focus_index
 		return
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	var error := player.exchange_container_slots(marked_container, marked_index, focus_container, focus_index) if player != null else ERR_UNCONFIGURED
 	mode_label.text = "SWAPPED" if error == OK else "INVALID TARGET"
 	if error == OK:
@@ -122,7 +122,7 @@ func _handle_swap() -> void:
 
 
 func _confirm_focus() -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	if player == null:
 		return
 	if focus_container == &"toolbar":
@@ -136,7 +136,7 @@ func _confirm_focus() -> void:
 
 
 func _move_horizontal(direction: int) -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	var backpack_state := player.state.backpack_state if player != null else null
 	if backpack_state == null:
 		return
@@ -148,7 +148,7 @@ func _move_horizontal(direction: int) -> void:
 
 
 func _move_vertical(direction: int) -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	if player == null or player.state == null:
 		return
 	if focus_container == &"toolbar":
@@ -202,35 +202,39 @@ func _ensure_container_slots(container_id: StringName, parent: Container, count:
 
 
 func _refresh_all() -> void:
-	_ensure_slots(SceneManager.registered_player())
+	_ensure_slots(MapManager.registered_player())
 	for container_id: StringName in CONTAINER_ORDER:
 		_refresh_container(container_id)
 	_refresh_details()
 
 
 func _refresh_container(container_id: StringName) -> void:
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	var backpack_state := player.state.backpack_state if player != null else null
 	var nodes: Array = _slot_nodes.get(container_id, []) as Array
 	if backpack_state == null:
 		return
 	for index: int in mini(backpack_state.capacity(container_id), nodes.size()):
 		var slot := nodes[index] as ColorRect
-		var label := slot.get_child(0) as Label
+		var icon := slot.get_node("Icon") as TextureRect
+		var amount_label := slot.get_node("Amount") as Label
 		var stack := backpack_state.get_slot(container_id, index)
 		var is_focus := panel_open and focus_container == container_id and focus_index == index
 		var is_marked := marked_container == container_id and marked_index == index
 		var selected_index := backpack_state.selected_toolbar_index if container_id == &"toolbar" else backpack_state.selected_itembar_index
 		var is_active := (container_id == &"toolbar" and player.state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR and selected_index == index) or (container_id == &"itembar" and player.state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR and selected_index == index)
 		slot.color = Color("d75c52") if is_marked else Color("76c7bd") if is_focus else Color("e5b94f") if is_active else Color("244543")
-		label.add_theme_color_override("font_color", Color("102827") if is_focus or is_active else Color("eaf0df"))
-		label.text = _stack_label(stack)
+		amount_label.add_theme_color_override("font_color", Color("102827") if is_focus or is_active else Color("eaf0df"))
+		var meta := DataCatalog.get_item(stack.item_id) if stack != null and not stack.is_empty() else null
+		icon.texture = meta.icon_texture if meta != null else null
+		icon.visible = icon.texture != null
+		amount_label.text = str(stack.amount) if stack != null and stack.amount > 1 else ""
 
 
 func _refresh_details() -> void:
 	if not panel_open:
 		return
-	var player := SceneManager.registered_player()
+	var player := MapManager.registered_player()
 	var backpack_state := player.state.backpack_state if player != null else null
 	var stack := backpack_state.get_slot(focus_container, focus_index) if backpack_state != null else null
 	if stack == null or stack.is_empty():
@@ -241,20 +245,6 @@ func _refresh_details() -> void:
 		detail_label.text = String(stack.item_id)
 		return
 	detail_label.text = "%s x%d  |  %s  |  Buy %d / Sell %d" % [meta.display_name, stack.amount, meta.description, meta.buy_price, meta.sell_price]
-
-
-func _stack_label(stack: BackpackSlot) -> String:
-	if stack == null or stack.is_empty():
-		return "-"
-	var meta := DataCatalog.get_item(stack.item_id)
-	var display_name := meta.display_name if meta != null else String(stack.item_id)
-	var words := display_name.split(" ", false)
-	var short := display_name.left(2).to_upper()
-	if meta is SeedMeta and not words.is_empty():
-		short = words[0].left(2).to_upper()
-	elif words.size() >= 2:
-		short = (words[0].left(1) + words[1].left(1)).to_upper()
-	return "%s %d" % [short, stack.amount] if stack.amount > 1 else short
 
 
 func _on_container_changed(_container_id: StringName) -> void:

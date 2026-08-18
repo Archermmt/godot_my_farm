@@ -34,7 +34,7 @@ func active_item(player_state: PlayerState) -> Item:
 		bind_state(player_state.backpack_state)
 	var backpack_slot := backpack_state.selected_slot(player_state.active_hand_source) if backpack_state != null else null
 	if backpack_slot != null and not backpack_slot.is_empty():
-		return item_for_meta(DataCatalog.get_item(backpack_slot.item_id))
+		return item_for_slot(backpack_slot)
 	var stack := player_state.active_stack()
 	if stack == null or stack.is_empty():
 		return null
@@ -58,6 +58,14 @@ func item_for_meta(meta: ItemMeta) -> Item:
 	item.name = String(meta.id)
 	_items[meta.id] = item
 	add_child(item)
+	return item
+
+
+func item_for_slot(slot: BackpackSlot) -> Item:
+	if slot == null or slot.is_empty():
+		return null
+	var meta := DataCatalog.get_item(slot.item_id)
+	var item := item_for_meta(meta)
 	return item
 
 

@@ -1,13 +1,32 @@
 class_name DataCatalogService
 extends Node
 
-@export_category("Definitions")
-@export var items: Array[ItemMeta] = []
-@export var npc_schedules: Array[NpcSchedule] = []
+const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+
+var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var items: Dictionary[StringName, ItemMeta]:
+	get:
+		return config.items
+var npc_schedules: Dictionary[StringName, NpcSchedule]:
+	get:
+		return config.npc_schedules
+var dialogue_definitions: Dictionary[StringName, Resource]:
+	get:
+		return config.dialogue_definitions
+var season_metas: Dictionary[StringName, SeasonMeta]:
+	get:
+		return config.season_metas
+var audio_definitions: Dictionary[StringName, AudioDefinition]:
+	get:
+		return config.audio_definitions
+var effect_definitions: Dictionary[StringName, EffectDefinition]:
+	get:
+		return config.effect_definitions
+var weather_icons: Dictionary[StringName, Texture2D]:
+	get:
+		return config.weather_icons
 
 var _validation_errors: Array[String] = []
-var _items: Dictionary[StringName, ItemMeta] = {}
-var _npc_schedules: Dictionary[StringName, NpcSchedule] = {}
 var _ready_for_game: bool = false
 
 
@@ -16,23 +35,34 @@ func _ready() -> void:
 
 
 func initialize(report_errors: bool = true) -> bool:
-	return initialize_from_definitions(items, npc_schedules, report_errors)
+	_validation_errors.clear()
+	_ready_for_game = false
+	_validation_errors = validate_definitions(items, npc_schedules)
+	_validate_dialogue_dictionary(dialogue_definitions, _validation_errors)
+	if not _validation_errors.is_empty():
+		_report_errors(report_errors)
+		return false
+	_ready_for_game = true
+	if report_errors:
+		print("[DataCatalog] ready | %s" % summary())
+	return true
 
 
 func initialize_from_definitions(
-	item_definitions: Array[ItemMeta],
-	schedule_definitions: Array[NpcSchedule] = [],
+	item_definitions: Dictionary[StringName, ItemMeta],
+	schedule_definitions: Dictionary[StringName, NpcSchedule] = {},
 	report_errors: bool = true
 ) -> bool:
-	_clear()
+	_validation_errors.clear()
+	_ready_for_game = false
 	_validation_errors = validate_definitions(item_definitions, schedule_definitions)
 	if not _validation_errors.is_empty():
 		_report_errors(report_errors)
 		return false
-	for item: ItemMeta in item_definitions:
-		_items[item.id] = item
-	for schedule: NpcSchedule in schedule_definitions:
-		_npc_schedules[schedule.id] = schedule
+	var next_config := config.duplicate() as AutoloadConfig
+	next_config.items = item_definitions.duplicate()
+	next_config.npc_schedules = schedule_definitions.duplicate()
+	config = next_config
 	_ready_for_game = true
 	if report_errors:
 		print("[DataCatalog] ready | %s" % summary())
@@ -49,75 +79,92 @@ func validation_errors() -> Array[String]:
 
 func summary() -> String:
 	return "items=%d plants=%d harvestables=%d schedules=%d" % [
-		_items.size(),
+		items.size(),
 		_count_meta_type(PlantMeta),
 		_count_meta_type(HarvestableMeta),
-		_npc_schedules.size(),
+		npc_schedules.size(),
 	]
 
 
 func get_item(id: StringName) -> ItemMeta:
-	var meta: ItemMeta = _items.get(id) as ItemMeta
+	var meta: ItemMeta = items.get(id) as ItemMeta
 	if meta == null:
 		push_error("[DataCatalog] unknown item id: %s" % id)
 	return meta
 
 
 func get_plant(id: StringName) -> PlantMeta:
-	var meta: PlantMeta = _items.get(id) as PlantMeta
+	var meta: PlantMeta = items.get(id) as PlantMeta
 	if meta == null:
 		push_error("[DataCatalog] unknown plant id: %s" % id)
 	return meta
 
 
 func get_seed(id: StringName) -> SeedMeta:
-	var meta: SeedMeta = _items.get(id) as SeedMeta
+	var meta: SeedMeta = items.get(id) as SeedMeta
 	if meta == null:
 		push_error("[DataCatalog] unknown seed id: %s" % id)
 	return meta
 
 
 func get_harvestable(id: StringName) -> HarvestableMeta:
-	var meta: HarvestableMeta = _items.get(id) as HarvestableMeta
+	var meta: HarvestableMeta = items.get(id) as HarvestableMeta
 	if meta == null:
 		push_error("[DataCatalog] unknown harvestable id: %s" % id)
 	return meta
 
 
+func get_season(id: StringName) -> SeasonMeta:
+	return season_metas.get(id, null) as SeasonMeta
+
+
+func get_audio_definition(id: StringName) -> AudioDefinition:
+	return audio_definitions.get(id, null) as AudioDefinition
+
+
+func get_effect_definition(id: StringName) -> EffectDefinition:
+	return effect_definitions.get(id, null) as EffectDefinition
+
+
 func get_npc_schedule(id: StringName) -> NpcSchedule:
-	var definition: NpcSchedule = _npc_schedules.get(id) as NpcSchedule
+	var definition: NpcSchedule = npc_schedules.get(id) as NpcSchedule
 	if definition == null:
 		push_error("[DataCatalog] unknown NPC schedule id: %s" % id)
 	return definition
 
 
+func get_dialogue(id: StringName) -> Resource:
+	return dialogue_definitions.get(id, null) as Resource
+
+
 func has_item(id: StringName) -> bool:
-	return _items.has(id)
+	return items.has(id)
 
 
 func item_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
-	ids.assign(_items.keys())
+	ids.assign(items.keys())
 	return ids
 
 
 func has_plant(id: StringName) -> bool:
-	return _items.get(id) is PlantMeta
+	return items.get(id) is PlantMeta
 
 
 func item_count() -> int:
-	return _items.size()
+	return items.size()
 
 
 static func validate_definitions(
-	item_definitions: Array[ItemMeta],
-	schedule_definitions: Array[NpcSchedule] = []
+	item_definitions: Dictionary[StringName, ItemMeta],
+	schedule_definitions: Dictionary[StringName, NpcSchedule] = {}
 ) -> Array[String]:
 	var errors: Array[String] = []
-	var item_ids := _collect_ids(item_definitions, "item", errors)
-	_collect_ids(schedule_definitions, "npc_schedule", errors)
+	var item_ids := _validate_item_dictionary(item_definitions, errors)
+	_validate_schedule_dictionary(schedule_definitions, errors)
+	var schedule_npc_ids: Dictionary[StringName, StringName] = {}
 
-	for item: ItemMeta in item_definitions:
+	for item: ItemMeta in item_definitions.values():
 		if item == null:
 			continue
 		if item.stack_limit <= 0:
@@ -126,8 +173,8 @@ static func validate_definitions(
 			errors.append("item %s buy_price must be non-negative" % item.id)
 		if item.sell_price < 0:
 			errors.append("item %s sell_price must be non-negative" % item.id)
-		if item is ToolMeta and item.item_type != ItemMeta.ItemType.TOOL:
-			errors.append("tool %s item_type must be TOOL" % item.id)
+		if item is ToolMeta:
+			_validate_tool(item as ToolMeta, errors)
 		if item is SeedMeta:
 			_validate_seed(item as SeedMeta, item_ids, errors)
 		if item is PlantMeta:
@@ -136,11 +183,17 @@ static func validate_definitions(
 		elif item is HarvestableMeta:
 			_validate_harvestable(item as HarvestableMeta, item_ids, errors)
 
-	for schedule: NpcSchedule in schedule_definitions:
+	for schedule: NpcSchedule in schedule_definitions.values():
 		if schedule == null:
 			continue
 		if schedule.npc_id == &"":
 			errors.append("npc_schedule %s npc_id must not be empty" % schedule.id)
+		elif schedule_npc_ids.has(schedule.npc_id):
+			errors.append("npc_schedule %s duplicates npc_id %s from %s" % [schedule.id, schedule.npc_id, schedule_npc_ids[schedule.npc_id]])
+		else:
+			schedule_npc_ids[schedule.npc_id] = schedule.id
+		if schedule.fallback_map_id == &"":
+			errors.append("npc_schedule %s fallback_map_id must not be empty" % schedule.id)
 		var event_ids: Dictionary = {}
 		for index: int in schedule.events.size():
 			var event: NpcScheduleEvent = schedule.events[index]
@@ -158,8 +211,81 @@ static func validate_definitions(
 				errors.append("npc_schedule %s event %s duration_minutes invalid" % [schedule.id, event.id])
 			if event.map_id == &"":
 				errors.append("npc_schedule %s event %s map_id must not be empty" % [schedule.id, event.id])
+			for season_id: StringName in event.seasons:
+				if season_id not in CalendarState.SEASONS:
+					errors.append("npc_schedule %s event %s season %s invalid" % [schedule.id, event.id, season_id])
+			for month: int in event.months:
+				if month < 1 or month > CalendarState.MONTHS_PER_YEAR:
+					errors.append("npc_schedule %s event %s month %d invalid" % [schedule.id, event.id, month])
+			for weekday: int in event.weekdays:
+				if weekday < 1 or weekday > 7:
+					errors.append("npc_schedule %s event %s weekday %d invalid" % [schedule.id, event.id, weekday])
+		for left_index: int in schedule.events.size():
+			var left := schedule.events[left_index]
+			if left == null:
+				continue
+			for right_index: int in range(left_index + 1, schedule.events.size()):
+				var right := schedule.events[right_index]
+				if right != null and left.priority == right.priority and _schedule_events_overlap(left, right):
+					errors.append("npc_schedule %s events %s and %s overlap at priority %d" % [schedule.id, left.id, right.id, left.priority])
 
 	return errors
+
+
+static func _validate_item_dictionary(
+	item_definitions: Dictionary[StringName, ItemMeta],
+	errors: Array[String]
+) -> Dictionary[StringName, ItemMeta]:
+	var valid_items: Dictionary[StringName, ItemMeta] = {}
+	for item_id: StringName in item_definitions:
+		var item := item_definitions[item_id] as ItemMeta
+		if item_id == &"":
+			errors.append("items contains an empty key")
+			continue
+		if item == null:
+			errors.append("items[%s] is null" % item_id)
+			continue
+		if item.id != item_id:
+			errors.append("items[%s].id must match dictionary key, got %s" % [item_id, item.id])
+			continue
+		valid_items[item_id] = item
+	return valid_items
+
+
+static func _validate_schedule_dictionary(
+	schedule_definitions: Dictionary[StringName, NpcSchedule],
+	errors: Array[String]
+) -> void:
+	for schedule_id: StringName in schedule_definitions:
+		var schedule := schedule_definitions[schedule_id] as NpcSchedule
+		if schedule_id == &"":
+			errors.append("npc_schedules contains an empty key")
+		elif schedule == null:
+			errors.append("npc_schedules[%s] is null" % schedule_id)
+		elif schedule.id != schedule_id:
+			errors.append("npc_schedules[%s].id must match dictionary key, got %s" % [schedule_id, schedule.id])
+
+
+static func _validate_dialogue_dictionary(
+	definitions: Dictionary[StringName, Resource],
+		errors: Array[String]
+) -> void:
+	for dialogue_id: StringName in definitions:
+		var definition := definitions[dialogue_id] as Resource
+		if dialogue_id == &"":
+			errors.append("dialogue_definitions contains an empty key")
+			continue
+		if definition == null:
+			errors.append("dialogue_definitions[%s] is null" % dialogue_id)
+			continue
+		if definition.id != dialogue_id:
+			errors.append("dialogue_definitions[%s].id must match dictionary key" % dialogue_id)
+		if definition.lines.is_empty():
+			errors.append("dialogue %s must contain at least one line" % dialogue_id)
+		for index: int in definition.lines.size():
+			var line := definition.lines[index] as Resource
+			if line == null or line.text.strip_edges().is_empty():
+				errors.append("dialogue %s line %d must contain text" % [dialogue_id, index])
 
 
 static func _validate_plant(plant: PlantMeta, item_ids: Dictionary, errors: Array[String]) -> void:
@@ -186,6 +312,22 @@ static func _validate_seed(seed: SeedMeta, item_ids: Dictionary, errors: Array[S
 		errors.append("seed %s item_type must be SEED" % seed.id)
 	if seed.plant_id == &"" or not item_ids.get(seed.plant_id) is PlantMeta:
 		errors.append("seed %s plant_id must reference PlantMeta %s" % [seed.id, seed.plant_id])
+
+
+static func _validate_tool(tool: ToolMeta, errors: Array[String]) -> void:
+	if tool.item_type != ItemMeta.ItemType.TOOL:
+		errors.append("tool %s item_type must be TOOL" % tool.id)
+	if tool.charges_damage():
+		if tool.damage_multipliers.is_empty():
+			errors.append("tool %s damage_multipliers must not be empty" % tool.id)
+		for multiplier: int in tool.damage_multipliers:
+			if multiplier <= 0:
+				errors.append("tool %s damage_multipliers must be positive" % tool.id)
+	elif tool.charge_levels.is_empty():
+		errors.append("tool %s charge_levels must not be empty" % tool.id)
+	for dimensions: Vector2i in tool.charge_levels:
+		if dimensions.x <= 0 or dimensions.y <= 0:
+			errors.append("tool %s charge_levels dimensions must be positive" % tool.id)
 
 
 static func _validate_harvestable(harvestable: HarvestableMeta, item_ids: Dictionary, errors: Array[String]) -> void:
@@ -228,33 +370,40 @@ static func _validate_drops(drops: Array[HarvestableDrop], owner: String, item_i
 			errors.append("%s drops[%d].chance invalid" % [owner, index])
 
 
-static func _collect_ids(resources: Array, kind: String, errors: Array[String]) -> Dictionary:
-	var ids: Dictionary = {}
-	for index: int in resources.size():
-		var resource: Resource = resources[index]
-		if resource == null:
-			errors.append("%s[%d] is null" % [kind, index])
-			continue
-		var id_value: StringName = resource.get("id") as StringName
-		if id_value == &"":
-			errors.append("%s[%d].id must not be empty" % [kind, index])
-			continue
-		if ids.has(id_value):
-			errors.append("%s duplicate id %s" % [kind, id_value])
-		ids[id_value] = resource
-	return ids
+static func _schedule_events_overlap(left: NpcScheduleEvent, right: NpcScheduleEvent) -> bool:
+	if not _filter_arrays_overlap(left.seasons, right.seasons):
+		return false
+	if not _filter_arrays_overlap(left.months, right.months):
+		return false
+	if not _filter_arrays_overlap(left.weekdays, right.weekdays):
+		return false
+	for left_range: Vector2i in _event_minute_ranges(left):
+		for right_range: Vector2i in _event_minute_ranges(right):
+			if maxi(left_range.x, right_range.x) < mini(left_range.y, right_range.y):
+				return true
+	return false
 
 
-func _clear() -> void:
-	_validation_errors.clear()
-	_items.clear()
-	_npc_schedules.clear()
-	_ready_for_game = false
+static func _event_minute_ranges(event: NpcScheduleEvent) -> Array[Vector2i]:
+	var end_minute := event.start_minute + event.duration_minutes
+	var ranges: Array[Vector2i] = [Vector2i(event.start_minute, mini(end_minute, 1440))]
+	if end_minute > 1440:
+		ranges.append(Vector2i(0, end_minute - 1440))
+	return ranges
+
+
+static func _filter_arrays_overlap(left: Array, right: Array) -> bool:
+	if left.is_empty() or right.is_empty():
+		return true
+	for value: Variant in left:
+		if value in right:
+			return true
+	return false
 
 
 func _count_meta_type(meta_script: Script) -> int:
 	var count := 0
-	for meta: ItemMeta in _items.values():
+	for meta: ItemMeta in items.values():
 		if is_instance_of(meta, meta_script):
 			count += 1
 	return count

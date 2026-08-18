@@ -39,11 +39,21 @@ mouse_filter = 2
 layout_mode = 0
 offset_left = 8.0
 offset_top = 5.0
-offset_right = 161.0
+offset_right = 137.0
 offset_bottom = 30.0
 theme_override_colors/font_color = Color(0.945098, 0.776471, 0.294118, 1)
 theme_override_font_sizes/font_size = 8
-text = "Y1 M1 D1 W1 06:00\nSPR / CLEAR"
+text = "Y1 M1 D1 W1 06:00\nSPR"
+
+[node name="WeatherIcon" type="TextureRect" parent="Panel"]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 10.0
+offset_right = 160.0
+offset_bottom = 30.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Player" type="Label" parent="Panel"]
 layout_mode = 0
@@ -57,10 +67,30 @@ text = "HP 100/100  EN 100/100  G 500"
 
 [node name="Hand" type="Label" parent="Panel"]
 layout_mode = 0
-offset_left = 8.0
+offset_left = 32.0
 offset_top = 52.0
-offset_right = 161.0
+offset_right = 130.0
 offset_bottom = 69.0
 theme_override_colors/font_color = Color(0.917647, 0.94902, 0.866667, 1)
 theme_override_font_sizes/font_size = 7
-text = "HAND  EMPTY  |  EMPTY"
+text = "Empty"
+
+[node name="HandIcon" type="TextureRect" parent="Panel"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 49.0
+offset_right = 28.0
+offset_bottom = 69.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HandAmount" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 132.0
+offset_top = 52.0
+offset_right = 159.0
+offset_bottom = 69.0
+theme_override_colors/font_color = Color(0.917647, 0.94902, 0.866667, 1)
+theme_override_font_sizes/font_size = 7
+vertical_alignment = 1

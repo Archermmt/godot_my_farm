@@ -141,6 +141,7 @@ func remove_item(container_id: StringName, item_id: StringName, amount: int) -> 
 		if slot.amount == 0:
 			slot.clear()
 		if remaining == 0:
+			_compact_after_removal(container_id)
 			return true
 	return false
 
@@ -173,6 +174,25 @@ func used_slot_count(container_id: StringName = &"inventory") -> int:
 		if slot != null and not slot.is_empty():
 			used += 1
 	return used
+
+
+func _compact_after_removal(container_id: StringName) -> void:
+	if container_id != &"itembar" and container_id != &"inventory":
+		return
+	var occupied: Array[BackpackSlot] = []
+	for index: int in capacity(container_id):
+		var slot := get_slot(container_id, index)
+		if slot != null and not slot.is_empty():
+			occupied.append(slot.duplicate_slot())
+	for index: int in capacity(container_id):
+		var target := get_slot(container_id, index)
+		if target == null:
+			continue
+		if index < occupied.size():
+			target.item_id = occupied[index].item_id
+			target.amount = occupied[index].amount
+		else:
+			target.clear()
 
 
 func to_dict() -> Dictionary:

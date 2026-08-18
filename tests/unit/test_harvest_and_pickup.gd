@@ -29,6 +29,20 @@ func test_harvest_tools_validate_damage_and_single_stamina_cost() -> void:
 	assert_equal(result.skipped_reasons[Vector2i(1, 1)], &"duplicate")
 
 
+func test_pickaxe_and_axe_charge_level_scales_damage() -> void:
+	var map := _make_map()
+	_add_harvestable(map, &"rock_charged", &"rock", Vector2i(1, 1), 3)
+	_add_harvestable(map, &"tree_charged", &"tree", Vector2i(2, 1), 5)
+	var pickaxe := _tool(DataCatalog.get_item(&"tool_pickaxe") as ToolMeta)
+	var axe := _tool(DataCatalog.get_item(&"tool_axe") as ToolMeta)
+	var pickaxe_result := pickaxe.use(map, [Vector2i(1, 1)], 10, Vector2i.ZERO, 1)
+	var axe_result := axe.use(map, [Vector2i(2, 1)], 10, Vector2i.ZERO, 2)
+	assert_equal(pickaxe_result.error, OK)
+	assert_equal(axe_result.error, OK)
+	assert_equal((map.get_item(&"rock_charged") as Harvestable).harvestable_state().health, 1)
+	assert_equal((map.get_item(&"tree_charged") as Harvestable).harvestable_state().health, 2)
+
+
 func test_death_drops_once_and_tree_becomes_stump() -> void:
 	var map := _make_map()
 	map.drop_rng.seed = 77

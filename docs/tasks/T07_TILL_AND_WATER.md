@@ -24,6 +24,7 @@
 5. Tool 返回结构化结果：`effect_cells`、skipped reasons、stamina spent；UI 不解析日志判断结果。
 6. MapState 写回并恢复后，dug/watered 表现与状态一致。
 7. EffectArea preview 的 valid 条件复用 MapCell 的查询规则，不能另写一套。
+8. 本任务引入的 Hoe、WateringCan 及共用 Tool 类型必须生成并配置可区分的 ItemMeta 图标，能够在 Toolbar Slot 和手持状态面板中显示。
 
 ## 自动化验收
 
@@ -32,10 +33,11 @@
 - 体力恰好、少 1、为 0 三种边界，失败时状态深度等价。
 - DUG/WATERED flags round-trip；日推进完成生长结算后清除 WATERED。
 - 从 MapCell 绑定的 CellState 重建动态表现且状态一致。
+- ToolMeta 图标非空，Toolbar/HUD 显示与当前工具 ID 一致。
 
 ## godot-ai 验收
 
-在 farm 使用短按和蓄力 hoe/water，截图原始、翻地、浇水三状态及无效区域。运行时读取 cell snapshot 和 Player energy；切到 cabin 再返回，确认表现未丢。日志无 TileSet/坐标错误。
+在 farm 使用短按和蓄力 hoe/water，截图原始、翻地、浇水三状态及无效区域。运行时读取 cell snapshot 和 Player energy；切到 field 再返回，确认表现未丢。日志无 TileSet/坐标错误。
 
 ## 不做
 

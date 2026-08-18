@@ -41,3 +41,33 @@ func test_backpack_round_trip_preserves_named_slots() -> void:
 	assert_equal(typeof(restored.get_slot(&"itembar", 0).item_id), TYPE_STRING_NAME)
 	assert_equal(restored.get_slot(&"itembar", 0).amount, 12)
 	assert_equal(restored.selected_itembar_index, 1)
+
+
+func test_tool_slot_moves_and_round_trips_by_item_id() -> void:
+	var backpack := BackpackState.new(1, 1, 0)
+	var tool_slot := BackpackSlot.new(&"toolbar_0", &"tool_hoe", 1)
+	assert_true(backpack.set_slot(&"toolbar", 0, tool_slot))
+	assert_true(backpack.switch_item(&"toolbar", 0, &"inventory", 0))
+	assert_true(backpack.get_slot(&"toolbar", 0).is_empty())
+	assert_equal(backpack.get_slot(&"inventory", 0).item_id, &"tool_hoe")
+	var restored := BackpackState.from_dict(backpack.to_dict())
+	assert_true(restored != null)
+	assert_equal(restored.get_slot(&"inventory", 0).item_id, &"tool_hoe")
+
+
+func test_removing_a_depleted_stack_compacts_itembar_and_inventory_but_not_toolbar() -> void:
+	var backpack := BackpackState.new(3, 3, 3)
+	assert_equal(backpack.add_item_partial(&"itembar", &"seed_parsnip", 1, 1), 1)
+	assert_equal(backpack.add_item_partial(&"itembar", &"seed_potato", 1, 1), 1)
+	assert_equal(backpack.add_item_partial(&"inventory", &"material_wood", 1, 1), 1)
+	assert_equal(backpack.add_item_partial(&"inventory", &"material_stone", 1, 1), 1)
+	assert_equal(backpack.add_item_partial(&"toolbar", &"tool_hoe", 1, 1), 1)
+	assert_equal(backpack.add_item_partial(&"toolbar", &"tool_axe", 1, 1), 1)
+	assert_true(backpack.remove_item(&"itembar", &"seed_parsnip", 1))
+	assert_equal(backpack.get_slot(&"itembar", 0).item_id, &"seed_potato")
+	assert_true(backpack.get_slot(&"itembar", 1).is_empty())
+	assert_true(backpack.remove_item(&"inventory", &"material_wood", 1))
+	assert_equal(backpack.get_slot(&"inventory", 0).item_id, &"material_stone")
+	assert_true(backpack.remove_item(&"toolbar", &"tool_hoe", 1))
+	assert_true(backpack.get_slot(&"toolbar", 0).is_empty())
+	assert_equal(backpack.get_slot(&"toolbar", 1).item_id, &"tool_axe")

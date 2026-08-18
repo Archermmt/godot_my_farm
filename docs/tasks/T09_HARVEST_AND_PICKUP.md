@@ -26,6 +26,9 @@
 7. 拾取先尝试 BackpackState.add_item；全部成功才移除世界节点，部分/满包时剩余数量保留并停止吞物。
 8. 世界 Item 都有稳定 instance ID，可写入 MapState 并恢复。
 9. 工具成功作用于 Harvestable 时，其 StageVisual 使用 Shader 短暂变为纯白后恢复原色，作为明确的命中反馈；每个实例必须拥有独立 ShaderMaterial，禁止一次命中导致同类 Item 同时闪白。错误工具或被拒绝的目标不得播放闪白。
+10. 本任务引入的 Harvestable、掉落材料、Food 和剩余 Tool 必须生成并配置 ItemMeta 图标；可拾取物进入背包后使用同一图标显示。
+11. Player 蓄力时在头顶显示 ProgressBar；颜色随 level 从浅黄渐变到深绿，释放、取消或交互失效后立即隐藏。可用档位由当前 ToolMeta 的范围或伤害配置决定。
+12. Hoe、WateringCan、Sickle、Basket 的蓄力扩大作用范围；Pickaxe、Axe 始终只作用于面前 1x1 格，蓄力改为提高单次伤害，默认三档为基础伤害的 1x/2x/3x。
 
 ## 自动化验收
 
@@ -36,6 +39,9 @@
 - Tree -> stump -> 清除完整状态和占用变化。
 - 成熟 Plant 收获后 seed/produce/格子数量守恒。
 - 正确工具命中后 Shader 的闪白参数立即置为 1 并自动回落到 0；错误工具不改变参数，两个 Harvestable 实例不共享命中参数。
+- 所有 Catalog ItemMeta 的 icon_texture 非空；拾取前后的世界物品、背包 Slot 和手持 HUD 使用同一 Meta 图标来源。
+- 蓄力条在 hold 开始时出现，进度和颜色随等级变化，并在 release/cancel 后隐藏。
+- Pickaxe、Axe 最大蓄力 preview 仍只有面前一个格子，但对目标分别造成配置的三档伤害；其他工具最大蓄力仍按配置扩大范围。
 
 ## godot-ai 验收
 

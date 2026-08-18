@@ -69,7 +69,7 @@ godot --headless --path . --quit
 
 ### I05 地图往返
 
-修改 farm 状态 -> 经 ScenePort 到 cabin -> 返回 farm；检查 Player 唯一、地块/Item 状态未重置，GameManager.npcs 中的 NPC 跨图位置正确且当前地图实例唯一，输入和时间锁已释放。
+修改 farm 状态 -> 经 ScenePort 到 field/beach -> 返回 farm；检查 Player 唯一、地块/Item 状态未重置，GameManager.npcs 中的 NPC 跨图位置正确且当前地图实例唯一，输入和时间锁已释放。
 
 ### I06 换日
 
@@ -96,7 +96,7 @@ godot --headless --path . --quit
 | E05 蓄力 | 按住到多级再释放 | 范围逐级扩大，只提交一次 |
 | E06 采集 | 斧/镐/镰刀作用匹配对象 | 错工具无效，正确工具有受击/掉落/吸附 |
 | E07 背包 | 打开、方向焦点、两段式按键交换、关闭 | 三容器类型约束、数量守恒、输入锁、tooltip 完整、无重叠、无鼠标事件 |
-| E08 转场 | farm/field/cabin 往返 | 淡出入、无闪帧/重复 Player、状态保留 |
+| E08 转场 | farm/field/beach 往返 | 淡出入、无闪帧/重复 Player、状态保留 |
 | E09 换日成长 | 睡前到次日 | 光照/时钟变化，回小屋，作物阶段变化 |
 | E10 NPC | 观察两个时间点 | NPC 可见、路径合理、无穿障碍 |
 | E11 保存读取 | 改状态、保存、再加载 | 提示明确，恢复后场景与 UI 同步 |

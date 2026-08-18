@@ -7,8 +7,8 @@ enum ActiveHandSource {
 	ITEMBAR,
 }
 
-@export var map_id: StringName = &"cabin"
-@export var spawn_id: StringName = &"wake"
+@export var map_id: StringName = &"farm"
+@export var spawn_id: StringName = &"default"
 @export var cell: Vector2i = Vector2i(5, 4)
 @export_enum("up", "down", "left", "right") var facing: String = "down"
 @export_range(1, 999, 1) var max_health: int = 100

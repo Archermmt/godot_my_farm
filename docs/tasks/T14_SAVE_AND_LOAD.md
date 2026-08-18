@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T11、T13 completed。
+- T11、T13、T13A completed。
 
 ## 交付范围
 
@@ -23,7 +23,7 @@
 4. 保存期间阻止重复保存；失败发结构化错误和 UI 提示，不声称成功。
 5. 读取流程为 parse -> schema validate -> migrate -> 构造临时状态 -> deep validate -> 整体 replace。任何失败都保留当前运行状态。
 6. 未知字段忽略、缺省字段有明确策略；高于支持版本拒绝加载且不覆盖原文件。
-7. 加载成功后 SceneManager 按存档 map/spawn/position 重建，HUD/光照/Toolbar/Itembar/active hand/NPC 同步；Player/Autoload 不重复。
+7. 加载成功后 MapManager 按存档 map/spawn/position 重建，HUD/光照/Toolbar/Itembar/active hand/NPC 同步；Player/Autoload 不重复。
 8. quick_load 在无存档时只提示；场景 transition/interaction transaction 中拒绝或排队，不并发破坏状态。
 9. 测试使用独立 `user://tests/...` 路径或注入存储，不覆盖用户 slot_0。
 

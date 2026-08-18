@@ -1,14 +1,9 @@
 class_name GameManagerService
 extends Node
 
-const DEFAULT_WORLD_SEED := 12031992
-const DEFAULT_TIME_SCALE := 1.2
+const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
 
-@export_category("New Game")
-@export var default_world_seed: int = DEFAULT_WORLD_SEED
-@export var player_state_template: PlayerState = preload("res://data/player/default_player_state.tres")
-@export_category("Time")
-@export_range(0.1, 120.0, 0.1, "or_greater") var initial_time_scale: float = DEFAULT_TIME_SCALE
+var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
 
 var player: PlayerState = null
 var maps: Dictionary[StringName, MapState] = {}
@@ -17,7 +12,7 @@ var world_seed: int = 0
 var current_slot: int = -1
 var game_version: String = "0.1.0"
 var calendar: CalendarState = CalendarState.new()
-var time_scale: float = DEFAULT_TIME_SCALE
+var time_scale: float = 0.0
 var _running: bool = false
 var _pause_reasons: Dictionary[StringName, bool] = {}
 var _time_accumulator: float = 0.0
@@ -25,19 +20,37 @@ var _ending_day: bool = false
 
 var _initialized: bool = false
 
+const NPC_PORTAL_GRAPH: Dictionary[StringName, Array] = {
+	&"farm": [&"field", &"beach"],
+	&"field": [&"farm"],
+	&"beach": [&"farm"],
+}
+const NPC_PORTAL_ARRIVAL_CELLS: Dictionary[String, Vector2i] = {
+	"farm>field": Vector2i(2, 19),
+	"field>farm": Vector2i(44, 8),
+	"farm>beach": Vector2i(29, 2),
+	"beach>farm": Vector2i(24, 31),
+}
+
+
+func _init() -> void:
+	time_scale = config.initial_time_scale
+
 
 func _ready() -> void:
-	var time_error := configure_time_scale(initial_time_scale)
+	var time_error := configure_time_scale(config.initial_time_scale)
 	if time_error != OK:
-		push_error("[GameManager] invalid initial time scale: %s" % initial_time_scale)
+		push_error("[GameManager] invalid initial time scale: %s" % config.initial_time_scale)
 		return
 	if DataCatalog.is_ready_for_game():
-		var error: Error = new_game(default_world_seed)
+		var error: Error = new_game(config.default_world_seed)
 		if error != OK:
 			push_error("[GameManager] failed to create default new game: %s" % error_string(error))
 
 
 func _process(delta: float) -> void:
+	if is_instance_valid(CalendarManager):
+		return
 	if not can_advance() or delta <= 0.0:
 		return
 	_time_accumulator += delta * time_scale
@@ -49,6 +62,8 @@ func _process(delta: float) -> void:
 
 
 func configure_time_scale(value: float) -> Error:
+	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
+		return CalendarManager.configure_time_scale(value)
 	if value <= 0.0 or is_nan(value) or is_inf(value):
 		return ERR_INVALID_PARAMETER
 	time_scale = value
@@ -61,14 +76,14 @@ func new_game(p_seed: int) -> Error:
 		return ERR_UNCONFIGURED
 
 	var next_player := PlayerState.new()
-	var player_error := next_player.initialize(player_state_template)
+	var player_error := next_player.initialize(config.player_state_template)
 	if player_error != OK:
 		return player_error
 	if not _validate_player_containers(next_player):
 		return ERR_INVALID_DATA
 
 	var next_maps: Dictionary[StringName, MapState] = {}
-	for map_id: StringName in [&"farm", &"field", &"cabin"]:
+	for map_id: StringName in [&"farm", &"field", &"beach"]:
 		var map_state := MapState.new()
 		map_state.map_id = map_id
 		next_maps[map_id] = map_state
@@ -80,6 +95,7 @@ func new_game(p_seed: int) -> Error:
 	current_slot = -1
 	calendar = CalendarState.new()
 	sync_calendar_season()
+	_initialize_npcs()
 	_running = false
 	_pause_reasons.clear()
 	_time_accumulator = 0.0
@@ -150,13 +166,12 @@ func can_advance() -> bool:
 
 
 func skip_day() -> Error:
-	if not _initialized:
-		return ERR_UNCONFIGURED
-	_complete_day()
-	return OK
+	return request_end_day()
 
 
 func advance_minutes(minutes: int) -> Error:
+	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
+		return CalendarManager.advance_minutes(minutes)
 	if not _initialized or minutes < 0:
 		return ERR_INVALID_PARAMETER if minutes < 0 else ERR_UNCONFIGURED
 	if minutes == 0:
@@ -167,35 +182,61 @@ func advance_minutes(minutes: int) -> Error:
 		sync_calendar_season()
 		EventBus.time_advanced.emit(1, before, 1)
 		if calendar.hour >= 23:
-			_complete_day()
+			_refresh_npc_schedules()
+			return request_end_day()
+	_refresh_npc_schedules()
 	return OK
 
 
 func request_end_day() -> Error:
 	if not _initialized:
 		return ERR_UNCONFIGURED
+	if _ending_day:
+		return OK
+	_ending_day = true
+	if self == GameManager and is_instance_valid(MapManager) and MapManager.can_run_day_transition():
+		var transition_error := MapManager.request_day_transition()
+		if transition_error == OK:
+			return OK
+		_ending_day = false
+		return transition_error
 	_complete_day()
 	return OK
 
 
+func complete_day() -> Error:
+	if not _initialized:
+		return ERR_UNCONFIGURED
+	if not _ending_day:
+		return ERR_UNAVAILABLE
+	_complete_day()
+	return OK
+
+
+func cancel_end_day() -> void:
+	_ending_day = false
+
+
+func is_ending_day() -> bool:
+	return _ending_day
+
+
 func _complete_day() -> void:
-	if _ending_day or not _initialized:
-		return
-	_ending_day = true
 	var previous_day := calendar.day
-	calendar.add_minutes((24 * 60) - calendar.minute_of_day())
-	sync_calendar_season()
+	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
+		previous_day = CalendarManager.advance_to_next_day()
+	else:
+		calendar.add_minutes((24 * 60) - calendar.minute_of_day())
+		calendar.hour = 6
+		calendar.minute = 0
+		sync_calendar_season()
+	_refresh_npc_schedules()
 	EventBus.day_advanced.emit(previous_day, calendar.day)
 	if player != null:
 		player.restore_for_new_day()
-		player.map_id = &"cabin"
+		player.map_id = &"farm"
 		player.spawn_id = &"wake"
 		EventBus.player_state_changed.emit(player)
-	calendar.hour = 6
-	calendar.minute = 0
-	sync_calendar_season()
-	if is_instance_valid(SceneManager) and SceneManager.current_map_id() != &"cabin":
-		SceneManager.request_map_change(&"cabin", &"wake")
 	_ending_day = false
 
 
@@ -258,7 +299,7 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 	var time_data := data.get("time", {}) as Dictionary
 	var next_calendar := CalendarState.from_dict(time_data.get("calendar", {}) as Dictionary)
-	var raw_time_scale: Variant = time_data.get("time_scale", initial_time_scale)
+	var raw_time_scale: Variant = time_data.get("time_scale", config.initial_time_scale)
 	if next_calendar == null or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT) or float(raw_time_scale) <= 0.0 or not SerializationUtil.has_valid_bool(time_data, "running") or not SerializationUtil.has_valid_array(time_data, "pause_reasons"):
 		return ERR_INVALID_DATA
 	var next_pause_reasons: Dictionary[StringName, bool] = {}
@@ -271,7 +312,10 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 		return game_error
 	calendar = next_calendar
 	sync_calendar_season()
-	time_scale = float(time_data.get("time_scale", initial_time_scale))
+	if self == GameManager and is_instance_valid(CalendarManager):
+		CalendarManager.refresh()
+	_refresh_npc_schedules()
+	time_scale = float(time_data.get("time_scale", config.initial_time_scale))
 	_running = bool(time_data.get("running", false))
 	_pause_reasons = next_pause_reasons
 	_time_accumulator = 0.0
@@ -333,9 +377,9 @@ func replace_snapshot(data: Dictionary) -> Error:
 
 
 func sync_calendar_season() -> void:
-	if self != GameManager or calendar == null or not is_instance_valid(WeatherManager) or not WeatherManager.is_configured():
+	if self != GameManager or calendar == null or not is_instance_valid(CalendarManager) or not CalendarManager.is_configured():
 		return
-	var next_season: StringName = WeatherManager.season_id_for_month(calendar.month)
+	var next_season: StringName = CalendarManager.season_id_for_month(calendar.month)
 	if next_season != &"":
 		calendar.set_season(next_season)
 
@@ -352,6 +396,137 @@ func set_npc(state: NpcState) -> Error:
 
 func get_npc(npc_id: StringName) -> NpcState:
 	return npcs.get(npc_id, null) as NpcState
+
+
+func _initialize_npcs() -> void:
+	npcs.clear()
+	var schedule_ids: Array[StringName] = []
+	schedule_ids.assign(DataCatalog.npc_schedules.keys())
+	schedule_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
+	for schedule_id: StringName in schedule_ids:
+		var schedule := DataCatalog.get_npc_schedule(schedule_id)
+		if schedule == null:
+			continue
+		var npc_state := NpcState.new()
+		npc_state.npc_id = schedule.npc_id
+		npc_state.schedule_id = schedule.id
+		npc_state.map_id = schedule.fallback_map_id
+		npc_state.cell = schedule.fallback_cell
+		npc_state.behavior_id = schedule.fallback_behavior_id
+		npc_state.target_cell = schedule.fallback_cell
+		npcs[npc_state.npc_id] = npc_state
+		_apply_npc_schedule(schedule, npc_state)
+	EventBus.npc_states_changed.emit()
+
+
+func _refresh_npc_schedules() -> void:
+	if calendar == null:
+		return
+	var changed := false
+	for npc_state: NpcState in npcs.values():
+		var schedule := DataCatalog.get_npc_schedule(npc_state.schedule_id)
+		if schedule != null and _apply_npc_schedule(schedule, npc_state):
+			changed = true
+	if changed:
+		EventBus.npc_states_changed.emit()
+
+
+func _apply_npc_schedule(schedule: NpcSchedule, npc_state: NpcState) -> bool:
+	if schedule == null or npc_state == null or calendar == null:
+		return false
+	var assignment := npc_assignment(schedule)
+	var next_event: StringName = assignment["event_id"] as StringName
+	var next_map: StringName = assignment["map_id"] as StringName
+	var previous_map := npc_state.map_id
+	if previous_map != next_map and npc_portal_route(previous_map, next_map).is_empty():
+		return false
+	npc_state.behavior_id = assignment["behavior_id"] as StringName
+	npc_state.target_cell = assignment["cell"] as Vector2i
+	npc_state.target_spawn_id = assignment["spawn_id"] as StringName
+	if npc_state.current_event_id == next_event and npc_state.map_id == next_map:
+		return false
+	if npc_state.map_id != next_map:
+		npc_state.map_id = next_map
+		npc_state.cell = npc_portal_arrival_cell(previous_map, next_map, npc_state.target_cell)
+	npc_state.current_event_id = next_event
+	return true
+
+
+func npc_assignment(schedule: NpcSchedule) -> Dictionary:
+	if schedule == null or calendar == null:
+		return {}
+	var event := npc_active_event(schedule)
+	if event == null:
+		return {"event_id": &"fallback", "map_id": schedule.fallback_map_id, "cell": schedule.fallback_cell, "spawn_id": &"", "behavior_id": schedule.fallback_behavior_id}
+	return {"event_id": event.id, "map_id": event.map_id, "cell": event.target_cell, "spawn_id": event.target_spawn_id, "behavior_id": event.behavior_id}
+
+
+func npc_active_event(schedule: NpcSchedule) -> NpcScheduleEvent:
+	if schedule == null or calendar == null:
+		return null
+	var minute := calendar.minute_of_day()
+	var matches: Array[NpcScheduleEvent] = []
+	for event: NpcScheduleEvent in schedule.events:
+		if event == null:
+			continue
+		if event.contains_minute(minute) and event.matches_date(calendar.season(), calendar.month, calendar.weekday):
+			matches.append(event)
+			continue
+		var previous := _previous_npc_date()
+		if event.contains_minute(minute, true) and event.matches_date(previous.season_id, previous.month, previous.weekday):
+			matches.append(event)
+	if matches.is_empty():
+		return null
+	matches.sort_custom(func(left: NpcScheduleEvent, right: NpcScheduleEvent) -> bool:
+		if left.priority != right.priority:
+			return left.priority > right.priority
+		if left.start_minute != right.start_minute:
+			return left.start_minute > right.start_minute
+		return String(left.id) < String(right.id)
+	)
+	return matches[0]
+
+
+func npc_portal_route(from_map: StringName, to_map: StringName) -> Array[StringName]:
+	if from_map == &"" or to_map == &"":
+		return []
+	if from_map == to_map:
+		return [from_map]
+	var queue: Array[StringName] = [from_map]
+	var previous: Dictionary[StringName, StringName] = {from_map: &""}
+	while not queue.is_empty():
+		var current: StringName = queue.pop_front()
+		for neighbor_variant: Variant in NPC_PORTAL_GRAPH.get(current, []):
+			var neighbor := neighbor_variant as StringName
+			if previous.has(neighbor):
+				continue
+			previous[neighbor] = current
+			if neighbor == to_map:
+				var route: Array[StringName] = [to_map]
+				var cursor: StringName = current
+				while cursor != &"":
+					route.push_front(cursor)
+					cursor = previous.get(cursor, &"") as StringName
+				return route
+			queue.append(neighbor)
+	return []
+
+
+func npc_portal_arrival_cell(from_map: StringName, to_map: StringName, fallback: Vector2i) -> Vector2i:
+	var route := npc_portal_route(from_map, to_map)
+	if route.size() < 2:
+		return fallback
+	return NPC_PORTAL_ARRIVAL_CELLS.get("%s>%s" % [route[route.size() - 2], to_map], fallback)
+
+
+func _previous_npc_date() -> Dictionary:
+	var previous_day := calendar.day - 1
+	var previous_month := calendar.month
+	if previous_day < 1:
+		previous_month = 12 if previous_month == 1 else previous_month - 1
+		previous_day = CalendarState.DAYS_PER_MONTH
+	var season_index := floori(float(previous_month - 1) / 3.0)
+	return {"month": previous_month, "day": previous_day, "weekday": 7 if calendar.weekday == 1 else calendar.weekday - 1, "season_id": CalendarState.SEASONS[season_index]}
 
 
 func startup_summary() -> String:

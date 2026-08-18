@@ -6,7 +6,11 @@ extends Resource
 @export_range(0, 999, 1) var amount: int = 0
 
 
-func _init(p_slot_id: StringName = &"", p_item_id: StringName = &"", p_amount: int = 0) -> void:
+func _init(
+	p_slot_id: StringName = &"",
+	p_item_id: StringName = &"",
+	p_amount: int = 0
+) -> void:
 	slot_id = p_slot_id
 	item_id = p_item_id
 	amount = max(0, p_amount)

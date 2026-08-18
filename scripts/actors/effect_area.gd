@@ -8,7 +8,7 @@ enum InteractionState {
 	CANCELLED,
 }
 
-const CHARGE_THRESHOLDS := [0.0, 0.25, 0.5, 0.75, 1.0]
+const CHARGE_THRESHOLDS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 const FACING_VECTORS := {
 	&"up": Vector2i(0, -1),
 	&"down": Vector2i(0, 1),
@@ -99,6 +99,31 @@ func is_charging() -> bool:
 	return state == InteractionState.CHARGING
 
 
+func max_charge_level() -> int:
+	if _item is Tool:
+		return (_item as Tool).max_charge_level()
+	return maxi(0, _charge_levels().size() - 1)
+
+
+func charge_progress() -> float:
+	if state != InteractionState.CHARGING:
+		return 0.0
+	if _item is Tool:
+		var tool := _item as Tool
+		var typed_meta := tool.tool_meta()
+		if typed_meta == null:
+			return 0.0
+	var last_level := max_charge_level()
+	if last_level <= 0:
+		return 1.0
+	# Keep the bar continuous across all charge levels. The level itself still
+	# snaps when a threshold is crossed, but the preview should visibly fill
+	# while the player is holding the button between those thresholds.
+	var threshold_index := mini(last_level, CHARGE_THRESHOLDS.size() - 1)
+	var duration: float = CHARGE_THRESHOLDS[threshold_index]
+	return clampf(charge_elapsed / duration, 0.0, 1.0) if duration > 0.0 else 1.0
+
+
 func _refresh_preview() -> void:
 	preview = _build_preview()
 	queue_redraw()
@@ -140,10 +165,12 @@ func _level_for_elapsed() -> int:
 
 
 func _max_charge_level() -> int:
-	return maxi(0, _charge_levels().size() - 1)
+	return max_charge_level()
 
 
 func _dimensions(level: int) -> Vector2i:
+	if _item != null and _item.meta is ToolMeta:
+		return (_item.meta as ToolMeta).effect_dimensions(level)
 	var levels := _charge_levels()
 	if levels.is_empty():
 		return Vector2i.ONE

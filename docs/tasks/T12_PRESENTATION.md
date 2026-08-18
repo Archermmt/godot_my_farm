@@ -13,7 +13,7 @@
 - 完善 HUD、Clock、PlayerStatus、Toolbar、Itembar、Player 头顶选择提示、InventoryPanel、Tooltip、Toast、TransitionOverlay。
 - Theme Resource 与 UI layout。
 - AudioDefinition/catalog、AudioManager pool 和地图 ambient/music 切换。
-- 收获、破坏、树倒、拾取、浇水等轻量 effect scenes。
+- 收获、破坏、树倒、拾取、浇水等轻量 effect scenes，以及割草草叶、砍树木屑、砸石石屑、雨线与地面涟漪粒子场景。
 - UI、音频节流和 effect 生命周期测试。
 
 ## 实现要求
@@ -27,6 +27,7 @@
 7. 每个 action result 映射一次对应反馈；失败使用轻量 invalid 反馈，不播放成功声音。
 8. Effect 有最大生命周期并自动回收/销毁；多格工具可合并反馈，避免几十个 AudioStreamPlayer/粒子同时创建。
 9. 所有占位音画资源原创或许可明确，来源先记入 `assets/licenses/ASSETS.md`。
+10. `cut`、`chop`、`mine` 和雨天表现必须使用独立、可在 Inspector 编辑的粒子场景；天气粒子由 EffectManager 随 weather/map 生命周期创建和回收，室内不生成降雨。
 
 ## 自动化验收
 
@@ -35,6 +36,7 @@
 - Tooltip 四角布局在两视口内；最长测试文案不截断。
 - 连续触发 100 次脚步和 50 次多格 action，audio/effect 实例数有上限并最终回落。
 - 失败 action 不触发成功音效/特效。
+- Cut/Chop/Mine 定义分别加载草叶/木屑/石屑粒子场景；rain/storm 加载一份持续雨天场景，且该场景同时包含雨线和涟漪粒子系统。
 
 ## godot-ai 验收
 
@@ -49,5 +51,6 @@
 
 - 2026-08-14 完成。HUD、背包、共享 Theme、Toast、转场输入阻断、昼夜 CanvasModulate、Player 头顶选择提示和手持状态均已接入。
 - AudioManager 使用 18 条 AudioDefinition、Music/Ambient/SFX/UI 四类 bus 与有界 player pool；地图切换同时交叉淡化 ambient/music，高频脚步按事件节流。
-- 工具成功反馈按一次 action 合并为一个 ActionEffect，最多保留 8 个并自动淡出；失败只显示 invalid toast/音效，不产生成功特效。
-- 自动化为 112 tests / 5155 assertions；godot-ai session `godot-my-farm@c274`、run `r121844889-5` 无运行错误，640x360 与 960x540 的 HUD/背包、夜间画面和头顶提示无裁切或重叠。
+- 通用工具反馈按一次 action 合并为一个 ActionEffect，最多保留 8 个并自动淡出；失败只显示 invalid toast/音效，不产生成功特效。
+- Cut、Chop 和 Mine 已分别切换为可编辑的草叶、木屑、石屑 CPUParticles2D 场景；rain/storm 由 EffectManager 在室外地图挂载持续雨线与地面涟漪场景，天气或地图变化时自动替换/回收。
+- 自动化为 123 tests / 5247 assertions；资源导入、主场景 smoke、粒子场景结构和 EffectManager 配置均通过验证。

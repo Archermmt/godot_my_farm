@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="32" viewBox="0 0 512 32">
-<rect width="512" height="32" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="736" height="32" viewBox="0 0 736 32">
+<rect width="736" height="32" fill="none"/>
 <g stroke="#263b35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
   <g transform="translate(0)"><path d="M7 27L21 8l4 3L11 29z" fill="#94643f"/><path d="M18 7l8-4 3 4-7 6z" fill="#9aa6a0"/></g>
   <g transform="translate(32)"><path d="M7 27L21 8l4 3L11 29z" fill="#94643f"/><path d="M18 7l8-4 3 4-7 6z" fill="#6f858b"/></g>
@@ -17,5 +17,12 @@
   <g transform="translate(416)"><path d="M6 25l4-15 10-5 7 8-2 12z" fill="#778486"/><path d="M10 11l11 8M20 6l-4 17" fill="none" stroke="#aab2af"/></g>
   <g transform="translate(448)"><path d="M7 27l4-16 4 16 2-21 4 21 5-17-2 17z" fill="#6faa55"/></g>
   <g transform="translate(480)"><path d="M7 24c1-8 5-15 10-15s9 7 9 15c-5 5-14 5-19 0z" fill="#d8a557"/><path d="M10 20h13M13 14h7" fill="none" stroke="#f0cc82"/></g>
+  <g transform="translate(512)"><path d="M16 28V14" fill="none"/><path d="M16 18c-7 0-10-4-10-8 6-1 10 2 10 8z" fill="#77a957"/><path d="M16 15c6 0 9-4 9-8-5-1-9 2-9 8z" fill="#91be65"/><path d="M10 28h12" fill="none" stroke="#9c7148"/></g>
+  <g transform="translate(544)"><path d="M16 28V13" fill="none"/><path d="M16 18c-6 0-10-3-11-7 6-2 10 0 11 7zM16 15c6 0 9-3 10-7-5-2-9 0-10 7z" fill="#6fa756"/><ellipse cx="16" cy="25" rx="7" ry="4" fill="#c7a15a"/></g>
+  <g transform="translate(576)"><path d="M6 25c2-8 7-12 14-11 5 1 7 6 6 11z" fill="#5f9b4d"/><ellipse cx="17" cy="22" rx="8" ry="6" fill="#df8c37"/><path d="M17 16v12M11 20c4 2 8 2 12 0" fill="none"/></g>
+  <g transform="translate(608)"><path d="M7 28l3-17 4 17 2-22 4 22 5-18-2 18z" fill="#6faa55"/><path d="M9 20l5-5M18 17l6-5" fill="none" stroke="#93c66c"/></g>
+  <g transform="translate(640)"><path d="M5 25l4-13 9-7 9 8-2 12z" fill="#778486"/><path d="M9 13l11 7M18 7l-3 16M20 20l5-6" fill="none" stroke="#b5bfba"/></g>
+  <g transform="translate(672)"><path d="M8 14h16l3 13H5z" fill="#8d5f3d"/><ellipse cx="16" cy="13" rx="8" ry="4" fill="#c18a56"/><path d="M12 12c2-2 6-2 8 0M9 20h14" fill="none"/></g>
+  <g transform="translate(704)"><path d="M13 18h7l2 11H11z" fill="#8d5f3d"/><path d="M5 17c0-5 3-8 7-8 1-5 9-7 12-2 5 1 6 8 2 11z" fill="#4f8b4b"/><path d="M9 13c4 3 9 3 14 0" fill="none" stroke="#7bb55e"/></g>
 </g>
 </svg>

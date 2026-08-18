@@ -8,6 +8,8 @@ var cell: Vector2i = Vector2i.ZERO
 var facing: StringName = &"down"
 var behavior_id: StringName = &"idle"
 var current_event_id: StringName = &""
+var target_cell: Vector2i = Vector2i.ZERO
+var target_spawn_id: StringName = &""
 
 
 func to_dict() -> Dictionary:
@@ -19,6 +21,8 @@ func to_dict() -> Dictionary:
 		"facing": String(facing),
 		"behavior_id": String(behavior_id),
 		"current_event_id": String(current_event_id),
+		"target_cell": SerializationUtil.vector2i_to_dict(target_cell),
+		"target_spawn_id": String(target_spawn_id),
 	}
 
 
@@ -38,4 +42,6 @@ static func from_dict(data: Dictionary) -> NpcState:
 	restored.facing = StringName(str(data.get("facing", "down")))
 	restored.behavior_id = StringName(str(data.get("behavior_id", "idle")))
 	restored.current_event_id = StringName(str(data.get("current_event_id", "")))
+	restored.target_cell = SerializationUtil.vector2i_from_dict(data.get("target_cell", data.get("cell", {})) as Dictionary)
+	restored.target_spawn_id = StringName(str(data.get("target_spawn_id", "")))
 	return restored

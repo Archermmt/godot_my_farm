@@ -11,6 +11,7 @@ enum CellFlag {
 	INTERIOR = 64,
 	DUG = 128,
 	WATERED = 256,
+	GENERATE = 512,
 }
 
 enum InteractionFlag {

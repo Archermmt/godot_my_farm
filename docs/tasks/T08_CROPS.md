@@ -25,6 +25,7 @@
 6. 未浇水、刚播种但未浇水、浇水后跨日、加载中间阶段都要有确定行为。
 7. `MapItems/Plants` y-sort 和格中心对齐；阶段变化不能改变占用或出现一帧空白。
 8. 成熟状态提供 harvestable 能力接口，具体产出在 T09。
+9. 每种 Seed 和对应 Plant/Produce 必须生成可区分图标并配置到 ItemMeta；Seed 图标在 Itembar/HUD 中实际显示。
 
 ## 自动化验收
 
@@ -33,6 +34,7 @@
 - 未浇水不成长；前一日浇水增长 1；同一 day event 重放不重复增长。
 - seed/crop/farm/map round-trip 后阶段和实例 ID 一致。
 - Plant free 后从 state 重建，节点数和占用不重复。
+- Seed/Plant/Produce 的 ItemMeta 图标全部非空，不同作物可通过图标区分。
 
 ## godot-ai 验收
 

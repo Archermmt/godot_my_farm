@@ -2,7 +2,7 @@ class_name ItemsGeneratorCandidate
 extends Resource
 
 @export_category("Item")
-@export var meta_id: StringName = &""
+@export var required_flags: Array[CellState.CellFlag] = [CellState.CellFlag.GENERATE]
 
 @export_category("Amount")
 @export_range(0, 999, 1) var min_count: int = 0

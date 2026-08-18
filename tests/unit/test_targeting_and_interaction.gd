@@ -19,10 +19,12 @@ func test_target_preview_respects_facing_and_charge_shape() -> void:
 	map.free()
 
 
-func test_pickaxe_and_axe_stop_at_three_charge_levels() -> void:
+func test_pickaxe_and_axe_charge_damage_without_expanding_preview() -> void:
 	for tool_id: StringName in [&"tool_pickaxe", &"tool_axe"]:
 		var meta := DataCatalog.get_item(tool_id) as ToolMeta
-		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3)])
+		assert_equal(meta.charge_levels, [Vector2i(1, 1)])
+		assert_equal(meta.damage_multipliers, [1, 2, 3])
+		assert_true(meta.charges_damage())
 		var map := _make_map(20, 20, CellState.CellFlag.BASE)
 		var player_state := _player_state(Vector2i(10, 10), &"right", tool_id, 1, 10)
 		var cursor := EffectArea.new()
@@ -30,7 +32,9 @@ func test_pickaxe_and_axe_stop_at_three_charge_levels() -> void:
 		assert_equal(cursor.begin(player_state, map, tool), OK)
 		cursor.update(10.0)
 		assert_equal(cursor.charge_level, 2)
-		assert_equal(cursor.preview.size(), 9)
+		assert_equal(cursor.preview.size(), 1)
+		assert_equal(cursor.preview[0].cell, Vector2i(11, 10))
+		assert_equal(cursor.charge_progress(), 1.0)
 		tool.free()
 		cursor.free()
 		map.free()
@@ -40,6 +44,25 @@ func test_other_tools_keep_five_charge_levels() -> void:
 	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket"]:
 		var meta := DataCatalog.get_item(tool_id) as ToolMeta
 		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3), Vector2i(9, 9)])
+		assert_equal(meta.max_charge_level(), 4)
+	for tool_id: StringName in [&"tool_pickaxe", &"tool_axe"]:
+		assert_equal((DataCatalog.get_item(tool_id) as ToolMeta).max_charge_level(), 2)
+
+
+func test_tool_meta_defines_charge_levels_and_progress() -> void:
+	var map := _make_map(12, 12, CellState.CellFlag.DIGGABLE)
+	var player_state := _player_state(Vector2i(5, 5), &"right", &"tool_hoe", 1, 10)
+	var meta := DataCatalog.get_item(&"tool_hoe") as ToolMeta
+	var tool := Tool.new(meta)
+	var cursor := EffectArea.new()
+	assert_equal(cursor.begin(player_state, map, tool), OK)
+	cursor.update(10.0)
+	assert_equal(cursor.charge_level, 4)
+	assert_equal(cursor.preview.size(), 54)
+	assert_equal(cursor.charge_progress(), 1.0)
+	tool.free()
+	cursor.free()
+	map.free()
 
 
 func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:

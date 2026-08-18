@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T03 completed。
+- T04A completed。
 
 ## 交付范围
 
@@ -21,7 +21,7 @@
 1. Backpack、Toolbar、Itembar 都只通过 BackpackState/BackpackSlot API 修改命名槽位；Slot Control 不持有权威副本。
 2. Toolbar 只接受 `ItemMeta.item_type == TOOL` 的工具，Itembar 只接受种子、食物、材料等可选择非工具物品；非法跨栏交换必须拒绝并保持原状态。
 3. `toolbar_previous/toolbar_next` 与 `itembar_previous/itembar_next` 循环改变各自高亮。最近操作的 bar 成为唯一 active source；切换 Toolbar 时手持工具，切换 Itembar 时手持物品，同一时间绝不同时持有两者。
-4. 每次切换在 Player 头顶短暂显示对应 Toolbar 或 Itembar，并高亮当前格；提示自动隐藏，但选中状态持续存在。HUD 常驻显示当前手持来源、图标、名称和数量。
+4. 每次切换在 Player 头顶短暂显示对应 Toolbar 或 Itembar 的透明图标轨道，不显示栏位背景或 TOOLS/ITEMS 标题；选中图标从中心放大，未选中图标恢复原始缩放。提示自动隐藏，但选中状态持续存在。背包 Slot 和 HUD 手持物使用 `ItemMeta.icon_texture` 显示图标，不用名称缩写代替；stack 数量可作为独立角标保留。
 5. 空格可被高亮；若 active slot 为空，Player 手中为空，使用/丢下输入返回明确无效结果。
 6. 背包打开使用 `inventory` input/time lock reason，世界移动和交互停止，键盘 UI 输入仍可用。关闭/cancel 精确解除，不能影响其他 lock reason。
 7. 背包界面同时展示 Inventory、Toolbar、Itembar。方向输入在格子间移动唯一焦点；按 `inventory_swap` 标记源格，再移动并再次按键完成 swap/merge。取消键先取消待交换状态，再关闭面板。
@@ -34,7 +34,8 @@
 ## 自动化验收
 
 - Toolbar/Itembar 循环选择、独立 selected index 和唯一 active source 正确；连续交替 100 次从未出现双持。
-- 头顶选择提示显示正确 bar、高亮正确格并按时隐藏；HUD 手持状态与 Hands 一致。
+- 头顶选择提示只显示图标，选中图标放大、其他图标为 1.0 缩放并按时隐藏；HUD 直接显示当前物品图标和名称，不显示 TOOLS/ITEMS，且与 Hands 一致。
+- Inventory/Toolbar/Itembar 每个非空 Slot 都渲染对应 ItemMeta 图标，HUD 手持图标随 active slot 实时切换；空 Slot 不残留上一物品贴图。
 - 方向焦点跨 Inventory/Toolbar/Itembar 边界稳定；swap/merge/rollback 数量守恒，工具/物品类型约束生效。
 - 打开背包后 Player velocity 为零，关闭后恢复；多个 lock reason 不互相提前解除。
 - 连续切换 100 次手持物，Hands 子节点数量保持稳定。
@@ -59,4 +60,5 @@
 - `inventory` input/time lock 经 fixture 验证可独立申请和解除，不影响其他 reason。
 - 自动化：63 tests / 3936 assertions；InventoryKeyboardTest、MapTransitionTest、PlayerCollisionTest、主场景启动与 `git diff --check` 全部通过。
 - 视觉证据：`screenshots/t05/inventory.png`（1280x720 实际 Godot framebuffer），6/10/20 格容器、键盘焦点、详情和手持 HUD 均无裁切。
+- 完成标准包含生成并配置背包可见物品图标；不得以两字母缩写作为最终 Slot 表现。
 - 下一任务：T06 统一目标预览与蓄力交互。

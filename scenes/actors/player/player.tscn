@@ -10,6 +10,17 @@
 radius = 6.0
 height = 14.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxChargeBackground"]
+bg_color = Color(0.0470588, 0.0705882, 0.0666667, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.839216, 0.901961, 0.776471, 0.7)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxChargeFill"]
+bg_color = Color(0.964706, 0.898039, 0.552941, 1)
+
 [node name="Player" type="CharacterBody2D" unique_id=420612843 groups=["player"]]
 script = ExtResource("1_player")
 
@@ -36,68 +47,38 @@ frame = 8
 libraries/ = ExtResource("6_animations")
 autoplay = &"idle_down"
 
-[node name="Hands" type="Node2D" parent="." unique_id=194835694]
-position = Vector2(0, -15)
-
-[node name="HeldVisual" type="Node2D" parent="Hands" unique_id=1385201383]
+[node name="ChargeBar" type="ProgressBar" parent="."]
 visible = false
-z_index = 2
-position = Vector2(8, 2)
-
-[node name="Swatch" type="Polygon2D" parent="Hands/HeldVisual" unique_id=1020998425]
-color = Color(0.882353, 0.643137, 0.278431, 1)
-polygon = PackedVector2Array(-5, -7, 5, -7, 5, 7, -5, 7)
-
-[node name="Label" type="Label" parent="Hands/HeldVisual" unique_id=7563226]
-offset_left = -6.0
-offset_top = -7.0
-offset_right = 6.0
-offset_bottom = 7.0
-theme_override_colors/font_color = Color(0.0784314, 0.172549, 0.168627, 1)
-theme_override_font_sizes/font_size = 7
-text = "HO"
-horizontal_alignment = 1
-vertical_alignment = 1
+z_index = 25
+max_value = 1.0
+offset_left = -18.0
+offset_top = -43.0
+offset_right = 18.0
+offset_bottom = -37.0
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxChargeBackground")
+theme_override_styles/fill = SubResource("StyleBoxChargeFill")
+show_percentage = false
 
 [node name="SelectionPopup" type="Control" parent="." unique_id=720045240]
 visible = false
 z_index = 20
 layout_mode = 3
 anchors_preset = 0
-offset_left = -94.0
-offset_top = -78.0
-offset_right = 94.0
-offset_bottom = -40.0
+offset_left = -124.0
+offset_top = -70.0
+offset_right = 124.0
+offset_bottom = -42.0
 mouse_filter = 2
 
-[node name="Background" type="ColorRect" parent="SelectionPopup" unique_id=47223222]
+[node name="Slots" type="HBoxContainer" parent="SelectionPopup" unique_id=1859731803]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-color = Color(0.0352941, 0.0901961, 0.0862745, 0.94)
-
-[node name="Title" type="Label" parent="SelectionPopup/Background" unique_id=848154447]
-layout_mode = 0
-offset_left = 6.0
-offset_top = 2.0
-offset_right = 182.0
-offset_bottom = 15.0
-theme_override_colors/font_color = Color(0.901961, 0.941176, 0.87451, 1)
-theme_override_font_sizes/font_size = 8
-text = "TOOLS  Hoe"
-horizontal_alignment = 1
-
-[node name="Slots" type="HBoxContainer" parent="SelectionPopup/Background" unique_id=1859731803]
-layout_mode = 0
-offset_left = 5.0
-offset_top = 17.0
-offset_right = 183.0
-offset_bottom = 34.0
-theme_override_constants/separation = 1
+theme_override_constants/separation = 0
 alignment = 1
 
 [node name="SelectionTimer" type="Timer" parent="." unique_id=1270161843]

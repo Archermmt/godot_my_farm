@@ -4,8 +4,8 @@ const EXPECTED_AUTOLOAD_ORDER: Array[String] = [
 	"EventBus",
 	"DataCatalog",
 	"GameManager",
-	"SceneManager",
-	"WeatherManager",
+	"MapManager",
+	"CalendarManager",
 	"EffectManager",
 	"AudioManager",
 ]
@@ -28,22 +28,30 @@ func test_autoload_definitions_and_new_game_are_ready() -> void:
 	assert_true(DataCatalog.is_ready_for_game())
 	assert_equal((DataCatalog.get_item(&"tool_hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
 	assert_true(GameManager.is_initialized())
-	assert_equal(GameManager.player.map_id, &"cabin")
+	assert_equal(GameManager.player.map_id, &"farm")
+	assert_equal(GameManager.player.spawn_id, &"default")
 	assert_equal(GameManager.player.backpack_state.count_item(&"itembar", &"seed_parsnip"), 15)
 	assert_equal(GameManager.player.backpack_state.count_item(&"toolbar", &"tool_hoe"), 1)
 	assert_equal(GameManager.used_inventory_slots(), 0)
 	assert_true(GameManager.can_snapshot())
 
 
-func test_configurable_managers_load_inspector_values_from_autoload_scenes() -> void:
-	assert_equal(GameManager.initial_time_scale, 1.0)
+func test_configurable_managers_load_shared_autoload_config() -> void:
+	assert_true(GameManager.config == DataCatalog.config)
+	assert_true(MapManager.config == DataCatalog.config)
+	assert_true(CalendarManager.config == DataCatalog.config)
+	assert_true(EffectManager.config == DataCatalog.config)
+	assert_true(AudioManager.config == DataCatalog.config)
+	assert_equal(GameManager.config.initial_time_scale, 1.0)
 	assert_equal(GameManager.time_scale, 1.0)
-	assert_equal(SceneManager.transition_duration, 0.12)
-	assert_true(WeatherManager.is_configured())
-	assert_equal(WeatherManager.season_metas.size(), 4)
-	assert_equal(WeatherManager.season_id_for_month(1), &"spring")
-	assert_true(WeatherManager.current_weather_id() != &"")
-	assert_equal(AudioManager.definitions.size(), 18)
-	assert_equal(AudioManager.sfx_pool_limit, 10)
+	assert_equal(MapManager.config.transition_duration, 0.12)
+	assert_equal(MapManager.config.day_transition_duration, 0.55)
+	assert_true(CalendarManager.is_configured())
+	assert_equal(CalendarManager.config.season_metas.size(), 4)
+	assert_equal(CalendarManager.season_id_for_month(1), &"spring")
+	assert_true(CalendarManager.current_weather_id() != &"")
+	assert_equal(AudioManager.config.audio_definitions.size(), 18)
+	assert_equal(AudioManager.config.sfx_pool_limit, 10)
 	assert_true(EffectManager.is_configured())
 	assert_equal(EffectManager.definition_count(), 7)
+	assert_equal(EffectManager.weather_scene_count(), 2)

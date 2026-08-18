@@ -26,7 +26,7 @@
 3. 贴图按 pixel art 设置 nearest、无不必要 mipmap，透明边缘无颜色污染；sprite sheet 裁切尺寸和 pivot 一致。
 4. Player/NPC 的 idle/walk/run/tool 状态不缺方向；工具和手持物对齐，不遮脸/穿身体。
 5. 作物每阶段可一眼区分；dug/watered/valid/invalid 在明暗和形状上可读。
-6. farm/field/cabin 有清楚地标和出口，不靠大段帮助文字解释路线。
+6. farm/field/beach 有清楚地标和出口，不靠大段帮助文字解释路线；field 山坡/曲折小径和 beach 海岸线必须可辨。
 7. UI 与世界使用互补但非单色的 palette；文字对比和字号满足两视口，无容器溢出。
 8. 音量经 bus 平衡，脚步不压过反馈，循环音频无明显爆点；缺音频时不报错。
 9. 每次批量导入后先 reimport/scan，再运行 asset smoke scene 检查所有引用可加载。

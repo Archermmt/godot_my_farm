@@ -3,7 +3,6 @@ extends Resource
 
 enum Channel { MUSIC, AMBIENT, SFX, UI }
 
-@export var event_id: StringName = &""
 @export var channel: Channel = Channel.SFX
 @export var stream: AudioStream = null
 @export_range(-40.0, 6.0, 0.5) var volume_db: float = -8.0

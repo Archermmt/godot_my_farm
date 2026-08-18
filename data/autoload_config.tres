@@ -1,0 +1,1298 @@
+[gd_resource type="Resource" script_class="AutoloadConfig" format=3 uid="uid://3efsafa5b55v"]
+
+[ext_resource type="Script" uid="uid://dpulndsv7rj3f" path="res://scripts/data/audio_definition.gd" id="1_bgp3f"]
+[ext_resource type="Script" uid="uid://x4wkosixle65" path="res://scripts/data/effect_definition.gd" id="2_wx4dx"]
+[ext_resource type="PackedScene" path="res://scenes/effects/chop_particles.tscn" id="3_qxirn"]
+[ext_resource type="PackedScene" path="res://scenes/effects/cut_particles.tscn" id="4_5p36d"]
+[ext_resource type="PackedScene" path="res://scenes/effects/action_effect.tscn" id="5_lrfhq"]
+[ext_resource type="PackedScene" path="res://scenes/effects/mine_particles.tscn" id="6_hbo8t"]
+[ext_resource type="Script" uid="uid://c8f5y8m4adwo2" path="res://scripts/data/item/item_meta.gd" id="7_7qpun"]
+[ext_resource type="Script" uid="uid://6pityxlu0kcg" path="res://scripts/data/item/harvestable_drop.gd" id="8_1055k"]
+[ext_resource type="Script" uid="uid://dfdfmw51sbsux" path="res://scripts/data/item/plant_meta.gd" id="9_80w7n"]
+[ext_resource type="Script" uid="uid://dnchnwyp4gr6d" path="res://scripts/data/item/plant_stage.gd" id="10_0kamg"]
+[ext_resource type="Texture2D" uid="uid://da27uj4pmqef3" path="res://assets/art/items/plant_stages.svg" id="11_ilctg"]
+[ext_resource type="Script" uid="uid://boysekcy4g118" path="res://scripts/data/item/harvestable_stage.gd" id="12_ecfw3"]
+[ext_resource type="Texture2D" uid="uid://cqdussljinmol" path="res://assets/art/items/potato_stages.svg" id="13_slr41"]
+[ext_resource type="Texture2D" uid="uid://b05ytwskloyv1" path="res://assets/art/items/pumpkin_stages.svg" id="14_oasux"]
+[ext_resource type="Texture2D" uid="uid://csaj5hfb636ly" path="res://assets/art/items/item_icons.svg" id="15_rjflr"]
+[ext_resource type="Script" uid="uid://d4ebhamhxwkkq" path="res://scripts/data/item/harvestable_meta.gd" id="16_u2ehg"]
+[ext_resource type="Texture2D" uid="uid://c2sdxxhaj3l1x" path="res://assets/art/items/harvestable_stages.svg" id="17_onu5g"]
+[ext_resource type="Script" uid="uid://cd4lgl7xyf6aw" path="res://scripts/data/item/seed_meta.gd" id="18_qwfmb"]
+[ext_resource type="Script" uid="uid://bra514fui8hn5" path="res://scripts/data/item/tool_meta.gd" id="19_hnic0"]
+[ext_resource type="Script" uid="uid://d2gup7eehin25" path="res://scripts/data/npc_schedule.gd" id="20_25ukt"]
+[ext_resource type="Script" uid="uid://bw6rpo8qu0jsu" path="res://scripts/data/npc_schedule_event.gd" id="21_u0law"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_line.gd" id="29_dialogue_line"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_definition.gd" id="30_dialogue_definition"]
+[ext_resource type="Script" uid="uid://ckdo74vx1vey0" path="res://scripts/state/inventory/backpack_state.gd" id="22_ljkmd"]
+[ext_resource type="Script" uid="uid://clbw1pl4b3h7c" path="res://scripts/state/inventory/backpack_slot.gd" id="23_wd3wu"]
+[ext_resource type="Script" uid="uid://mjlcon3icyhd" path="res://scripts/state/player_state.gd" id="24_omn50"]
+[ext_resource type="Script" uid="uid://bb8g22807yfxu" path="res://scripts/data/autoload_config.gd" id="25_vkq73"]
+[ext_resource type="Script" uid="uid://bbn8cfhx6j7kh" path="res://scripts/data/season_meta.gd" id="26_pa6h3"]
+[ext_resource type="PackedScene" path="res://scenes/effects/rain_weather.tscn" id="27_6vsky"]
+[ext_resource type="Texture2D" uid="uid://dw66wkhlntx8i" path="res://assets/art/ui/weather_icons.svg" id="28_weather_icons"]
+
+[sub_resource type="Resource" id="Resource_xsjy0"]
+script = ExtResource("1_bgp3f")
+channel = 1
+volume_db = -26.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 196.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="Resource_n34c2"]
+script = ExtResource("1_bgp3f")
+channel = 1
+volume_db = -24.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 260.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="Resource_4j3qs"]
+script = ExtResource("1_bgp3f")
+channel = 1
+volume_db = -24.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 310.0
+placeholder_duration = 1.5
+loop = true
+
+[sub_resource type="Resource" id="Resource_v75k5"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 230.0
+
+[sub_resource type="Resource" id="Resource_tmplk"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 780.0
+
+[sub_resource type="Resource" id="Resource_sceww"]
+script = ExtResource("1_bgp3f")
+volume_db = -16.0
+cooldown_msec = 180
+max_instances = 1
+placeholder_frequency = 110.0
+placeholder_duration = 0.05
+
+[sub_resource type="Resource" id="Resource_rni5q"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 920.0
+
+[sub_resource type="Resource" id="Resource_14sbt"]
+script = ExtResource("1_bgp3f")
+channel = 3
+cooldown_msec = 120
+max_instances = 1
+placeholder_frequency = 145.0
+placeholder_duration = 0.1
+
+[sub_resource type="Resource" id="Resource_btqf8"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 150.0
+
+[sub_resource type="Resource" id="Resource_6cp4u"]
+script = ExtResource("1_bgp3f")
+channel = 0
+volume_db = -30.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 330.0
+placeholder_duration = 2.0
+loop = true
+
+[sub_resource type="Resource" id="Resource_fpfg3"]
+script = ExtResource("1_bgp3f")
+channel = 0
+volume_db = -28.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_frequency = 392.0
+placeholder_duration = 2.0
+loop = true
+
+[sub_resource type="Resource" id="Resource_eb5ld"]
+script = ExtResource("1_bgp3f")
+channel = 0
+volume_db = -28.0
+cooldown_msec = 0
+max_instances = 1
+placeholder_duration = 2.0
+loop = true
+
+[sub_resource type="Resource" id="Resource_t8f21"]
+script = ExtResource("1_bgp3f")
+cooldown_msec = 40
+placeholder_frequency = 1040.0
+placeholder_duration = 0.09
+
+[sub_resource type="Resource" id="Resource_t04ac"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 185.0
+
+[sub_resource type="Resource" id="Resource_m6dow"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 320.0
+
+[sub_resource type="Resource" id="Resource_ys377"]
+script = ExtResource("1_bgp3f")
+channel = 3
+cooldown_msec = 40
+placeholder_frequency = 330.0
+placeholder_duration = 0.07
+
+[sub_resource type="Resource" id="Resource_e8mqr"]
+script = ExtResource("1_bgp3f")
+channel = 3
+cooldown_msec = 40
+placeholder_frequency = 760.0
+placeholder_duration = 0.06
+
+[sub_resource type="Resource" id="Resource_glphy"]
+script = ExtResource("1_bgp3f")
+placeholder_frequency = 620.0
+
+[sub_resource type="Resource" id="Resource_qsg5w"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("3_qxirn")
+
+[sub_resource type="Resource" id="Resource_ibnfl"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("4_5p36d")
+
+[sub_resource type="Resource" id="Resource_mdls1"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("5_lrfhq")
+
+[sub_resource type="Resource" id="Resource_ppr13"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("6_hbo8t")
+
+[sub_resource type="Resource" id="Resource_bkljk"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("5_lrfhq")
+
+[sub_resource type="Resource" id="Resource_5ktos"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("5_lrfhq")
+
+[sub_resource type="Resource" id="Resource_k1l6q"]
+script = ExtResource("2_wx4dx")
+scene = ExtResource("5_lrfhq")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_crop_parsnip_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(512, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5eim5"]
+atlas = ExtResource("11_ilctg")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_elrlm"]
+script = ExtResource("10_0kamg")
+texture = SubResource("AtlasTexture_5eim5")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jidpy"]
+atlas = ExtResource("11_ilctg")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_s1m1o"]
+script = ExtResource("10_0kamg")
+start_day = 2
+texture = SubResource("AtlasTexture_jidpy")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qfd2c"]
+atlas = ExtResource("11_ilctg")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_4l4l4"]
+script = ExtResource("10_0kamg")
+start_day = 4
+max_health = 2
+texture = SubResource("AtlasTexture_qfd2c")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="Resource" id="Resource_7gbno"]
+script = ExtResource("8_1055k")
+item_id = &"produce_parsnip"
+max_amount = 2
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d7i4o"]
+atlas = ExtResource("11_ilctg")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_mhc3m"]
+script = ExtResource("10_0kamg")
+start_day = 6
+max_health = 2
+texture = SubResource("AtlasTexture_d7i4o")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_7gbno")])
+
+[sub_resource type="Resource" id="Resource_bjumj"]
+script = ExtResource("9_80w7n")
+stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_elrlm"), SubResource("Resource_s1m1o"), SubResource("Resource_4l4l4"), SubResource("Resource_mhc3m")])
+required_tool = 4
+max_health = 2
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+id = &"crop_parsnip"
+display_name = "Parsnip Plant"
+description = "A growing parsnip plant."
+item_type = 5
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_crop_parsnip_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_crop_potato_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(544, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vokai"]
+atlas = ExtResource("13_slr41")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_yccwn"]
+script = ExtResource("10_0kamg")
+texture = SubResource("AtlasTexture_vokai")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_auwdn"]
+atlas = ExtResource("13_slr41")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_411pp"]
+script = ExtResource("10_0kamg")
+start_day = 1
+texture = SubResource("AtlasTexture_auwdn")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xbnjy"]
+atlas = ExtResource("13_slr41")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_ooklc"]
+script = ExtResource("10_0kamg")
+start_day = 3
+max_health = 2
+texture = SubResource("AtlasTexture_xbnjy")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="Resource" id="Resource_grriv"]
+script = ExtResource("8_1055k")
+item_id = &"produce_potato"
+min_amount = 2
+max_amount = 4
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w0rvo"]
+atlas = ExtResource("13_slr41")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_kukna"]
+script = ExtResource("10_0kamg")
+start_day = 5
+max_health = 2
+texture = SubResource("AtlasTexture_w0rvo")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_grriv")])
+
+[sub_resource type="Resource" id="Resource_8id26"]
+script = ExtResource("9_80w7n")
+stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_yccwn"), SubResource("Resource_411pp"), SubResource("Resource_ooklc"), SubResource("Resource_kukna")])
+required_tool = 4
+max_health = 2
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+id = &"crop_potato"
+display_name = "Potato Plant"
+description = "A growing potato plant."
+item_type = 5
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_crop_potato_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_crop_pumpkin_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(576, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gey22"]
+atlas = ExtResource("14_oasux")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_37e7e"]
+script = ExtResource("10_0kamg")
+texture = SubResource("AtlasTexture_gey22")
+state_tags = Array[StringName]([&"sprout"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bu78q"]
+atlas = ExtResource("14_oasux")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_3p6bd"]
+script = ExtResource("10_0kamg")
+start_day = 2
+texture = SubResource("AtlasTexture_bu78q")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tx4vi"]
+atlas = ExtResource("14_oasux")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_ct1vg"]
+script = ExtResource("10_0kamg")
+start_day = 5
+max_health = 2
+texture = SubResource("AtlasTexture_tx4vi")
+state_tags = Array[StringName]([&"growing"])
+
+[sub_resource type="Resource" id="Resource_prm5a"]
+script = ExtResource("8_1055k")
+item_id = &"produce_pumpkin"
+max_amount = 2
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yn4eg"]
+atlas = ExtResource("14_oasux")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_m4v5p"]
+script = ExtResource("10_0kamg")
+start_day = 8
+max_health = 3
+texture = SubResource("AtlasTexture_yn4eg")
+state_tags = Array[StringName]([&"mature", &"harvestable"])
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_prm5a")])
+
+[sub_resource type="Resource" id="Resource_futy8"]
+script = ExtResource("9_80w7n")
+stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_37e7e"), SubResource("Resource_3p6bd"), SubResource("Resource_ct1vg"), SubResource("Resource_m4v5p")])
+required_tool = 4
+max_health = 3
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+id = &"crop_pumpkin"
+display_name = "Pumpkin Plant"
+description = "A growing pumpkin plant."
+item_type = 5
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_crop_pumpkin_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ri6w1"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(480, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_rskct"]
+script = ExtResource("7_7qpun")
+id = &"food_bread"
+display_name = "Bread"
+description = "Restores a little stamina."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_ri6w1")
+stack_limit = 20
+buy_price = 80
+sell_price = 30
+
+[sub_resource type="Resource" id="Resource_kl8hb"]
+script = ExtResource("8_1055k")
+item_id = &"material_grass"
+max_amount = 2
+chance = 0.8
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_grass_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(608, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lkgk"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(384, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_uk3mu"]
+script = ExtResource("12_ecfw3")
+texture = SubResource("AtlasTexture_5lkgk")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="Resource" id="Resource_8rmlr"]
+script = ExtResource("16_u2ehg")
+required_tool = 3
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_kl8hb")])
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_uk3mu")])
+id = &"grass"
+display_name = "Grass"
+item_type = 5
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_grass_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rgsg0"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(448, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_8rm52"]
+script = ExtResource("7_7qpun")
+id = &"material_grass"
+display_name = "Fiber"
+description = "Plant fiber cut from grass."
+icon_texture = SubResource("AtlasTexture_rgsg0")
+stack_limit = 99
+sell_price = 1
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6ul2"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(416, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_mhoxg"]
+script = ExtResource("7_7qpun")
+id = &"material_stone"
+display_name = "Stone"
+description = "A sturdy piece of stone."
+icon_texture = SubResource("AtlasTexture_k6ul2")
+stack_limit = 99
+sell_price = 2
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d6crp"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(384, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_phlge"]
+script = ExtResource("7_7qpun")
+id = &"material_wood"
+display_name = "Wood"
+description = "Useful building material."
+icon_texture = SubResource("AtlasTexture_d6crp")
+stack_limit = 99
+sell_price = 2
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tifj8"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(288, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_04mp4"]
+script = ExtResource("7_7qpun")
+id = &"produce_parsnip"
+display_name = "Parsnip"
+description = "A crisp spring root."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_tifj8")
+stack_limit = 99
+sell_price = 35
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fnqkp"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(352, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_limxd"]
+script = ExtResource("7_7qpun")
+id = &"produce_potato"
+display_name = "Potato"
+description = "A dependable root crop."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_fnqkp")
+stack_limit = 99
+sell_price = 45
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_efoil"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(320, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_822xh"]
+script = ExtResource("7_7qpun")
+id = &"produce_pumpkin"
+display_name = "Pumpkin"
+description = "A sturdy autumn gourd."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_efoil")
+stack_limit = 99
+sell_price = 60
+
+[sub_resource type="Resource" id="Resource_jainb"]
+script = ExtResource("8_1055k")
+item_id = &"material_stone"
+max_amount = 3
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rock_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(640, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_28cug"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(240, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_id2u5"]
+script = ExtResource("12_ecfw3")
+texture = SubResource("AtlasTexture_28cug")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xgyqf"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(192, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_51c0t"]
+script = ExtResource("12_ecfw3")
+min_health = 2
+texture = SubResource("AtlasTexture_xgyqf")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x4srj"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(144, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_cddht"]
+script = ExtResource("12_ecfw3")
+min_health = 3
+texture = SubResource("AtlasTexture_x4srj")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="Resource" id="Resource_46n8c"]
+script = ExtResource("16_u2ehg")
+required_tool = 5
+max_health = 3
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_jainb")])
+state_tags = Array[StringName]([&"rock"])
+visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_id2u5"), SubResource("Resource_51c0t"), SubResource("Resource_cddht")])
+id = &"rock"
+display_name = "Rock"
+item_type = 4
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_rock_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sr1rq"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_4x1xf"]
+script = ExtResource("18_qwfmb")
+plant_id = &"crop_parsnip"
+id = &"seed_parsnip"
+display_name = "Parsnip Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_sr1rq")
+stack_limit = 99
+buy_price = 20
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j2q4m"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(256, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_e67s4"]
+script = ExtResource("18_qwfmb")
+plant_id = &"crop_potato"
+id = &"seed_potato"
+display_name = "Potato Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_j2q4m")
+stack_limit = 99
+buy_price = 30
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pbovx"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_2e15u"]
+script = ExtResource("18_qwfmb")
+plant_id = &"crop_pumpkin"
+id = &"seed_pumpkin"
+display_name = "Pumpkin Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_pbovx")
+stack_limit = 99
+buy_price = 40
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_stump_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(672, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jo2n5"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(336, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_lqv5b"]
+script = ExtResource("12_ecfw3")
+texture = SubResource("AtlasTexture_jo2n5")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q3p83"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(288, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_44k8c"]
+script = ExtResource("12_ecfw3")
+min_health = 2
+texture = SubResource("AtlasTexture_q3p83")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="Resource" id="Resource_af2gn"]
+script = ExtResource("16_u2ehg")
+required_tool = 6
+max_health = 2
+state_tags = Array[StringName]([&"stump"])
+visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_lqv5b"), SubResource("Resource_44k8c")])
+id = &"stump"
+display_name = "Stump"
+item_type = 4
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_stump_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0hwil"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_runr0"]
+script = ExtResource("19_hnic0")
+tool_kind = 6
+base_stamina_cost = 2
+charge_levels = Array[Vector2i]([Vector2i(1, 1)])
+damage_multipliers = Array[int]([1, 2, 3])
+id = &"tool_axe"
+display_name = "Axe"
+description = "Chops trees and stumps."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_0hwil")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_husm6"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_w6qbl"]
+script = ExtResource("19_hnic0")
+tool_kind = 4
+id = &"tool_basket"
+display_name = "Harvest Basket"
+description = "Harvests ripe produce."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_husm6")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aqy8c"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_brrha"]
+script = ExtResource("19_hnic0")
+tool_kind = 1
+base_stamina_cost = 2
+id = &"tool_hoe"
+display_name = "Hoe"
+description = "Tills farmable soil."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_aqy8c")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mh7pf"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_sp25w"]
+script = ExtResource("19_hnic0")
+tool_kind = 5
+base_stamina_cost = 2
+charge_levels = Array[Vector2i]([Vector2i(1, 1)])
+damage_multipliers = Array[int]([1, 2, 3])
+id = &"tool_pickaxe"
+display_name = "Pickaxe"
+description = "Breaks stone."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_mh7pf")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7bhck"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_g3agm"]
+script = ExtResource("19_hnic0")
+tool_kind = 3
+base_stamina_cost = 1
+id = &"tool_sickle"
+display_name = "Sickle"
+description = "Cuts grass and light plants."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_7bhck")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_26b08"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_8x1m5"]
+script = ExtResource("19_hnic0")
+tool_kind = 2
+base_stamina_cost = 1
+id = &"tool_watering_can"
+display_name = "Watering Can"
+description = "Waters tilled soil."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_26b08")
+
+[sub_resource type="Resource" id="Resource_45sfg"]
+script = ExtResource("8_1055k")
+item_id = &"material_wood"
+min_amount = 2
+max_amount = 4
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tree_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(704, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vv676"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(96, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_irxud"]
+script = ExtResource("12_ecfw3")
+texture = SubResource("AtlasTexture_vv676")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6sm64"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(48, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_a8yar"]
+script = ExtResource("12_ecfw3")
+min_health = 2
+texture = SubResource("AtlasTexture_6sm64")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_llkau"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(0, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_bl38y"]
+script = ExtResource("12_ecfw3")
+min_health = 4
+texture = SubResource("AtlasTexture_llkau")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="Resource" id="Resource_a8bqh"]
+script = ExtResource("16_u2ehg")
+required_tool = 6
+max_health = 5
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_45sfg")])
+depleted_replacement_id = &"stump"
+state_tags = Array[StringName]([&"tree"])
+visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_irxud"), SubResource("Resource_a8yar"), SubResource("Resource_bl38y")])
+id = &"tree"
+display_name = "Tree"
+item_type = 4
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_tree_icon")
+
+[sub_resource type="Resource" id="Resource_rlaoo"]
+script = ExtResource("21_u0law")
+id = &"morning_farm"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 480
+duration_minutes = 240
+target_cell = Vector2i(18, 12)
+behavior_id = &"wander"
+
+[sub_resource type="Resource" id="Resource_villager_field"]
+script = ExtResource("21_u0law")
+id = &"afternoon_field"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 720
+duration_minutes = 300
+map_id = &"field"
+target_cell = Vector2i(12, 18)
+behavior_id = &"forage"
+
+[sub_resource type="Resource" id="Resource_villager_home"]
+script = ExtResource("21_u0law")
+id = &"evening_home"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 1020
+duration_minutes = 300
+target_cell = Vector2i(12, 12)
+behavior_id = &"idle"
+
+[sub_resource type="Resource" id="Resource_lsgvn"]
+script = ExtResource("20_25ukt")
+id = &"schedule_villager"
+npc_id = &"npc_villager"
+display_name = "Mina"
+body_color = Color(0.45, 0.72, 0.86, 1)
+accent_color = Color(0.96, 0.72, 0.25, 1)
+move_speed = 44.0
+fallback_cell = Vector2i(12, 12)
+events = Array[ExtResource("21_u0law")]([SubResource("Resource_rlaoo"), SubResource("Resource_villager_field"), SubResource("Resource_villager_home")])
+
+[sub_resource type="Resource" id="Resource_fisher_morning"]
+script = ExtResource("21_u0law")
+id = &"morning_beach"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 360
+duration_minutes = 360
+map_id = &"beach"
+target_cell = Vector2i(20, 10)
+behavior_id = &"fish"
+
+[sub_resource type="Resource" id="Resource_fisher_farm"]
+script = ExtResource("21_u0law")
+id = &"afternoon_farm"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 720
+duration_minutes = 300
+target_cell = Vector2i(22, 20)
+behavior_id = &"visit"
+
+[sub_resource type="Resource" id="Resource_fisher_evening"]
+script = ExtResource("21_u0law")
+id = &"evening_beach"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 1020
+duration_minutes = 300
+map_id = &"beach"
+target_cell = Vector2i(18, 8)
+behavior_id = &"idle"
+
+[sub_resource type="Resource" id="Resource_fisher_schedule"]
+script = ExtResource("20_25ukt")
+id = &"schedule_fisher"
+npc_id = &"npc_fisher"
+display_name = "Tao"
+body_color = Color(0.38, 0.64, 0.56, 1)
+accent_color = Color(0.88, 0.32, 0.25, 1)
+move_speed = 40.0
+fallback_map_id = &"beach"
+fallback_cell = Vector2i(18, 8)
+fallback_behavior_id = &"idle"
+events = Array[ExtResource("21_u0law")]([SubResource("Resource_fisher_morning"), SubResource("Resource_fisher_farm"), SubResource("Resource_fisher_evening")])
+
+[sub_resource type="Resource" id="Resource_ifkvh"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_0"
+
+[sub_resource type="Resource" id="Resource_xivbu"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_1"
+
+[sub_resource type="Resource" id="Resource_pcpe6"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_10"
+
+[sub_resource type="Resource" id="Resource_rqr7j"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_11"
+
+[sub_resource type="Resource" id="Resource_3yaic"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_12"
+
+[sub_resource type="Resource" id="Resource_240ur"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_13"
+
+[sub_resource type="Resource" id="Resource_cx5bn"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_14"
+
+[sub_resource type="Resource" id="Resource_expdb"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_15"
+
+[sub_resource type="Resource" id="Resource_e1em5"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_16"
+
+[sub_resource type="Resource" id="Resource_ao2sm"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_17"
+
+[sub_resource type="Resource" id="Resource_068rm"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_18"
+
+[sub_resource type="Resource" id="Resource_ylf3k"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_19"
+
+[sub_resource type="Resource" id="Resource_lxe7g"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_2"
+
+[sub_resource type="Resource" id="Resource_14k0b"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_3"
+
+[sub_resource type="Resource" id="Resource_qpii1"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_4"
+
+[sub_resource type="Resource" id="Resource_b6wtu"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_5"
+
+[sub_resource type="Resource" id="Resource_45lg3"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_6"
+
+[sub_resource type="Resource" id="Resource_kqkhh"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_7"
+
+[sub_resource type="Resource" id="Resource_k10wl"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_8"
+
+[sub_resource type="Resource" id="Resource_5it0o"]
+script = ExtResource("23_wd3wu")
+slot_id = &"inventory_9"
+
+[sub_resource type="Resource" id="Resource_tsiuo"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_0"
+item_id = &"seed_parsnip"
+amount = 15
+
+[sub_resource type="Resource" id="Resource_r6l7i"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_1"
+item_id = &"seed_pumpkin"
+amount = 10
+
+[sub_resource type="Resource" id="Resource_i12bl"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_2"
+item_id = &"seed_potato"
+amount = 10
+
+[sub_resource type="Resource" id="Resource_kpiqu"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_3"
+
+[sub_resource type="Resource" id="Resource_jctu5"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_4"
+
+[sub_resource type="Resource" id="Resource_2ehrt"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_5"
+
+[sub_resource type="Resource" id="Resource_juaxs"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_6"
+
+[sub_resource type="Resource" id="Resource_gu643"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_7"
+
+[sub_resource type="Resource" id="Resource_j3d75"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_8"
+
+[sub_resource type="Resource" id="Resource_eyxof"]
+script = ExtResource("23_wd3wu")
+slot_id = &"itembar_9"
+
+[sub_resource type="Resource" id="Resource_nicuf"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_0"
+item_id = &"tool_hoe"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_vi06p"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_1"
+item_id = &"tool_watering_can"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_akdo2"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_2"
+item_id = &"tool_sickle"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_xli7v"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_3"
+item_id = &"tool_basket"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_xhpq1"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_4"
+item_id = &"tool_pickaxe"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_sinle"]
+script = ExtResource("23_wd3wu")
+slot_id = &"toolbar_5"
+item_id = &"tool_axe"
+amount = 1
+
+[sub_resource type="Resource" id="Resource_hge5j"]
+script = ExtResource("22_ljkmd")
+slots = Dictionary[StringName, ExtResource("23_wd3wu")]({
+&"inventory_0": SubResource("Resource_ifkvh"),
+&"inventory_1": SubResource("Resource_xivbu"),
+&"inventory_10": SubResource("Resource_pcpe6"),
+&"inventory_11": SubResource("Resource_rqr7j"),
+&"inventory_12": SubResource("Resource_3yaic"),
+&"inventory_13": SubResource("Resource_240ur"),
+&"inventory_14": SubResource("Resource_cx5bn"),
+&"inventory_15": SubResource("Resource_expdb"),
+&"inventory_16": SubResource("Resource_e1em5"),
+&"inventory_17": SubResource("Resource_ao2sm"),
+&"inventory_18": SubResource("Resource_068rm"),
+&"inventory_19": SubResource("Resource_ylf3k"),
+&"inventory_2": SubResource("Resource_lxe7g"),
+&"inventory_3": SubResource("Resource_14k0b"),
+&"inventory_4": SubResource("Resource_qpii1"),
+&"inventory_5": SubResource("Resource_b6wtu"),
+&"inventory_6": SubResource("Resource_45lg3"),
+&"inventory_7": SubResource("Resource_kqkhh"),
+&"inventory_8": SubResource("Resource_k10wl"),
+&"inventory_9": SubResource("Resource_5it0o"),
+&"itembar_0": SubResource("Resource_tsiuo"),
+&"itembar_1": SubResource("Resource_r6l7i"),
+&"itembar_2": SubResource("Resource_i12bl"),
+&"itembar_3": SubResource("Resource_kpiqu"),
+&"itembar_4": SubResource("Resource_jctu5"),
+&"itembar_5": SubResource("Resource_2ehrt"),
+&"itembar_6": SubResource("Resource_juaxs"),
+&"itembar_7": SubResource("Resource_gu643"),
+&"itembar_8": SubResource("Resource_j3d75"),
+&"itembar_9": SubResource("Resource_eyxof"),
+&"toolbar_0": SubResource("Resource_nicuf"),
+&"toolbar_1": SubResource("Resource_vi06p"),
+&"toolbar_2": SubResource("Resource_akdo2"),
+&"toolbar_3": SubResource("Resource_xli7v"),
+&"toolbar_4": SubResource("Resource_xhpq1"),
+&"toolbar_5": SubResource("Resource_sinle")
+})
+toolbar = Array[StringName]([&"toolbar_0", &"toolbar_1", &"toolbar_2", &"toolbar_3", &"toolbar_4", &"toolbar_5"])
+itembar = Array[StringName]([&"itembar_0", &"itembar_1", &"itembar_2", &"itembar_3", &"itembar_4", &"itembar_5", &"itembar_6", &"itembar_7", &"itembar_8", &"itembar_9"])
+
+[sub_resource type="Resource" id="Resource_st4jl"]
+script = ExtResource("24_omn50")
+backpack_state = SubResource("Resource_hge5j")
+
+[sub_resource type="Resource" id="Resource_do4cu"]
+script = ExtResource("26_pa6h3")
+season_type = 2
+season_id = &"autumn"
+months = Array[int]([7, 8, 9])
+weather_weights = Dictionary[StringName, float]({
+&"clear": 35.0,
+&"cloudy": 35.0,
+&"rain": 25.0,
+&"storm": 5.0
+})
+weather_light_tints = Dictionary[StringName, Color]({
+&"clear": Color(1, 0.95, 0.86, 1),
+&"cloudy": Color(0.84, 0.82, 0.76, 1),
+&"rain": Color(0.7, 0.76, 0.82, 1),
+&"storm": Color(0.5, 0.54, 0.62, 1)
+})
+
+[sub_resource type="Resource" id="Resource_yrknm"]
+script = ExtResource("26_pa6h3")
+weather_weights = Dictionary[StringName, float]({
+&"clear": 45.0,
+&"cloudy": 25.0,
+&"rain": 30.0
+})
+weather_light_tints = Dictionary[StringName, Color]({
+&"clear": Color(1, 1, 1, 1),
+&"cloudy": Color(0.82, 0.86, 0.84, 1),
+&"rain": Color(0.72, 0.8, 0.88, 1)
+})
+
+[sub_resource type="Resource" id="Resource_gxb7n"]
+script = ExtResource("26_pa6h3")
+season_type = 1
+season_id = &"summer"
+months = Array[int]([4, 5, 6])
+weather_weights = Dictionary[StringName, float]({
+&"clear": 60.0,
+&"cloudy": 20.0,
+&"rain": 15.0,
+&"storm": 5.0
+})
+weather_light_tints = Dictionary[StringName, Color]({
+&"clear": Color(1, 1, 0.96, 1),
+&"cloudy": Color(0.84, 0.86, 0.82, 1),
+&"rain": Color(0.74, 0.82, 0.88, 1),
+&"storm": Color(0.52, 0.58, 0.68, 1)
+})
+
+[sub_resource type="Resource" id="Resource_01gtk"]
+script = ExtResource("26_pa6h3")
+season_type = 3
+season_id = &"winter"
+months = Array[int]([10, 11, 12])
+weather_weights = Dictionary[StringName, float]({
+&"clear": 35.0,
+&"cloudy": 35.0,
+&"snow": 30.0
+})
+weather_light_tints = Dictionary[StringName, Color]({
+&"clear": Color(0.92, 0.96, 1, 1),
+&"cloudy": Color(0.78, 0.84, 0.9, 1),
+&"snow": Color(0.86, 0.92, 1, 1)
+})
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_weather_clear"]
+atlas = ExtResource("28_weather_icons")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_weather_cloudy"]
+atlas = ExtResource("28_weather_icons")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_weather_rain"]
+atlas = ExtResource("28_weather_icons")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_weather_snow"]
+atlas = ExtResource("28_weather_icons")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_weather_storm"]
+atlas = ExtResource("28_weather_icons")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_dialogue_tv_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"television"
+speaker_name = "Television"
+text = "The weather report says the day is looking good for farm work."
+
+[sub_resource type="Resource" id="Resource_dialogue_tv_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"television"
+speaker_name = "Television"
+text = "Remember to check your crops before the evening light fades."
+
+[sub_resource type="Resource" id="Resource_dialogue_tv"]
+script = ExtResource("30_dialogue_definition")
+id = &"television_report"
+lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_tv_line_0"), SubResource("Resource_dialogue_tv_line_1")])
+
+[sub_resource type="Resource" id="Resource_dialogue_mina_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_villager"
+speaker_name = "Mina"
+text = "The paths are quiet today. It is a good time to explore."
+
+[sub_resource type="Resource" id="Resource_dialogue_mina_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_villager"
+speaker_name = "Mina"
+text = "I will be back here later if you need me."
+
+[sub_resource type="Resource" id="Resource_dialogue_mina"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_villager_default"
+lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_mina_line_0"), SubResource("Resource_dialogue_mina_line_1")])
+
+[sub_resource type="Resource" id="Resource_dialogue_tao_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_fisher"
+speaker_name = "Tao"
+text = "The coast is calm. I saw silver fish near the rocks this morning."
+
+[sub_resource type="Resource" id="Resource_dialogue_tao_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_fisher"
+speaker_name = "Tao"
+text = "Keep an eye on the weather when you travel between maps."
+
+[sub_resource type="Resource" id="Resource_dialogue_tao"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_fisher_default"
+lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_tao_line_0"), SubResource("Resource_dialogue_tao_line_1")])
+
+[resource]
+script = ExtResource("25_vkq73")
+items = Dictionary[StringName, ExtResource("7_7qpun")]({
+&"crop_parsnip": SubResource("Resource_bjumj"),
+&"crop_potato": SubResource("Resource_8id26"),
+&"crop_pumpkin": SubResource("Resource_futy8"),
+&"food_bread": SubResource("Resource_rskct"),
+&"grass": SubResource("Resource_8rmlr"),
+&"material_grass": SubResource("Resource_8rm52"),
+&"material_stone": SubResource("Resource_mhoxg"),
+&"material_wood": SubResource("Resource_phlge"),
+&"produce_parsnip": SubResource("Resource_04mp4"),
+&"produce_potato": SubResource("Resource_limxd"),
+&"produce_pumpkin": SubResource("Resource_822xh"),
+&"rock": SubResource("Resource_46n8c"),
+&"seed_parsnip": SubResource("Resource_4x1xf"),
+&"seed_potato": SubResource("Resource_e67s4"),
+&"seed_pumpkin": SubResource("Resource_2e15u"),
+&"stump": SubResource("Resource_af2gn"),
+&"tool_axe": SubResource("Resource_runr0"),
+&"tool_basket": SubResource("Resource_w6qbl"),
+&"tool_hoe": SubResource("Resource_brrha"),
+&"tool_pickaxe": SubResource("Resource_sp25w"),
+&"tool_sickle": SubResource("Resource_g3agm"),
+&"tool_watering_can": SubResource("Resource_8x1m5"),
+&"tree": SubResource("Resource_a8bqh")
+})
+npc_schedules = Dictionary[StringName, ExtResource("20_25ukt")]({
+&"schedule_fisher": SubResource("Resource_fisher_schedule"),
+&"schedule_villager": SubResource("Resource_lsgvn")
+})
+dialogue_definitions = Dictionary[StringName, ExtResource("30_dialogue_definition")]({
+&"npc_fisher_default": SubResource("Resource_dialogue_tao"),
+&"npc_villager_default": SubResource("Resource_dialogue_mina"),
+&"television_report": SubResource("Resource_dialogue_tv")
+})
+player_state_template = SubResource("Resource_st4jl")
+day_transition_duration = 0.55
+season_metas = Dictionary[StringName, ExtResource("26_pa6h3")]({
+&"autumn": SubResource("Resource_do4cu"),
+&"spring": SubResource("Resource_yrknm"),
+&"summer": SubResource("Resource_gxb7n"),
+&"winter": SubResource("Resource_01gtk")
+})
+weather_icons = Dictionary[StringName, Texture2D]({
+&"clear": SubResource("AtlasTexture_weather_clear"),
+&"cloudy": SubResource("AtlasTexture_weather_cloudy"),
+&"rain": SubResource("AtlasTexture_weather_rain"),
+&"snow": SubResource("AtlasTexture_weather_snow"),
+&"storm": SubResource("AtlasTexture_weather_storm")
+})
+morning_color = Color(0.85098, 0.835294, 0.721569, 1)
+evening_color = Color(0.835294, 0.603922, 0.447059, 1)
+night_color = Color(0.34902, 0.396078, 0.498039, 1)
+effect_definitions = Dictionary[StringName, ExtResource("2_wx4dx")]({
+&"chop": SubResource("Resource_qsg5w"),
+&"cut": SubResource("Resource_ibnfl"),
+&"harvest": SubResource("Resource_mdls1"),
+&"mine": SubResource("Resource_ppr13"),
+&"seed": SubResource("Resource_bkljk"),
+&"till": SubResource("Resource_5ktos"),
+&"water": SubResource("Resource_k1l6q")
+})
+weather_effect_scenes = Dictionary[StringName, PackedScene]({
+&"rain": ExtResource("27_6vsky"),
+&"storm": ExtResource("27_6vsky")
+})
+audio_definitions = Dictionary[StringName, ExtResource("1_bgp3f")]({
+&"ambient_beach": SubResource("Resource_xsjy0"),
+&"ambient_farm": SubResource("Resource_n34c2"),
+&"ambient_field": SubResource("Resource_4j3qs"),
+&"chop": SubResource("Resource_v75k5"),
+&"cut": SubResource("Resource_tmplk"),
+&"footstep": SubResource("Resource_sceww"),
+&"harvest": SubResource("Resource_rni5q"),
+&"invalid": SubResource("Resource_14sbt"),
+&"mine": SubResource("Resource_btqf8"),
+&"music_beach": SubResource("Resource_6cp4u"),
+&"music_farm": SubResource("Resource_fpfg3"),
+&"music_field": SubResource("Resource_eb5ld"),
+&"pickup": SubResource("Resource_t8f21"),
+&"till": SubResource("Resource_t04ac"),
+&"tool_use": SubResource("Resource_m6dow"),
+&"ui_cancel": SubResource("Resource_ys377"),
+&"ui_confirm": SubResource("Resource_e8mqr"),
+&"water": SubResource("Resource_glphy")
+})

@@ -26,8 +26,7 @@ func test_generation_is_seeded_and_respects_cell_and_safe_zone_constraints() -> 
 		assert_true(Rect2i(Vector2i.ZERO, first.get_map_size()).has_point(item_state.cell))
 		var cell := first.get_cell(item_state.cell)
 		assert_true(cell.has_static_flag(CellState.CellFlag.BASE))
-		for flag: CellState.CellFlag in first.items_generator.forbidden_flags:
-			assert_true(not cell.has_static_flag(flag))
+		assert_true(cell.has_static_flag(CellState.CellFlag.GENERATE))
 		assert_true(&"generated" in item_state.flags)
 		assert_true(not _inside_safe_zone(first, item_state.cell, first.items_generator.safe_radius))
 
@@ -104,7 +103,7 @@ func test_no_valid_cells_finishes_without_attempt_loop() -> void:
 	state.map_id = &"farm"
 	var map := _farm()
 	for cell: MapCell in map.cells.values():
-		cell.add_static_flag(CellState.CellFlag.BLOCKED)
+		cell.remove_static_flag(CellState.CellFlag.GENERATE)
 	assert_equal(map.configure_state(state, 77, true), OK)
 	assert_true(state.generator_initialized)
 	assert_equal(int(map.last_generation_summary["spawned"]), 0)
@@ -112,16 +111,12 @@ func test_no_valid_cells_finishes_without_attempt_loop() -> void:
 	assert_equal(int(map.last_generation_summary["skipped"]), int(map.last_generation_summary["requested"]))
 
 
-func test_generator_rejects_duplicate_candidate_types() -> void:
+func test_generator_rejects_empty_candidate_id() -> void:
 	var generator := ItemsGenerator.new()
 	_nodes.append(generator)
-	var first := ItemsGeneratorCandidate.new()
-	first.meta_id = &"tree"
-	first.max_count = 1
-	var duplicate := ItemsGeneratorCandidate.new()
-	duplicate.meta_id = &"tree"
-	duplicate.max_count = 1
-	generator.candidates = [first, duplicate]
+	var candidate := ItemsGeneratorCandidate.new()
+	candidate.max_count = 1
+	generator.candidates = {&"": candidate}
 	assert_equal(generator.validation_error(), ERR_INVALID_DATA)
 
 
@@ -137,9 +132,7 @@ func test_field_generation_uses_resource_cells_within_map_size() -> void:
 		assert_true(Rect2i(Vector2i.ZERO, map.get_map_size()).has_point(item_state.cell))
 		var cell := map.get_cell(item_state.cell)
 		assert_true(cell.has_static_flag(CellState.CellFlag.BASE))
-		assert_true(cell.has_static_flag(CellState.CellFlag.RESOURCE))
-		for flag: CellState.CellFlag in map.items_generator.forbidden_flags:
-			assert_true(not cell.has_static_flag(flag))
+		assert_true(cell.has_static_flag(CellState.CellFlag.GENERATE))
 
 
 func test_farm_and_field_generate_loose_pickup_items() -> void:

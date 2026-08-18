@@ -24,7 +24,8 @@ func test_new_game_uses_inspector_editable_player_state_template() -> void:
 	template.gold = 725
 	template.backpack_state = BackpackState.new(4, 2, 3)
 	assert_true(template.backpack_state.set_slot(&"itembar", 1, BackpackSlot.new(&"itembar_1", &"seed_potato", 8)))
-	game_manager.player_state_template = template
+	game_manager.config = game_manager.config.duplicate() as AutoloadConfig
+	game_manager.config.player_state_template = template
 
 	assert_equal(game_manager.new_game(321), OK)
 	assert_equal(game_manager.player.map_id, &"field")
@@ -51,7 +52,8 @@ func test_snapshot_restore_does_not_depend_on_current_player_template() -> void:
 	var snapshot := game_manager.snapshot()
 	var replacement_template := PlayerState.new()
 	replacement_template.backpack_state = BackpackState.new(1, 1, 1)
-	game_manager.player_state_template = replacement_template
+	game_manager.config = game_manager.config.duplicate() as AutoloadConfig
+	game_manager.config.player_state_template = replacement_template
 
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
 	assert_equal(game_manager.player.backpack_state.capacity(&"inventory"), 20)
@@ -72,8 +74,8 @@ func test_new_game_is_deterministic_and_does_not_accumulate_inventory() -> void:
 	assert_equal(game_manager.player.backpack_state.count_item(&"inventory", &"seed_parsnip"), 0)
 	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket", &"tool_pickaxe", &"tool_axe"]:
 		assert_equal(game_manager.player.backpack_state.count_item(&"toolbar", tool_id), 1)
-	assert_equal(game_manager.player.map_id, &"cabin")
-	assert_equal(game_manager.player.spawn_id, &"wake")
+	assert_equal(game_manager.player.map_id, &"farm")
+	assert_equal(game_manager.player.spawn_id, &"default")
 	assert_equal(game_manager.new_game(4242), OK)
 	assert_equal(game_manager.snapshot(), first)
 	assert_equal(EventBus.inventory_changed.get_connections().size(), connections_before)
@@ -135,7 +137,7 @@ func test_npcs_are_global_and_keep_their_current_map_location() -> void:
 	var game_manager := GameManagerService.new()
 	assert_equal(game_manager.new_game(77), OK)
 	var npc := NpcState.new()
-	npc.npc_id = &"npc_villager"
+	npc.npc_id = &"npc_custom"
 	npc.schedule_id = &"schedule_villager"
 	npc.map_id = &"field"
 	npc.cell = Vector2i(12, 8)
@@ -146,9 +148,9 @@ func test_npcs_are_global_and_keep_their_current_map_location() -> void:
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game_manager.snapshot())) as Dictionary
 	assert_true(not (snapshot["maps"] as Array)[0].has("npcs"))
 	assert_equal(game_manager.new_game(77), OK)
-	assert_true(game_manager.npcs.is_empty())
+	assert_equal(game_manager.npcs.size(), 2)
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
-	var restored := game_manager.get_npc(&"npc_villager")
+	var restored := game_manager.get_npc(&"npc_custom")
 	assert_equal(restored.map_id, &"field")
 	assert_equal(restored.cell, Vector2i(12, 8))
 	assert_equal(restored.current_event_id, &"morning_field")

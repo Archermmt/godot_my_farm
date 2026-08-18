@@ -4,6 +4,9 @@ extends Control
 @onready var calendar_label: Label = $Panel/Calendar
 @onready var player_label: Label = $Panel/Player
 @onready var hand_label: Label = $Panel/Hand
+@onready var weather_icon: TextureRect = $Panel/WeatherIcon
+@onready var hand_icon: TextureRect = $Panel/HandIcon
+@onready var hand_amount: Label = $Panel/HandAmount
 
 var _last_snapshot := ""
 
@@ -45,7 +48,7 @@ func _refresh() -> void:
 	if calendar == null or player == null:
 		return
 	var active_stack := player.active_stack()
-	var weather_id := WeatherManager.current_weather_id() if is_instance_valid(WeatherManager) else &""
+	var weather_id := CalendarManager.current_weather_id() if is_instance_valid(CalendarManager) else &""
 	var snapshot := "%d/%d/%d/%d/%d/%d/%s|%d/%d/%d/%d/%d|%d/%s/%d" % [
 		calendar.year, calendar.month, calendar.day, calendar.weekday, calendar.hour, calendar.minute,
 		weather_id,
@@ -55,23 +58,26 @@ func _refresh() -> void:
 	if snapshot == _last_snapshot:
 		return
 	_last_snapshot = snapshot
-	calendar_label.text = "Y%d M%d D%d W%d %02d:%02d\n%s / %s" % [
+	calendar_label.text = "Y%d M%d D%d W%d %02d:%02d\n%s" % [
 		calendar.year, calendar.month, calendar.day, calendar.weekday, calendar.hour, calendar.minute,
-		String(calendar.season()).left(3).to_upper(), String(weather_id).to_upper(),
+		String(calendar.season()).left(3).to_upper(),
 	]
+	weather_icon.texture = CalendarManager.weather_icon(weather_id) if is_instance_valid(CalendarManager) else null
+	weather_icon.visible = weather_icon.texture != null
+	weather_icon.tooltip_text = String(weather_id).capitalize()
 	player_label.text = "HP %d/%d  EN %d/%d  G %d" % [
 		player.health, player.max_health, player.stamina, player.max_stamina, player.gold,
 	]
-	var source_name := "EMPTY"
-	match player.active_hand_source:
-		PlayerState.ActiveHandSource.TOOLBAR:
-			source_name = "TOOLS"
-		PlayerState.ActiveHandSource.ITEMBAR:
-			source_name = "ITEMS"
 	if active_stack == null or active_stack.is_empty():
-		hand_label.text = "HAND  %s  |  EMPTY" % source_name
+		hand_label.text = "Empty"
+		hand_icon.texture = null
+		hand_icon.visible = false
+		hand_icon.tooltip_text = ""
+		hand_amount.text = ""
 	else:
 		var meta := DataCatalog.get_item(active_stack.item_id)
-		var display_name := meta.display_name if meta != null else String(active_stack.item_id)
-		var suffix := " x%d" % active_stack.amount if active_stack.amount > 1 else ""
-		hand_label.text = "HAND  %s  |  %s%s" % [source_name, display_name, suffix]
+		hand_label.text = meta.display_name if meta != null else String(active_stack.item_id)
+		hand_icon.texture = meta.icon_texture if meta != null else null
+		hand_icon.visible = hand_icon.texture != null
+		hand_icon.tooltip_text = meta.display_name if meta != null else String(active_stack.item_id)
+		hand_amount.text = "x%d" % active_stack.amount if active_stack.amount > 1 else ""

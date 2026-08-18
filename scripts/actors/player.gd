@@ -3,6 +3,8 @@ extends CharacterBody2D
 
 const DIRECTIONS := [&"down", &"left", &"right", &"up"]
 const MOTION_STATES := [&"idle", &"walk", &"run"]
+const CHARGE_COLOR_LOW := Color("f6e58d")
+const CHARGE_COLOR_HIGH := Color("2e7d32")
 
 @export_range(1.0, 500.0, 1.0) var run_speed: float = 96.0
 @export_range(1.0, 500.0, 1.0) var walk_speed: float = 48.0
@@ -10,6 +12,8 @@ const MOTION_STATES := [&"idle", &"walk", &"run"]
 @export_range(1.0, 160.0, 1.0) var pickup_radius: float = 72.0
 @export_range(1.0, 64.0, 1.0) var pickup_collect_distance: float = 10.0
 @export_range(1.0, 600.0, 1.0) var pickup_attraction_speed: float = 180.0
+@export_group("Camera")
+@export_range(0.0, 2.0, 0.05) var camera_zoom_duration: float = 0.3
 @export_group("")
 
 var input_direction: Vector2 = Vector2.ZERO
@@ -20,31 +24,54 @@ var state: PlayerState = null
 
 var _lock_reasons: Dictionary[StringName, bool] = {}
 var _footstep_elapsed: float = 0.0
+var _camera_zoom_tween: Tween = null
+var _outdoor_camera_zoom := Vector2.ONE
+var _inside_house := false
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var camera: Camera2D = $Camera2D
-@onready var held_visual: Node2D = $Hands/HeldVisual
-@onready var held_swatch: Polygon2D = $Hands/HeldVisual/Swatch
-@onready var held_label: Label = $Hands/HeldVisual/Label
 @onready var selection_popup: Control = $SelectionPopup
-@onready var selection_title: Label = $SelectionPopup/Background/Title
-@onready var selection_slots: HBoxContainer = $SelectionPopup/Background/Slots
+@onready var selection_slots: HBoxContainer = $SelectionPopup/Slots
 @onready var selection_timer: Timer = $SelectionTimer
 @onready var effect_area: EffectArea = $EffectArea
 @onready var backpack: PlayerBackpack = get_node_or_null("Backpack") as PlayerBackpack
+@onready var charge_bar: ProgressBar = $ChargeBar
+
+var _charge_fill_style: StyleBoxFlat = null
 
 
 func _ready() -> void:
 	assert(walk_speed < run_speed, "walk_speed must be lower than run_speed")
 	_play_animation()
+	_outdoor_camera_zoom = camera.zoom
 	selection_timer.timeout.connect(_hide_selection_popup)
-	_refresh_held_visual()
+	_charge_fill_style = charge_bar.get_theme_stylebox("fill").duplicate() as StyleBoxFlat
+	charge_bar.add_theme_stylebox_override("fill", _charge_fill_style)
+	charge_bar.visible = false
 	if not EventBus.bar_selection_changed.is_connected(_on_bar_selection_changed):
 		EventBus.bar_selection_changed.connect(_on_bar_selection_changed)
-	if not EventBus.active_hand_changed.is_connected(_on_active_hand_changed):
-		EventBus.active_hand_changed.connect(_on_active_hand_changed)
 	if not EventBus.player_state_changed.is_connected(_on_player_state_changed):
 		EventBus.player_state_changed.connect(_on_player_state_changed)
+
+
+func set_house_interior(active: bool, indoor_zoom: Vector2 = Vector2(1.5, 1.5)) -> void:
+	if _inside_house == active:
+		return
+	_inside_house = active
+	if _camera_zoom_tween != null and _camera_zoom_tween.is_valid():
+		_camera_zoom_tween.kill()
+	var target_zoom := indoor_zoom if active else _outdoor_camera_zoom
+	if camera_zoom_duration <= 0.0:
+		camera.zoom = target_zoom
+	else:
+		_camera_zoom_tween = create_tween()
+		_camera_zoom_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_camera_zoom_tween.tween_property(camera, "zoom", target_zoom, camera_zoom_duration)
+	EventBus.player_interior_changed.emit(active)
+
+
+func is_inside_house() -> bool:
+	return _inside_house
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -59,9 +86,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var handled := true
 	if event.is_action_pressed("use_held"):
 		_begin_interaction()
+	elif event.is_action_pressed("interact"):
+		_interact_with_facing_target()
 	elif event.is_action_pressed("skip_day"):
 		GameManager.skip_day()
-	elif event.is_action_pressed("drop_held"):
+	elif event.is_action_pressed("drop") or event.is_action_pressed("drop_held"):
 		_drop_held_item()
 	elif event.is_action_pressed("cancel"):
 		_cancel_interaction()
@@ -79,6 +108,34 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _interact_with_facing_target() -> void:
+	if is_input_locked() or (effect_area != null and effect_area.is_charging()):
+		return
+	var map := MapManager.current_map()
+	if map == null:
+		return
+	var facing_offset: Vector2i = EffectArea.FACING_VECTORS.get(facing, Vector2i.DOWN)
+	var target_cell := map.world_to_cell(global_position) + facing_offset
+	var target := MapManager.interaction_target_at(target_cell)
+	if target == null:
+		return
+	var rejection: StringName = target.interaction_rejection_reason(state)
+	if rejection != &"":
+		EventBus.request_invalid_feedback.emit(rejection)
+		return
+	var result = target.interact(self)
+	if result == null:
+		return
+	var controller: Node = get_tree().get_first_node_in_group("dialogue_controller")
+	if controller == null:
+		return
+	match result.kind:
+		1:
+			controller.begin(result.dialogue_id, target, self)
+		2:
+			controller.begin_sleep(target, self)
+
+
 func _process(delta: float) -> void:
 	if effect_area == null:
 		return
@@ -86,6 +143,7 @@ func _process(delta: float) -> void:
 		_cancel_interaction()
 		return
 	effect_area.update(delta)
+	_refresh_charge_bar()
 
 
 func _notification(what: int) -> void:
@@ -116,7 +174,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _process_pickups(delta: float) -> void:
-	var map: BaseMap = SceneManager.current_map()
+	var map: BaseMap = MapManager.current_map()
 	if map == null:
 		return
 	for item: Item in map.pickup_items_in_radius(global_position, pickup_radius):
@@ -259,7 +317,6 @@ func debug_snapshot() -> Dictionary:
 		"camera_enabled": camera.enabled,
 		"active_hand_source": int(state.active_hand_source) if state != null else int(PlayerState.ActiveHandSource.NONE),
 		"active_item_id": active_stack.item_id if active_stack != null and not active_stack.is_empty() else &"",
-		"held_visual_visible": held_visual.visible,
 		"selection_popup_visible": selection_popup.visible,
 	}
 
@@ -267,26 +324,6 @@ func debug_snapshot() -> Dictionary:
 func _on_bar_selection_changed(source: int, _selected_index: int) -> void:
 	_show_selection_popup(source as PlayerState.ActiveHandSource)
 	AudioManager.play_event(&"ui_confirm")
-
-
-func _on_active_hand_changed(_source: int, _item_id: StringName, _amount: int) -> void:
-	_refresh_held_visual()
-
-
-func _refresh_held_visual() -> void:
-	if held_visual == null:
-		return
-	var stack: BackpackSlot = state.active_stack() if state != null else null
-	if stack == null or stack.is_empty():
-		held_visual.visible = false
-		return
-	var meta: ItemMeta = DataCatalog.get_item(stack.item_id)
-	if meta == null:
-		held_visual.visible = false
-		return
-	held_visual.visible = true
-	held_swatch.color = _item_color(meta)
-	held_label.text = _short_label(meta)
 
 
 func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
@@ -301,56 +338,33 @@ func _show_selection_popup(source: PlayerState.ActiveHandSource) -> void:
 		child.free()
 	for index: int in capacity:
 		var stack := state.backpack_state.get_slot(container_id, index)
-		var slot := ColorRect.new()
-		slot.custom_minimum_size = Vector2(17, 17)
-		slot.color = Color("f2c14e") if index == selected_index else Color("284a48")
-		var label := Label.new()
-		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 7)
-		label.add_theme_color_override("font_color", Color("142c2b") if index == selected_index else Color("e9f0df"))
+		var slot := Control.new()
+		slot.custom_minimum_size = Vector2(24, 24)
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if stack != null and not stack.is_empty():
 			var meta: ItemMeta = DataCatalog.get_item(stack.item_id)
-			label.text = _short_label(meta) if meta != null else "?"
-		else:
-			label.text = "-"
-		slot.add_child(label)
+			if meta != null and meta.icon_texture != null:
+				var icon := TextureRect.new()
+				icon.name = "Icon"
+				icon.set_anchors_preset(Control.PRESET_CENTER)
+				icon.position = Vector2(-8, -8)
+				icon.size = Vector2(16, 16)
+				icon.pivot_offset = icon.size * 0.5
+				icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				icon.texture = meta.icon_texture
+				icon.scale = Vector2(1.35, 1.35) if index == selected_index else Vector2.ONE
+				icon.tooltip_text = meta.display_name
+				slot.add_child(icon)
 		selection_slots.add_child(slot)
-	var selected := state.backpack_state.get_slot(container_id, selected_index)
-	var selected_name := "Empty"
-	if selected != null and not selected.is_empty():
-		var selected_meta: ItemMeta = DataCatalog.get_item(selected.item_id)
-		selected_name = selected_meta.display_name if selected_meta != null else String(selected.item_id)
-	selection_title.text = "%s  %s" % ["TOOLS" if source == PlayerState.ActiveHandSource.TOOLBAR else "ITEMS", selected_name]
 	selection_popup.visible = true
 	selection_timer.start()
 
 
 func _hide_selection_popup() -> void:
 	selection_popup.visible = false
-
-
-func _item_color(meta: ItemMeta) -> Color:
-	match meta.item_type:
-		ItemMeta.ItemType.TOOL:
-			return Color("e1a447")
-		ItemMeta.ItemType.SEED:
-			return Color("73ad57")
-		ItemMeta.ItemType.FOOD:
-			return Color("d96c5f")
-	return Color("6f9ca0")
-
-
-func _short_label(meta: ItemMeta) -> String:
-	if meta == null:
-		return "?"
-	var words := meta.display_name.split(" ", false)
-	if meta.item_type == ItemMeta.ItemType.SEED and not words.is_empty():
-		return words[0].left(2).to_upper()
-	if words.size() >= 2:
-		return (words[0].left(1) + words[1].left(1)).to_upper()
-	return meta.display_name.left(2).to_upper()
 
 
 func bind_state(next_state: PlayerState) -> Error:
@@ -360,7 +374,6 @@ func bind_state(next_state: PlayerState) -> Error:
 	facing = state.facing
 	if backpack != null:
 		backpack.sync_from_player_state(state)
-	_refresh_held_visual()
 	return OK
 
 
@@ -447,7 +460,7 @@ func _begin_interaction() -> void:
 	var stack := state.active_stack()
 	if stack == null or stack.is_empty():
 		return
-	var map: BaseMap = SceneManager.current_map()
+	var map: BaseMap = MapManager.current_map()
 	if map == null or backpack == null:
 		return
 	if backpack != null:
@@ -457,13 +470,14 @@ func _begin_interaction() -> void:
 		return
 	var player_cell := map.world_to_cell(global_position)
 	state.cell = player_cell
-	effect_area.begin(state, map, item)
+	if effect_area.begin(state, map, item) == OK:
+		_refresh_charge_bar()
 
 
 func _sync_state_cell() -> void:
 	if state == null:
 		return
-	var map: BaseMap = SceneManager.current_map()
+	var map: BaseMap = MapManager.current_map()
 	if map == null:
 		return
 	var current_cell := map.world_to_cell(global_position)
@@ -478,7 +492,7 @@ func _sync_state_cell() -> void:
 func _release_interaction() -> void:
 	if effect_area == null or state == null or backpack == null:
 		return
-	var map: BaseMap = SceneManager.current_map()
+	var map: BaseMap = MapManager.current_map()
 	var item := backpack.active_item(state)
 	if map == null or item == null:
 		_cancel_interaction()
@@ -486,12 +500,14 @@ func _release_interaction() -> void:
 		return
 	var target_cells := effect_area.preview_cells(false)
 	var valid_cells := effect_area.preview_cells(true)
+	var charge_level := effect_area.charge_level
 	var release_error := effect_area.release_preview()
+	_hide_charge_bar()
 	if release_error != OK:
 		_emit_invalid_interaction()
 		return
 	if item is Tool:
-		var tool_result := (item as Tool).use(map, target_cells, state.stamina, state.cell)
+		var tool_result := (item as Tool).use(map, target_cells, state.stamina, state.cell, charge_level)
 		if tool_result.error != OK:
 			_emit_invalid_interaction()
 			return
@@ -523,21 +539,28 @@ func _release_interaction() -> void:
 
 
 func _drop_held_item() -> void:
-	if state == null or state.active_hand_source != PlayerState.ActiveHandSource.ITEMBAR:
+	if state == null or state.active_hand_source == PlayerState.ActiveHandSource.NONE:
 		return
 	var stack := state.active_stack()
-	var map: BaseMap = SceneManager.current_map()
-	if stack == null or stack.is_empty() or map == null:
+	var map: BaseMap = MapManager.current_map()
+	var item_meta := DataCatalog.get_item(stack.item_id) if stack != null and not stack.is_empty() else null
+	if stack == null or stack.is_empty() or item_meta == null or not item_meta.dropable or map == null:
 		return
 	var facing_offset: Vector2i = EffectArea.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
 	var target_cell: Vector2i = map.world_to_cell(global_position) + facing_offset
+	if effect_area != null and effect_area.is_charging():
+		var preview_cells := effect_area.preview_cells(true)
+		if not preview_cells.is_empty():
+			target_cell = preview_cells[0]
 	if not map.check_cell(target_cell, BaseMap.CellCondition.DROPABLE):
 		return
 	var dropped_item_id := stack.item_id
 	if map.spawn_pickup(dropped_item_id, target_cell) == &"":
 		return
-	backpack.remove_item(&"itembar", dropped_item_id, 1)
-	EventBus.container_changed.emit(&"itembar")
+	var container_id: StringName = &"toolbar" if state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR else &"itembar"
+	if not backpack.remove_item(container_id, dropped_item_id, 1):
+		return
+	EventBus.container_changed.emit(container_id)
 	if backpack != null:
 		backpack.sync_from_player_state(state)
 	var active := state.active_stack()
@@ -580,6 +603,25 @@ func _emit_tool_outcome(result: ToolOutcome) -> void:
 func _cancel_interaction() -> void:
 	if effect_area != null:
 		effect_area.cancel()
+	_hide_charge_bar()
+
+
+func _refresh_charge_bar() -> void:
+	if charge_bar == null or effect_area == null or not effect_area.is_charging():
+		_hide_charge_bar()
+		return
+	charge_bar.visible = true
+	var progress := effect_area.charge_progress()
+	charge_bar.value = progress
+	if _charge_fill_style != null:
+		_charge_fill_style.bg_color = CHARGE_COLOR_LOW.lerp(CHARGE_COLOR_HIGH, progress)
+
+
+func _hide_charge_bar() -> void:
+	if charge_bar == null:
+		return
+	charge_bar.visible = false
+	charge_bar.value = 0.0
 
 
 static func normalized_direction(raw: Vector2) -> Vector2:

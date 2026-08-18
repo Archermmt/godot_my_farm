@@ -21,7 +21,7 @@
 
 2. 整个首日流程只注入键盘 InputMap action；选择、使用、丢下、Toolbar/Itembar 切换及三容器交换不得依赖鼠标事件。
 3. 初始 seed、种子、体力、地图资源和作物成长天数平衡到 10-15 分钟开发验收可完成；正式时间倍率仍可配置。
-4. UI panel、工具 charging、SceneManager 和 GameManager 时间锁定不会死锁或提前解除。
+4. UI panel、工具 charging、MapManager 和 GameManager 时间锁定不会死锁或提前解除。
 5. preview、commit、音画反馈和存档状态对每种行为一致；错误工具、无体力、满包、无存档都有清楚反馈。
 6. 地图切换、换日、save/load 过程中没有重复 Player/HUD/NPC、重复 signal、orphan Node 或未停止 tween/audio。
 7. 清除所有临时 debug key、测试 label、无用 placeholder summary；必要 DevHooks 默认关闭。

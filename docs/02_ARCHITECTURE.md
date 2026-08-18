@@ -18,7 +18,7 @@ Player / BaseMap / MapCell / Item / InteractionController / NPC / ScenePort
                          |
                          v
 应用服务层
-SceneManager / ItemFactory / AudioManager
+MapManager / ItemFactory / AudioManager
                          |
                          v
 状态与定义层
@@ -48,10 +48,10 @@ res://
 │   ├── plants/
 │   └── npc_schedules/
 ├── scenes/
-│   ├── autoload/{data_catalog,game_manager,scene_manager,weather_manager,audio_manager}.tscn
+│   ├── autoload/{data_catalog,game_manager,map_manager,calendar_manager,audio_manager}.tscn
 │   ├── app/main.tscn
 │   ├── actors/{player,npcs}/
-│   ├── maps/{farm,field,cabin}/
+│   ├── maps/{farm,field,beach}/
 │   ├── items/{plants,pickups,harvestables}/
 │   ├── world/
 │   │   ├── effect_area.tscn
@@ -94,7 +94,7 @@ res://
 ```text
 Main (Node)
 ├── World (Node2D)
-│   ├── MapHost (Node2D)             # 当前 farm/field/cabin 实例
+│   ├── MapHost (Node2D)             # 当前 farm/field/beach 实例
 │   ├── ActorHost (Node2D)
 │   │   └── Player (CharacterBody2D) # 切地图时保持
 ├── UILayer (CanvasLayer)
@@ -110,9 +110,9 @@ Main (Node)
 1. Autoload 按 [01_TECHNICAL_RULES.md](./01_TECHNICAL_RULES.md) 的顺序初始化。
 2. `DataCatalog` 加载并校验所有定义 ID 和交叉引用；失败则停止进入游戏并输出明确错误。
 3. `GameManager` 创建新游戏状态，或由自身存档 API 整体替换为验证后的存档状态。
-4. `Main` 实例化持久 Player、HUD，向 SceneManager 注册 `MapHost`、Player 和 TransitionOverlay。
-5. `SceneManager` 加载状态中的当前地图；每张地图由自己的根脚本注册 TileMapLayer、ScenePort、出生点和地图 Item 容器。
-6. SceneManager 恢复地图动态状态并将 Player 放到出生点，完成淡入后解除输入和时间暂停。
+4. `Main` 实例化持久 Player、HUD，向 MapManager 注册 `MapHost`、Player 和 TransitionOverlay。
+5. `MapManager` 加载状态中的当前地图；每张地图由自己的根脚本注册 TileMapLayer、ScenePort、出生点和地图 Item 容器。
+6. MapManager 恢复地图动态状态并将 Player 放到出生点，完成淡入后解除输入和时间暂停。
 
 ## 5. Autoload 职责
 
@@ -139,9 +139,9 @@ signal load_completed(slot: int)
 
 ### 5.2 DataCatalog
 
-- 场景型 Autoload 直接导出 `items: Array[ItemMeta]` 和 `npc_schedules: Array[NpcSchedule]`，不建立只包装数组的 GameCatalog Resource，也不做运行时目录猜测。
+- 脚本型 Autoload 从 `data/autoload_config.tres` 读取 `items: Dictionary[StringName, ItemMeta]` 和 `npc_schedules: Dictionary[StringName, NpcSchedule]`；Config 是唯一配置源，不建立场景副本、运行时目录猜测或同构私有索引。
 - Autoload 通过项目注册的全局名直接访问，不作为参数传递，也不在 Player、BaseMap、ScenePort 等节点中建立重复服务字段。State/DTO 不访问或保存 Autoload；需要 Catalog 的初始化校验由 GameManager、BaseMap 等运行时所有者完成，以避免脚本资源循环。Tool 等 RefCounted 领域对象不访问 EventBus 或 AudioManager，只返回 `ToolOutcome`，由 Player 统一发出工具事实和反馈。
-- 从 Inspector 配置数组建立 `StringName -> ItemMeta/PlantMeta/NpcSchedule` 只读运行时索引；数组是可编辑配置源，字典是查询投影，不是两份权威定义。
+- Item、NPC 日程、Audio、Effect 和 Season 定义在 `AutoloadConfig` Inspector 中使用类型化 Dictionary 配置，key 分别是 Item ID、日程 ID、音频事件 ID、特效 ID 和季节 ID。Dictionary 同时是校验后的唯一 ID 查询源；ItemMeta、NpcSchedule 和 SeasonMeta 的内部 ID 必须与 key 一致，AudioDefinition 和 EffectDefinition 不重复保存 ID。
 - 启动时检查 ID 唯一、场景/贴图引用存在、种子与作物互相匹配、掉落数量合法。
 - 提供 `get_item(id)` 等窄 API，未知 ID 返回 `null` 并记录错误。
 
@@ -149,7 +149,7 @@ signal load_completed(slot: int)
 
 唯一持有：
 
-- `PlayerState` 新游戏模板：由 Inspector 编辑 `default_player_state.tres`，GameManager 新游戏时深复制为独立状态；模板本身不进入存档。
+- `PlayerState` 新游戏模板：内嵌于 `AutoloadConfig.player_state_template`，GameManager 新游戏时深复制为独立状态；模板本身不进入存档。
 - `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币，以及其唯一归属的 `BackpackState`。
 - `PlayerState.active_hand_source`：当前唯一手持来源（NONE/TOOLBAR/ITEMBAR）。
 - `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内 Item 状态。
@@ -168,20 +168,20 @@ GameManager 不实例化节点、不加载 PackedScene、不渲染 UI。
 - `replace_build_snapshot()` 负责验证并整体恢复游戏与时间状态；`save_slot()`/`load_slot()` 是统一存档入口。
 - 午夜规则只由 GameManager 的时间流程推进，禁止 Player 和其他服务重复递归触发换日。
 
-### 5.5 SceneManager
+### 5.5 MapManager
 
 - 维护地图 ID 到 PackedScene 的显式表。
 - 地图切换事务：锁输入/时间 -> 发出 will_change -> 当前地图写回 MapState -> 淡出 -> 替换 MapHost 子节点 -> 恢复目标地图 -> 放置玩家 -> changed -> 淡入 -> 解锁。
 - 忽略重复切图请求；加载失败时保留原地图并解锁。
 - ScenePort 只发出请求，不自行 free 或加载场景。
 
-### 5.6 WeatherManager
+### 5.6 CalendarManager
 
-- 场景型 Autoload，根节点是全局唯一 CanvasModulate；Main 和各地图不得再建立第二个 DayCycle/CanvasModulate 天光控制器。
-- `SeasonMeta` 是 Inspector 配置条目，每个季节一份，包含 season_id、月份集合、天气权重和天气天光色调；WeatherManager 启动时构建 `SeasonType -> SeasonMeta` 和 month -> SeasonMeta 索引，并验证四季和 12 个月覆盖。
-- 月份到季节的映射由 `SeasonMeta.months` 决定；GameManager 推进时间后通过 WeatherManager 同步 `CalendarState.season_id`，CalendarState 不直接访问 Autoload。
+- 脚本型 Autoload 直接实例化全局唯一 CanvasModulate；Main 和各地图不得再建立第二个 DayCycle/CanvasModulate 天光控制器。
+- `SeasonMeta` 是 Inspector 配置条目，每个季节一份，包含 season_id、月份集合、天气权重和天气天光色调；CalendarManager 启动时构建 `SeasonType -> SeasonMeta` 和 month -> SeasonMeta 索引，并验证四季和 12 个月覆盖。
+- 月份到季节的映射由 `SeasonMeta.months` 决定；GameManager 推进时间后通过 CalendarManager 同步 `CalendarState.season_id`，CalendarState 不直接访问 Autoload。
 - 每日天气由 world seed、日期和 salt 确定性加权选择，同一天恢复时不漂移；`weather_changed` 只发布选择结果。
-- WeatherManager 结合当前时间直接采样天光，cabin 使用中和混合；HUD 和未来天气表现查询该全局服务，不复制当前天气权威值。
+- CalendarManager 结合当前时间直接采样天光；House 通过室内事件请求中和混合并暂停雨雪表现，HUD 和未来天气表现查询该全局服务，不复制当前天气权威值。
 
 ### 5.7 AudioManager
 
@@ -226,7 +226,7 @@ CellState -> MapCell                # 场景重建静态能力，保存动态实
 ItemsGenerator                      # 唯一场景组件，配置和行为同属节点
 ```
 
-`ItemsGeneratorCandidate` 虽然是 Resource，但只是 `ItemsGenerator` 为 Inspector 数组使用的结构化值，不属于 Meta；`default_player_state.tres` 虽然可编辑，但只是新游戏 State 模板，也不属于 PlayerMeta。Resource 是 Godot 的存储形式，Meta 是数据职责，两者不得等同判断。
+`ItemsGeneratorCandidate` 虽然是 Resource，但只是 `ItemsGenerator` 为 Inspector 数组使用的结构化值，不属于 Meta；`AutoloadConfig.player_state_template` 虽然可编辑，但只是新游戏 State 模板，也不属于 PlayerMeta。Resource 是 Godot 的存储形式，Meta 是数据职责，两者不得等同判断。
 
 ### 6.2 ItemMeta
 
@@ -257,7 +257,7 @@ drops: Array[HarvestableDrop]
 
 HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。普通 Harvestable 通过 `HarvestableStage.min_health/texture/visual_offset` 配置健康、受损等阶段；受击修改 HarvestableState.health 后由运行时 Item 显式刷新贴图。PlantMeta 继承 HarvestableMeta并提供成长阶段与浇水需求；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。SeedMeta 继承 ItemMeta，以 `plant_id` 单向引用对应 PlantMeta；PlantMeta 不反向保存种子 ID。Seed 初始化时通过 Catalog 解析并缓存 PlantMeta，use 阶段不得扫描 Catalog。每个 `PlantStage` 配置成长阈值、贴图、视觉偏移、生命、标签和掉落表，并由 `DataCatalogService.validate_definitions()` 校验。普通 Item、Plant 和 Harvestable 分别使用通用场景，BaseMap 根据 State/Meta 子类选择；特殊节点结构由独立 Scene 和运行时工厂负责，Meta 不保存 Scene 引用。贴图、阶段和数值均在 Meta Inspector 中配置。
 
-Plant 和 Harvestable 的 Meta 使用 `data/items` 下的独立 `.tres` 资源。开发者直接在 Inspector 编辑这些资源中的 stages、成长天数、生命阈值、贴图和 `Array[HarvestableDrop]`，DataCatalog 场景只维护 Item Meta 资源引用。State 不保存这些静态定义；它只记录当前成长天数、当前生命等运行时值。场景也不挂载 State 配置节点，避免把静态定义、运行时数据和节点生命周期混在一起。
+Plant、Harvestable、Tool、Seed 和普通 Item 的 Meta 统一内嵌在 `data/autoload_config.tres` 的 Item Dictionary。开发者在一个 Inspector 入口编辑 stages、成长天数、生命阈值、贴图和 `Array[HarvestableDrop]`；只有需要跨 Config 直接复用或独立交付的 Resource 才拆文件。State 不保存这些静态定义，只记录当前成长天数、当前生命等运行时值。
 
 ### 6.4 HarvestableDrop
 
@@ -384,6 +384,8 @@ Hoe 和 WateringCan 使用运行时 `Tool` 执行多格事务，并返回 `CellT
 
 `SeedOutcome` 与 `ToolOutcome` 相互独立，各自直接保存 error、effect_cells 和本领域信息，不建立 ItemOutcome。ToolOutcome 保存 tool_kind、skipped_reasons 和 stamina_spent；`CellToolOutcome` 增加 projection_error，`ItemToolOutcome` 增加命中、销毁、掉落和树倒方向。四个全局类型各自使用独立脚本，统一放在 `scripts/items/outcome/`，不得用单文件内部类削弱类型定位。播种事务创建的植物实例 ID 仅在 `Seed.use()` 内作为失败回滚的局部数据，不暴露给 Outcome 消费者；需要查询植物时通过 effect cell 和 MapCell 的 item_ids 获取。
 
+工具等级由不同的 ToolMeta item 表示。每个工具 item 可以独立配置贴图、动画、作用范围和伤害档位；BackpackSlot 只保存 item_id 与数量，PlayerBackpack 根据 item_id 复用对应 Tool runtime，不再绑定或持久化 ToolState。
+
 范围顺序必须确定：从起始格开始，按面向方向的行列顺序扩展。预览不得重新随机；提交使用预览中已确定的对象 ID。
 
 ### 8.4 Item 层次
@@ -400,8 +402,8 @@ Item (Node2D)
 
 ### 8.5 NPC
 
-- `NpcScheduleController` 根据 GameManager 的 CalendarState 选择当前/下个日程。
-- `NpcNavigator` 使用 Godot 内建 `AStarGrid2D`，从当前 BaseMap 的阻挡和道路权重构建网格。
+- GameManager 根据 CalendarState 更新 NpcState 的当前事件、目标地图和目标格；FarmNpc 只读取自身 NpcState 执行移动与动画。
+- NPC 场景内使用 Godot 原生 `NavigationAgent2D` 导航，`FarmNpc` 根据当前日程目标设置 `target_position`；地图导航数据不可用时使用目标点直线移动作为运行时兜底。
 - NPC 跨地图时把状态写入 GameManager；只有位于当前地图的 NPC 需要可见实例。
 - 日程状态以游戏分钟为基准，加载存档后直接重建到正确位置，不要求重放所有历史路径。
 
@@ -429,7 +431,7 @@ GameManager reaches day boundary
 -> PlantSystem: previous day watered ? growth_days += 1
 -> generators/NPC schedules update
 -> PlayerState reset health/energy
--> SceneManager sends player to cabin wake spawn
+-> MapManager sends player to farm wake spawn inside the House
 -> UI and light refresh
 ```
 
@@ -449,7 +451,7 @@ GameManager reaches day boundary
   "game_version": "0.1.0",
   "saved_at": "ISO-8601",
   "time": {"year": 1, "month": 0, "day": 0, "hour": 6, "minute": 0},
-  "player": {"map_id": "cabin", "position": {"x": 16, "y": -16}, "health": 100, "energy": 100, "money": 500, "active_hand_source": "none"},
+  "player": {"map_id": "farm", "position": {"x": 464, "y": 240}, "health": 100, "energy": 100, "money": 500, "active_hand_source": "none"},
   "inventory": {"slots": []},
   "toolbar": {"selected_index": 0, "slots": []},
   "itembar": {"selected_index": 0, "slots": []},

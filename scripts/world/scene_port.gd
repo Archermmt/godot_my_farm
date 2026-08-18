@@ -14,7 +14,7 @@ func _ready() -> void:
 func _on_body_entered(body: Node2D) -> void:
 	if not body is FarmPlayer or (trigger_once and _submitted):
 		return
-	var error := SceneManager.request_map_change(target_map_id, target_spawn_id)
+	var error := MapManager.request_map_change(target_map_id, target_spawn_id)
 	if error == OK:
 		_submitted = true
 

@@ -3,6 +3,8 @@ extends Item
 
 const HIT_FLASH_HOLD_DURATION := 0.04
 const HIT_FLASH_FADE_DURATION := 0.12
+const DEPLETION_WHITE_DURATION := 0.08
+const DEPLETION_DISSOLVE_DURATION := 0.38
 
 @onready var harvestable_visual: Sprite2D = get_node_or_null("StageVisual") as Sprite2D
 var _hit_flash_tween: Tween = null
@@ -61,11 +63,29 @@ func is_depleted() -> bool:
 
 
 func play_depletion_flash_then_free() -> void:
-	var tween := _play_hit_flash()
-	if tween == null:
+	var flash_material := _visual_material()
+	if flash_material == null:
 		queue_free()
 		return
-	tween.tween_callback(Callable(self, "queue_free"))
+	if _hit_flash_tween != null and _hit_flash_tween.is_valid():
+		_hit_flash_tween.kill()
+	flash_material.set_shader_parameter(&"flash_amount", 1.0)
+	flash_material.set_shader_parameter(&"dissolve_amount", 0.0)
+	_hit_flash_tween = create_tween()
+	_hit_flash_tween.tween_interval(DEPLETION_WHITE_DURATION)
+	_hit_flash_tween.tween_property(
+		flash_material,
+		"shader_parameter/dissolve_amount",
+		1.0,
+		DEPLETION_DISSOLVE_DURATION
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_hit_flash_tween.parallel().tween_property(
+		flash_material,
+		"shader_parameter/flash_amount",
+		0.35,
+		DEPLETION_DISSOLVE_DURATION
+	)
+	_hit_flash_tween.tween_callback(Callable(self, "queue_free"))
 
 
 func active_drops() -> Array[HarvestableDrop]:
@@ -104,13 +124,12 @@ func _refresh_health_visual() -> void:
 
 
 func _play_hit_flash() -> Tween:
-	if harvestable_visual == null:
-		harvestable_visual = get_node_or_null("StageVisual") as Sprite2D
-	if harvestable_visual == null or not harvestable_visual.material is ShaderMaterial:
+	var flash_material := _visual_material()
+	if flash_material == null:
 		return null
 	if _hit_flash_tween != null and _hit_flash_tween.is_valid():
 		_hit_flash_tween.kill()
-	var flash_material := harvestable_visual.material as ShaderMaterial
+	flash_material.set_shader_parameter(&"dissolve_amount", 0.0)
 	flash_material.set_shader_parameter(&"flash_amount", 1.0)
 	_hit_flash_tween = create_tween()
 	_hit_flash_tween.tween_interval(HIT_FLASH_HOLD_DURATION)
@@ -121,6 +140,14 @@ func _play_hit_flash() -> Tween:
 		HIT_FLASH_FADE_DURATION
 	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	return _hit_flash_tween
+
+
+func _visual_material() -> ShaderMaterial:
+	if harvestable_visual == null:
+		harvestable_visual = get_node_or_null("StageVisual") as Sprite2D
+	if harvestable_visual == null or not harvestable_visual.material is ShaderMaterial:
+		return null
+	return harvestable_visual.material as ShaderMaterial
 
 
 func _ensure_obstacle_collision() -> void:

@@ -16,8 +16,11 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(not player.has_node("PlayerMotor"))
 	assert_true(player.get_node("AnimationPlayer") is AnimationPlayer)
 	assert_true(player.get_node("Visual/Sprite") is Sprite2D)
-	assert_true(player.get_node("Hands") is Node2D)
-	assert_true(player.get_node("Hands/HeldVisual") is Node2D)
+	assert_true(not player.has_node("Hands"))
+	var charge_bar := player.get_node("ChargeBar") as ProgressBar
+	assert_true(charge_bar != null)
+	assert_true(not charge_bar.visible)
+	assert_true(not charge_bar.show_percentage)
 	assert_true(player.get_node("SelectionPopup") is Control)
 	assert_true(player.get_node("SelectionTimer") is Timer)
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
@@ -52,6 +55,9 @@ func test_main_actor_host_contains_exactly_one_player() -> void:
 	var packed: PackedScene = load(MAIN_SCENE_PATH) as PackedScene
 	var main: Node = packed.instantiate()
 	var actor_host: Node2D = main.get_node("World/ActorHost") as Node2D
+	assert_true((main.get_node("World") as Node2D).y_sort_enabled)
+	assert_true((main.get_node("World/MapHost") as Node2D).y_sort_enabled)
+	assert_true(actor_host.y_sort_enabled)
 	assert_equal(actor_host.get_child_count(), 1)
 	assert_true(actor_host.get_child(0) is FarmPlayer)
 	assert_true(actor_host.get_child(0).is_in_group("player"))
@@ -62,3 +68,43 @@ func test_main_actor_host_contains_exactly_one_player() -> void:
 	assert_true(inventory_ui.get_node("InventoryPanel/InventorySlots") is GridContainer)
 	assert_true(main.get_node("UILayer/PresentationLayer") is PresentationController)
 	main.free()
+
+
+func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as FarmPlayer
+	scene_tree.root.add_child(player)
+	var map := BaseMap.new()
+	map.cells[Vector2i(0, 1)] = MapCell.new(Vector2i(0, 1), CellState.CellFlag.BASE)
+	var player_state := PlayerState.new()
+	player_state.cell = Vector2i.ZERO
+	player_state.facing = &"down"
+	player_state.set_stamina(10)
+	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"tool_axe", 1))
+	player_state.active_hand_source = PlayerState.ActiveHandSource.TOOLBAR
+	assert_equal(player.bind_state(player_state), OK)
+	var tool_meta := DataCatalog.get_item(&"tool_axe") as ToolMeta
+	var tool := Tool.new(tool_meta)
+	assert_equal(player.effect_area.begin(player_state, map, tool), OK)
+	player._refresh_charge_bar()
+	assert_true(player.charge_bar.visible)
+	assert_equal(player.charge_bar.max_value, 1.0)
+	assert_equal(player.charge_bar.value, 0.0)
+	assert_equal(player._charge_fill_style.bg_color, FarmPlayer.CHARGE_COLOR_LOW)
+	player.effect_area.update(0.1)
+	player._refresh_charge_bar()
+	assert_true(player.charge_bar.value > 0.0)
+	assert_true(player._charge_fill_style.bg_color != FarmPlayer.CHARGE_COLOR_LOW)
+	player.effect_area.update(0.3)
+	player._refresh_charge_bar()
+	assert_equal(player.effect_area.charge_level, 1)
+	assert_true(is_equal_approx(player.charge_bar.value, 0.8))
+	assert_true(player.charge_bar.value > 0.0)
+	assert_true(player._charge_fill_style.bg_color != FarmPlayer.CHARGE_COLOR_LOW)
+	assert_true(player._charge_fill_style.bg_color != FarmPlayer.CHARGE_COLOR_HIGH)
+	player._cancel_interaction()
+	assert_true(not player.charge_bar.visible)
+	assert_equal(player.charge_bar.value, 0.0)
+	tool.free()
+	map.free()
+	player.free()

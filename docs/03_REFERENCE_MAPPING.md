@@ -33,7 +33,7 @@
 |---|---|---|
 | `EventHandler` static events | 跨系统事件 | `EventBus` Autoload typed signals |
 | `Singleton<T>` | 持久服务 | 窄职责 Autoload；全局服务直接访问，业务场景对象显式注册 |
-| `ItemData [Serializable]` | 物品静态定义 | `ItemMeta extends Resource` + `.tres` |
+| `ItemData [Serializable]` | 物品静态定义 | `AutoloadConfig.tres` 内嵌的 `ItemMeta extends Resource` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
 | `Tool` | 体力和蓄力 | Tool 运行时类型 + EffectArea |
@@ -54,13 +54,13 @@
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
 | `PlayerStatus` | 生命/体力/金币与 UI | PlayerState + HUD 投影 |
 | `EnvManager/Clock` | 时间推进和显示 | GameManager.CalendarState + ClockUI |
-| `SceneController` | additive scene/淡入淡出 | persistent Main + SceneManager + MapHost |
-| `ScenePort` | 地图触发器 | Area2D `ScenePort` 请求 SceneManager |
+| `SceneController` | additive scene/淡入淡出 | persistent Main + MapManager + MapHost |
+| `ScenePort` | 地图触发器 | Area2D `ScenePort` 请求 MapManager |
 | `ItemManager` | 定义索引、工厂、地图 item 内存 | DataCatalog + ItemFactory + MapState |
 | `GameLight` | 时段光照 | CanvasModulate/Light2D + LightSchedule Resource |
 | `AudioManager/Sound` | 音频查找与播放 | AudioManager pool + AudioDefinition |
 | `EffectManager` | 特效工厂 | 全局 EffectManager + EffectDefinition + 调用方动态 host |
-| `NPC` 自建路径 | 日程、寻路、跨场景 | NpcScheduleController + built-in AStarGrid2D |
+| `NPC` 自建路径 | 日程、寻路、跨场景 | GameManager/NpcState + FarmNpc/NavigationAgent2D |
 
 ## 4. 必须保留的架构意图
 

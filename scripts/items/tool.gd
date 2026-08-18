@@ -9,15 +9,28 @@ func tool_meta() -> ToolMeta:
 	return meta as ToolMeta
 
 
+func max_charge_level() -> int:
+	var typed_meta := tool_meta()
+	if typed_meta == null:
+		return 0
+	return typed_meta.max_charge_level()
+
+
 func targets_cells() -> bool:
 	var typed_meta := tool_meta()
 	return typed_meta != null and typed_meta.tool_kind in [ToolMeta.ToolKind.HOE, ToolMeta.ToolKind.WATERING_CAN]
 
 
-func use(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int, source_cell: Vector2i = Vector2i(-999999, -999999)) -> ToolOutcome:
+func use(
+	map: BaseMap,
+	target_cells: Array[Vector2i],
+	available_stamina: int,
+	source_cell: Vector2i = Vector2i(-999999, -999999),
+	charge_level: int = 0
+) -> ToolOutcome:
 	if targets_cells():
 		return use_on_cells(map, target_cells, available_stamina)
-	return use_on_items(map, target_cells, available_stamina, source_cell)
+	return use_on_items(map, target_cells, available_stamina, source_cell, charge_level)
 
 
 func use_on_cells(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) -> CellToolOutcome:
@@ -64,7 +77,10 @@ func use_on_cells(map: BaseMap, target_cells: Array[Vector2i], available_stamina
 			return result
 		result.effect_cells.append(cell.coordinates)
 
-	result.projection_error = map.commit_cell_changes(result.effect_cells)
+	result.projection_error = map.commit_cell_changes(
+		result.effect_cells,
+		typed_meta.tool_kind == ToolMeta.ToolKind.HOE
+	)
 	result.stamina_spent = stamina_cost
 	return result
 
@@ -73,7 +89,8 @@ func use_on_items(
 	map: BaseMap,
 	target_cells: Array[Vector2i],
 	available_stamina: int,
-	source_cell: Vector2i = Vector2i(-999999, -999999)
+	source_cell: Vector2i = Vector2i(-999999, -999999),
+	charge_level: int = 0
 ) -> ItemToolOutcome:
 	var result := _new_item_outcome()
 	var typed_meta := tool_meta()
@@ -105,9 +122,10 @@ func use_on_items(
 	if available_stamina < typed_meta.base_stamina_cost:
 		result.error = ERR_CANT_ACQUIRE_RESOURCE
 		return result
+	var charged_damage := typed_meta.damage_at_charge(clampi(charge_level, 0, max_charge_level()))
 	for target: Harvestable in accepted:
 		var coordinates: Vector2i = target.state.cell
-		if target.apply_tool(typed_meta.tool_kind, typed_meta.damage) != OK:
+		if target.apply_tool(typed_meta.tool_kind, charged_damage) != OK:
 			result.error = ERR_UNAVAILABLE
 			return result
 		result.effect_cells.append(coordinates)

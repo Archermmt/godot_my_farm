@@ -1,0 +1,31 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/dialogue_bubble.gd" id="1_bubble"]
+
+[node name="DialogueBubble" type="PanelContainer"]
+custom_minimum_size = Vector2(230, 0)
+mouse_filter = 2
+script = ExtResource("1_bubble")
+
+[node name="Margin" type="MarginContainer" parent="."]
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 7
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 4
+
+[node name="Speaker" type="Label" parent="Margin/VBox"]
+theme_override_colors/font_color = Color(0.97, 0.83, 0.43, 1)
+text = "Speaker"
+
+[node name="Text" type="Label" parent="Margin/VBox"]
+custom_minimum_size = Vector2(210, 0)
+autowrap_mode = 2
+text = "Dialogue"
+
+[node name="Prompt" type="Label" parent="Margin/VBox"]
+theme_override_colors/font_color = Color(0.7, 0.76, 0.74, 1)
+horizontal_alignment = 2
+text = "Enter: Continue"

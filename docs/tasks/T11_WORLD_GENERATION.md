@@ -17,7 +17,7 @@
 
 ## 实现要求
 
-1. 生成配置包含地图、允许区域/static flags、对象候选、数量/密度、最小距离和 seed salt。
+1. `candidates` 使用 Item ID 到 Candidate 的 Dictionary；每个 Candidate 自己配置 required flags、数量/密度和最小距离。farm/field 通过隐藏的 GenerateLayer 标记生成区域，道路、房屋、水塘等物理阻挡不带 GENERATE。
 2. RNG 由 new-game seed + map ID + generation epoch 派生；同一初始状态结果可重现。
 3. 只在 `generator_initialized=false` 时执行初始生成；地图往返不能再次叠加。
 4. 生成前检查格子可放置、无占用、无 ScenePort/Player spawn/静态障碍；失败候选有最大尝试次数。
@@ -51,6 +51,6 @@ STATUS 记录 seed、初始/恢复 Item 摘要、20 次往返结果、run_id 和
 
 - farm/field 已分别挂载可编辑的 `ItemsGenerator` 子节点，候选为 tree/rock/grass；固定 seed 由 world seed、map ID、generation epoch 与 salt 派生。
 - MapState 新增并序列化 `generation_epoch`；首次加载后设置 `generator_initialized`，地图恢复不再生成。启用 `regenerate_daily` 时只追加新 epoch 对象。
-- 自动化覆盖同 seed、不同 seed、required/forbidden flags、安全区、满地图有限退出、生成标签、状态深恢复以及 20 次恢复不增殖。
+- 自动化覆盖同 seed、不同 seed、Candidate required flags、GenerateLayer、安全区、满地图有限退出、生成标签、状态深恢复以及 20 次恢复不增殖。
 - 原生 runner：107 tests / 4811 assertions；Godot 资源扫描和 `git diff --check` 通过。
 - godot-ai session `godot-my-farm@c274`：farm seed `12031992` 生成 23/23，field 生成 41/44（3 个受最小距离约束跳过）；两张 1280x720 实时截图 `stale_frame=false`，运行错误为空。

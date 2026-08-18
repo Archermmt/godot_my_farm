@@ -1,0 +1,57 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/rain_weather.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/art/effects/raindrop.svg" id="2_drop"]
+[ext_resource type="Texture2D" path="res://assets/art/effects/ripple.svg" id="3_ripple"]
+
+[sub_resource type="Gradient" id="Gradient_rain"]
+offsets = PackedFloat32Array(0, 0.8, 1)
+colors = PackedColorArray(0.72, 0.9, 1, 0, 0.72, 0.9, 1, 0.88, 0.72, 0.9, 1, 0)
+
+[sub_resource type="Curve" id="Curve_ripple_scale"]
+_data = [Vector2(0, 0.12), 0.0, 2.8, 0, 0, Vector2(0.72, 1.15), 1.0, 0.65, 0, 0, Vector2(1, 1.38), 0.35, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_ripple"]
+offsets = PackedFloat32Array(0, 0.12, 0.62, 1)
+colors = PackedColorArray(0.82, 0.95, 1, 0, 0.82, 0.95, 1, 0.78, 0.68, 0.88, 1, 0.5, 0.68, 0.88, 1, 0)
+
+[node name="RainWeather" type="Node2D"]
+z_index = 90
+script = ExtResource("1_script")
+
+[node name="Rain" type="CPUParticles2D" parent="."]
+amount = 280
+lifetime = 2.0
+preprocess = 2.0
+randomness = 0.35
+texture = ExtResource("2_drop")
+emission_shape = 3
+emission_rect_extents = Vector2(480, 8)
+direction = Vector2(-0.14, 1)
+spread = 4.0
+gravity = Vector2(-18, 190)
+initial_velocity_min = 300.0
+initial_velocity_max = 390.0
+scale_amount_min = 0.75
+scale_amount_max = 1.2
+color_ramp = SubResource("Gradient_rain")
+
+[node name="Ripples" type="CPUParticles2D" parent="."]
+z_index = -88
+amount = 36
+lifetime = 1.25
+preprocess = 1.25
+randomness = 1.0
+texture = ExtResource("3_ripple")
+emission_shape = 3
+emission_rect_extents = Vector2(480, 320)
+direction = Vector2(0, 0)
+spread = 0.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 0.0
+initial_velocity_max = 0.0
+scale_amount_min = 0.55
+scale_amount_max = 1.0
+scale_amount_curve = SubResource("Curve_ripple_scale")
+color_ramp = SubResource("Gradient_ripple")

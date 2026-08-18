@@ -1,12 +1,8 @@
 class_name ItemsGenerator
 extends Node
 
-@export_category("Cell Filtering")
-@export var required_flags: Array[CellState.CellFlag] = []
-@export var forbidden_flags: Array[CellState.CellFlag] = [CellState.CellFlag.BLOCKED]
-
 @export_category("Candidates")
-@export var candidates: Array[ItemsGeneratorCandidate] = []
+@export var candidates: Dictionary[StringName, ItemsGeneratorCandidate] = {}
 
 @export_category("Generation Control")
 @export_range(1, 10000, 1) var max_attempts_per_item: int = 64
@@ -37,14 +33,15 @@ func generate(
 		if map.cells[coordinates].has_occupant():
 			occupied.append(coordinates)
 
-	for candidate: ItemsGeneratorCandidate in candidates:
-		if candidate == null or candidate.meta_id == &"":
+	for meta_id: StringName in candidates:
+		var candidate := candidates[meta_id]
+		if candidate == null or meta_id == &"":
 			continue
-		var item_meta := DataCatalog.get_item(candidate.meta_id)
+		var item_meta := DataCatalog.get_item(meta_id)
 		if not _supports_meta(item_meta):
 			summary["skipped"] = int(summary["skipped"]) + 1
 			continue
-		var available := _available_cells(map, map_size, safe_cells)
+		var available := _available_cells(map, map_size, safe_cells, candidate)
 		var target_count: int
 		if candidate.max_count > 0:
 			target_count = rng.randi_range(candidate.min_count, candidate.max_count)
@@ -64,8 +61,8 @@ func generate(
 			var state := _create_item_state(item_meta)
 			if state == null:
 				continue
-			state.instance_id = StringName("generated_%s_%d_%s_%03d" % [map.map_id, generation_epoch, candidate.meta_id, spawned_for_candidate])
-			state.meta_id = candidate.meta_id
+			state.instance_id = StringName("generated_%s_%d_%s_%03d" % [map.map_id, generation_epoch, meta_id, spawned_for_candidate])
+			state.meta_id = meta_id
 			state.random_seed = rng.randi()
 			state.flags = [&"generated"]
 			if map.add_item_state(state, coordinates) != OK:
@@ -81,9 +78,9 @@ func generate(
 func validation_error() -> Error:
 	if max_attempts_per_item <= 0 or safe_radius < 0 or candidates.is_empty():
 		return ERR_INVALID_DATA
-	var candidate_ids: Dictionary[StringName, bool] = {}
-	for candidate: ItemsGeneratorCandidate in candidates:
-		if candidate == null or candidate.meta_id == &"" or candidate_ids.has(candidate.meta_id):
+	for meta_id: StringName in candidates:
+		var candidate := candidates[meta_id]
+		if candidate == null or meta_id == &"" or candidate.required_flags.is_empty():
 			return ERR_INVALID_DATA
 		if candidate.min_count < 0 or candidate.max_count < 0 or (candidate.max_count > 0 and candidate.max_count < candidate.min_count):
 			return ERR_INVALID_DATA
@@ -91,9 +88,8 @@ func validation_error() -> Error:
 			return ERR_INVALID_DATA
 		if candidate.density < 0.0 or candidate.density > 1.0 or candidate.min_distance < 0.0:
 			return ERR_INVALID_DATA
-		if not DataCatalog.has_item(candidate.meta_id) or not _supports_meta(DataCatalog.get_item(candidate.meta_id)):
+		if not DataCatalog.has_item(meta_id) or not _supports_meta(DataCatalog.get_item(meta_id)):
 			return ERR_INVALID_DATA
-		candidate_ids[candidate.meta_id] = true
 	return OK
 
 
@@ -115,7 +111,12 @@ static func _create_item_state(item_meta: ItemMeta) -> ItemState:
 	return null
 
 
-func _available_cells(map: BaseMap, map_size: Vector2i, safe_cells: Dictionary[Vector2i, bool]) -> Array[Vector2i]:
+func _available_cells(
+	map: BaseMap,
+	map_size: Vector2i,
+	safe_cells: Dictionary[Vector2i, bool],
+	candidate: ItemsGeneratorCandidate
+) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var map_bounds := Rect2i(Vector2i.ZERO, map_size)
 	for coordinates: Vector2i in map.cells:
@@ -124,9 +125,7 @@ func _available_cells(map: BaseMap, map_size: Vector2i, safe_cells: Dictionary[V
 		var cell := map.get_cell(coordinates)
 		if cell == null or cell.has_occupant() or safe_cells.has(coordinates):
 			continue
-		if not _has_all_flags(cell, required_flags):
-			continue
-		if _has_any_flag(cell, forbidden_flags):
+		if not _has_all_flags(cell, candidate.required_flags):
 			continue
 		result.append(coordinates)
 	result.sort_custom(func(left: Vector2i, right: Vector2i) -> bool: return left.y < right.y or (left.y == right.y and left.x < right.x))
@@ -138,13 +137,6 @@ static func _has_all_flags(cell: MapCell, flags: Array[CellState.CellFlag]) -> b
 		if not cell.has_static_flag(flag):
 			return false
 	return true
-
-
-static func _has_any_flag(cell: MapCell, flags: Array[CellState.CellFlag]) -> bool:
-	for flag: CellState.CellFlag in flags:
-		if cell.has_static_flag(flag):
-			return true
-	return false
 
 
 static func _safe_cells(map: BaseMap, radius: int) -> Dictionary[Vector2i, bool]:
