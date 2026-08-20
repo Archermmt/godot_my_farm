@@ -683,6 +683,6 @@ func _validate_player_containers(next_player: PlayerState) -> bool:
 		for index: int in next_player.backpack_state.capacity(container_id):
 			var slot := next_player.backpack_state.get_slot(container_id, index)
 			var meta := DataCatalog.get_item(slot.item_id) if slot != null and not slot.is_empty() else null
-			if not next_player.container_accepts_slot(container_id, slot, meta):
+			if not next_player.can_container_accept_slot(container_id, slot, meta):
 				return false
 	return true

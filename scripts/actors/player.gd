@@ -26,7 +26,6 @@ var _lock_reasons: Dictionary[StringName, bool] = {}
 var _footstep_elapsed: float = 0.0
 var _camera_zoom_tween: Tween = null
 var _outdoor_camera_zoom := Vector2.ONE
-var _inside_house := false
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var camera: Camera2D = $Camera2D
@@ -52,14 +51,18 @@ func _ready() -> void:
 		EventBus.bar_selection_changed.connect(_on_bar_selection_changed)
 	if not EventBus.player_state_changed.is_connected(_on_player_state_changed):
 		EventBus.player_state_changed.connect(_on_player_state_changed)
+	if not EventBus.house_interior_changed.is_connected(_on_house_interior_changed):
+		EventBus.house_interior_changed.connect(_on_house_interior_changed)
 
 
-func set_house_interior(active: bool, indoor_zoom: Vector2 = Vector2(1.5, 1.5)) -> void:
-	if _inside_house == active:
+func _on_house_interior_changed(_house: Node2D, actor: Node2D, active: bool) -> void:
+	if actor != null and actor != self:
 		return
-	_inside_house = active
 	if _camera_zoom_tween != null and _camera_zoom_tween.is_valid():
 		_camera_zoom_tween.kill()
+	var indoor_zoom := Vector2(1.5, 1.5)
+	if is_instance_valid(GameManager) and GameManager.config != null:
+		indoor_zoom = GameManager.config.indoor_camera_zoom
 	var target_zoom := indoor_zoom if active else _outdoor_camera_zoom
 	if camera_zoom_duration <= 0.0:
 		camera.zoom = target_zoom
@@ -68,10 +71,6 @@ func set_house_interior(active: bool, indoor_zoom: Vector2 = Vector2(1.5, 1.5)) 
 		_camera_zoom_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		_camera_zoom_tween.tween_property(camera, "zoom", target_zoom, camera_zoom_duration)
 	EventBus.player_interior_changed.emit(active)
-
-
-func is_inside_house() -> bool:
-	return _inside_house
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -110,7 +110,7 @@ func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	var root := (Engine.get_main_loop() as SceneTree).root
 	var controller := DialogueController.new()
 	var player := (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as FarmPlayer
-	var bed := (load("res://scenes/items/interactables/bed.tscn") as PackedScene).instantiate() as FurnitureInteraction
+	var bed := (load("res://scenes/items/interactables/bed.tscn") as PackedScene).instantiate()
 	var npc := (load("res://scenes/actors/npcs/npc.tscn") as PackedScene).instantiate() as FarmNpc
 	root.add_child(controller)
 	root.add_child(player)

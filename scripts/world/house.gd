@@ -1,10 +1,8 @@
 class_name FarmHouse
 extends Node2D
 
-@export var indoor_camera_zoom := Vector2(1.5, 1.5)
-
 @onready var roof_layer: TileMapLayer = $TileMaps/RoofLayer
-var _player_inside: FarmPlayer = null
+var _actor_inside := false
 var _interaction_enabled := false
 
 
@@ -15,34 +13,34 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	if is_instance_valid(_player_inside):
-		_player_inside.set_house_interior(false)
-	_player_inside = null
+	if _actor_inside:
+		EventBus.house_interior_changed.emit(self, null, false)
+		_actor_inside = false
 
 
 func set_interaction_enabled(enabled: bool) -> void:
 	_interaction_enabled = enabled
-	if enabled and not is_instance_valid(_player_inside):
+	if enabled and not _actor_inside:
 		roof_layer.visible = true
-	if not enabled and is_instance_valid(_player_inside):
+	if not enabled and _actor_inside:
 		roof_layer.visible = true
-		_player_inside.set_house_interior(false)
-		_player_inside = null
+		EventBus.house_interior_changed.emit(self, null, false)
+		_actor_inside = false
 
 
 func _on_body_entered(body: Node2D) -> void:
-	if not _interaction_enabled or not body is FarmPlayer:
+	if not _interaction_enabled or not body.is_in_group("player"):
 		return
-	if body == _player_inside:
+	if _actor_inside:
 		return
-	_player_inside = body as FarmPlayer
+	_actor_inside = true
 	roof_layer.visible = false
-	_player_inside.set_house_interior(true, indoor_camera_zoom)
+	EventBus.house_interior_changed.emit(self, body, true)
 
 
 func _on_body_exited(body: Node2D) -> void:
-	if not _interaction_enabled or body != _player_inside:
+	if not _interaction_enabled or not _actor_inside or not body.is_in_group("player"):
 		return
 	roof_layer.visible = true
-	_player_inside.set_house_interior(false)
-	_player_inside = null
+	_actor_inside = false
+	EventBus.house_interior_changed.emit(self, body, false)

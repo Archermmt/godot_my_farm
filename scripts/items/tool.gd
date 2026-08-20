@@ -34,8 +34,9 @@ func use(
 
 
 func use_on_cells(map: BaseMap, target_cells: Array[Vector2i], available_stamina: int) -> CellToolOutcome:
-	var result := _new_cell_outcome()
 	var typed_meta := tool_meta()
+	var result := CellToolOutcome.new()
+	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
 	var validation_error := _validate_use(map, available_stamina)
 	if validation_error != OK:
 		result.error = validation_error
@@ -92,8 +93,9 @@ func use_on_items(
 	source_cell: Vector2i = Vector2i(-999999, -999999),
 	charge_level: int = 0
 ) -> ItemToolOutcome:
-	var result := _new_item_outcome()
 	var typed_meta := tool_meta()
+	var result := ItemToolOutcome.new()
+	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
 	var validation_error := _validate_use(map, available_stamina)
 	if validation_error != OK:
 		result.error = validation_error
@@ -153,20 +155,6 @@ func harvest_rejection_reason(map: BaseMap, coordinates: Vector2i) -> StringName
 		return &"missing_map"
 	var target := map.harvestable_at(coordinates)
 	return target.tool_rejection_reason(typed_meta.tool_kind) if target != null else &"missing_target"
-
-
-func _new_cell_outcome() -> CellToolOutcome:
-	var result := CellToolOutcome.new()
-	var typed_meta := tool_meta()
-	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
-	return result
-
-
-func _new_item_outcome() -> ItemToolOutcome:
-	var result := ItemToolOutcome.new()
-	var typed_meta := tool_meta()
-	result.tool_kind = typed_meta.tool_kind if typed_meta != null else ToolMeta.ToolKind.NONE
-	return result
 
 
 func _validate_use(map: BaseMap, available_stamina: int) -> Error:

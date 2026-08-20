@@ -106,7 +106,7 @@ func exchange_container_slots(
 		return ERR_INVALID_PARAMETER
 	if source_id == target_id and source_index == target_index:
 		return OK
-	if not _container_accepts_slot(target_id, source, source_meta) or not _container_accepts_slot(source_id, target, target_meta):
+	if not can_container_accept_slot(target_id, source, source_meta) or not can_container_accept_slot(source_id, target, target_meta):
 		return ERR_UNAVAILABLE
 	if not source.is_empty() and source.can_merge(target):
 		if source_meta == null or source.amount + target.amount > source_meta.stack_limit:
@@ -117,10 +117,6 @@ func exchange_container_slots(
 	if not backpack_state.switch_item(source_id, source_index, target_id, target_index):
 		return ERR_CANT_ACQUIRE_RESOURCE
 	return OK
-
-
-func container_accepts_slot(container_id: StringName, slot: BackpackSlot, meta: ItemMeta) -> bool:
-	return _container_accepts_slot(container_id, slot, meta)
 
 
 func used_inventory_slots() -> int:
@@ -200,7 +196,7 @@ func _copy_from(other: PlayerState) -> void:
 	backpack_state = other.backpack_state
 
 
-func _container_accepts_slot(container_id: StringName, slot: BackpackSlot, meta: ItemMeta) -> bool:
+func can_container_accept_slot(container_id: StringName, slot: BackpackSlot, meta: ItemMeta) -> bool:
 	if slot == null or slot.is_empty():
 		return true
 	if meta == null or meta.id != slot.item_id:

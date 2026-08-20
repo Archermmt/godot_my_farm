@@ -1,7 +1,6 @@
 [gd_scene format=4]
 
 [ext_resource type="Script" path="res://scripts/world/house.gd" id="1_tuevy"]
-[ext_resource type="Script" path="res://scripts/world/furniture_interaction.gd" id="4_furniture"]
 [ext_resource type="PackedScene" path="res://scenes/items/interactables/bed.tscn" id="5_bed"]
 [ext_resource type="PackedScene" path="res://scenes/items/interactables/television.tscn" id="6_tv"]
 [ext_resource type="PackedScene" path="res://scenes/items/interactables/fireplace.tscn" id="7_fireplace"]

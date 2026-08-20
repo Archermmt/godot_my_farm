@@ -24,14 +24,12 @@ func _run() -> void:
 	if (
 		player == null
 		or player.global_position != farm.spawn_position(&"default")
-		or player.is_inside_house()
 		or not house.roof_layer.visible
 		or player.camera.zoom != Vector2.ONE
 	):
-		_fail("new game must start outside the farm house | pos=%s expected=%s interior=%s roof=%s zoom=%s" % [
+		_fail("new game must start outside the farm house | pos=%s expected=%s roof=%s zoom=%s" % [
 			player.global_position,
 			farm.spawn_position(&"default"),
-			player.is_inside_house(),
 			house.roof_layer.visible,
 			player.camera.zoom,
 		])
@@ -41,13 +39,13 @@ func _run() -> void:
 	player.global_position = house.global_position + Vector2(192, 240)
 	await get_tree().physics_frame
 	await get_tree().create_timer(player.camera_zoom_duration + 0.05).timeout
-	if not player.is_inside_house() or house.roof_layer.visible or player.camera.zoom != house.indoor_camera_zoom:
+	if house.roof_layer.visible or player.camera.zoom != router.config.indoor_camera_zoom:
 		_fail("entering through the house door did not enable indoor presentation")
 		return
 	player.global_position = house.global_position + Vector2(192, 304)
 	await get_tree().physics_frame
 	await get_tree().create_timer(player.camera_zoom_duration + 0.05).timeout
-	if player.is_inside_house() or not house.roof_layer.visible or player.camera.zoom != Vector2.ONE:
+	if house.roof_layer.visible or player.camera.zoom != Vector2.ONE:
 		_fail("leaving through the house door did not restore outdoor presentation")
 		return
 	var duplicate_result := router.request_map_change(&"field", &"from_farm")
@@ -104,19 +102,17 @@ func _run() -> void:
 		or GameManager.calendar.hour != 6
 		or GameManager.calendar.minute != 0
 		or player.global_position != farm.spawn_position(&"wake")
-		or not player.is_inside_house()
 		or house.roof_layer.visible
 		or day_overlay.visible
 		or router.is_transitioning()
 	):
-		_fail("day transition did not finish at the indoor wake point | map=%s day=%d time=%02d:%02d pos=%s wake=%s inside=%s roof=%s overlay=%s transitioning=%s" % [
+		_fail("day transition did not finish at the indoor wake point | map=%s day=%d time=%02d:%02d pos=%s wake=%s roof=%s overlay=%s transitioning=%s" % [
 			router.current_map_id(),
 			GameManager.calendar.day,
 			GameManager.calendar.hour,
 			GameManager.calendar.minute,
 			player.global_position,
 			farm.spawn_position(&"wake"),
-			player.is_inside_house(),
 			house.roof_layer.visible,
 			day_overlay.visible,
 			router.is_transitioning(),

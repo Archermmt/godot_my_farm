@@ -142,7 +142,7 @@ func _advance() -> void:
 		return
 	if _sleep_confirmation:
 		_close_session()
-		CalendarManager.request_sleep()
+		GameManager.request_end_day()
 		return
 	if current_line_index + 1 >= current_definition.lines.size():
 		_close_session()

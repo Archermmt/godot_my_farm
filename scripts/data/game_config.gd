@@ -14,6 +14,7 @@ extends Resource
 @export_category("Scene")
 @export_range(0.0, 5.0, 0.01, "or_greater") var transition_duration: float = 0.12
 @export_range(0.0, 5.0, 0.01, "or_greater") var day_transition_duration: float = 0.55
+@export var indoor_camera_zoom: Vector2 = Vector2(1.5, 1.5)
 
 @export_category("Weather")
 @export var season_metas: Dictionary[StringName, SeasonMeta] = {}

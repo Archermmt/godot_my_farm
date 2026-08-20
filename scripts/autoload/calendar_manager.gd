@@ -52,10 +52,6 @@ func advance_to_next_day() -> int:
 	return previous_day
 
 
-func request_sleep() -> Error:
-	return GameManager.request_end_day()
-
-
 func _process(delta: float) -> void:
 	if delta <= 0.0 or not is_instance_valid(GameManager) or not GameManager.is_initialized() or not GameManager.can_advance():
 		return

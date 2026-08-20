@@ -1291,6 +1291,7 @@ dialogue_definitions = Dictionary[StringName, ExtResource("30_dialogue_definitio
 })
 player_state_template = SubResource("Resource_st4jl")
 day_transition_duration = 0.55
+indoor_camera_zoom = Vector2(1.5, 1.5)
 season_metas = Dictionary[StringName, ExtResource("26_pa6h3")]({
 &"autumn": SubResource("Resource_do4cu"),
 &"spring": SubResource("Resource_yrknm"),
