@@ -5,10 +5,11 @@ func test_service_loads_explicit_catalog_and_indexes_ids() -> void:
 	assert_true(service.initialize(false))
 	assert_true(service.is_ready_for_game())
 	assert_equal(service.item_count(), 23)
-	assert_equal(service.get_item(&"tool_hoe").display_name, "Hoe")
-	assert_equal(service.get_seed(&"seed_parsnip").plant_id, &"crop_parsnip")
-	assert_equal(service.get_harvestable(&"tree").drops[0].item_id, &"material_wood")
-	assert_equal(service.get_npc_schedule(&"schedule_villager").npc_id, &"npc_villager")
+	assert_equal(service.get_item(&"hoe").display_name, "Hoe")
+	assert_equal(service.get_seed(&"parsnip_seed").plant_id, &"parsnip")
+	assert_equal(service.get_harvestable(&"tree").drops[0].item_id, &"wood")
+	assert_equal(service.get_npc_schedule(&"villager").npc_id, &"npc_villager")
+	assert_equal(service.get_npc_schedule(&"ranger").npc_id, &"npc_ranger")
 	service.free()
 
 

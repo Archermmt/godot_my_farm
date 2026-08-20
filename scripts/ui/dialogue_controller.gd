@@ -13,6 +13,9 @@ var target: Node2D = null
 var player: FarmPlayer = null
 var _sleep_confirmation := false
 var _bubble = null
+var _prompt_bubble: DialogueBubble = null
+var _prompt_target: Node2D = null
+var _prompt_player: FarmPlayer = null
 
 
 func _ready() -> void:
@@ -35,6 +38,7 @@ func begin(dialogue_id: StringName, next_target: Node2D, next_player: FarmPlayer
 	current_definition = definition
 	target = next_target
 	player = next_player
+	hide_prompt(next_target)
 	_sleep_confirmation = false
 	return _open_session()
 
@@ -44,12 +48,15 @@ func begin_sleep(next_target: Node2D, next_player: FarmPlayer) -> Error:
 		return ERR_BUSY if is_active() else ERR_INVALID_PARAMETER
 	target = next_target
 	player = next_player
+	hide_prompt(next_target)
 	_sleep_confirmation = true
 	current_definition = preload("res://scripts/data/dialogue_definition.gd").new()
 	var line := preload("res://scripts/data/dialogue_line.gd").new()
 	line.speaker_name = "Bed"
 	line.text = "Sleep until the next morning?"
-	current_definition.lines = [line]
+	var lines: Array[Resource] = []
+	lines.append(line)
+	current_definition.lines = lines
 	return _open_session()
 
 
@@ -68,10 +75,41 @@ func _open_session() -> Error:
 		return ERR_CANT_CREATE
 	add_child(_bubble)
 	_bubble.world_target = target
-	_bubble.camera = player.camera
 	_refresh_bubble()
 	EventBus.dialogue_started.emit(current_definition.id if current_definition != null else &"")
 	return OK
+
+
+func show_prompt(next_target: Node2D, next_player: FarmPlayer) -> Error:
+	if is_active() or next_target == null or next_player == null:
+		return ERR_BUSY if is_active() else ERR_INVALID_PARAMETER
+	if _prompt_target == next_target and is_instance_valid(_prompt_bubble):
+		return OK
+	hide_prompt()
+	_prompt_target = next_target
+	_prompt_player = next_player
+	_prompt_bubble = preload("res://scenes/ui/dialogue_bubble.tscn").instantiate() as DialogueBubble
+	if _prompt_bubble == null:
+		_prompt_target = null
+		_prompt_player = null
+		return ERR_CANT_CREATE
+	add_child(_prompt_bubble)
+	_prompt_bubble.world_target = next_target
+	var prompt := "Interact"
+	if next_target.has_method("interaction_prompt"):
+		prompt = str(next_target.call("interaction_prompt"))
+	_prompt_bubble.set_prompt(prompt)
+	return OK
+
+
+func hide_prompt(next_target: Node2D = null) -> void:
+	if next_target != null and _prompt_target != next_target:
+		return
+	if is_instance_valid(_prompt_bubble):
+		_prompt_bubble.queue_free()
+	_prompt_bubble = null
+	_prompt_target = null
+	_prompt_player = null
 
 
 func _process(delta: float) -> void:
@@ -91,7 +129,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_close_session()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("interact") or event.is_action_pressed("dialogue_advance"):
+	if event.is_action_pressed("interact") or event.is_action_pressed("dialogue_advance") or event.is_action_pressed("ui_accept"):
 		_advance()
 		get_viewport().set_input_as_handled()
 

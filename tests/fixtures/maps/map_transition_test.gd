@@ -12,7 +12,7 @@ func _run() -> void:
 	get_tree().root.add_child(main)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	router.config = router.config.duplicate() as AutoloadConfig
+	router.config = router.config.duplicate() as GameConfig
 	router.config.transition_duration = 0.0
 	router.config.day_transition_duration = 0.05
 	if router.current_map_id() != &"farm" or get_tree().get_nodes_in_group("player").size() != 1:

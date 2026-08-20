@@ -1,4 +1,4 @@
-# T11 环境生成与地图状态恢复
+# T12 环境生成与地图状态恢复
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T09、T10 completed。
+- T10、T11 completed。
 
 ## 交付范围
 
@@ -45,7 +45,7 @@
 
 ## 完成记录
 
-STATUS 记录 seed、初始/恢复 Item 摘要、20 次往返结果、run_id 和截图；总表 T11 completed。
+STATUS 记录 seed、初始/恢复 Item 摘要、20 次往返结果、run_id 和截图；总表 T12 completed。
 
 2026-08-14 实现记录：
 

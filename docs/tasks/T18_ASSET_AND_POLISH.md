@@ -1,4 +1,4 @@
-# T16 正式资源、可读性与许可清单
+# T18 正式资源、可读性与许可清单
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T15 completed。
+- T17 completed。
 
 ## 用户门
 
@@ -50,4 +50,4 @@
 
 ## 完成记录
 
-STATUS 记录用户批准方案、总成本、license 清单、资源 smoke 结果、run_id 和视觉对照；总表 T16 completed。
+STATUS 记录用户批准方案、总成本、license 清单、资源 smoke 结果、run_id 和视觉对照；总表 T18 completed。

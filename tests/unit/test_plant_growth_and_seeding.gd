@@ -8,7 +8,7 @@ func test_seed_only_plants_dug_empty_cells_and_consumes_targets() -> void:
 	map.get_cell(Vector2i(1, 1)).add_state_flag(CellState.CellFlag.DUG)
 	map.get_cell(Vector2i(2, 1)).add_state_flag(CellState.CellFlag.DUG)
 	map.commit_cell_changes([Vector2i(1, 1), Vector2i(2, 1)])
-	var seed := Seed.new(DataCatalog.get_seed(&"seed_parsnip"))
+	var seed := Seed.new(DataCatalog.get_seed(&"parsnip_seed"))
 	var result := seed.use(map, [Vector2i(0, 0), Vector2i(1, 1), Vector2i(2, 1)], 1, 2)
 	assert_equal(result.error, ERR_UNAVAILABLE)
 	assert_equal(map.item_count(), 0)
@@ -29,7 +29,7 @@ func test_growth_uses_meta_thresholds_and_water_is_idempotent() -> void:
 	var cell := map.get_cell(Vector2i(1, 1))
 	cell.add_state_flag(CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
 	map.commit_cell_changes([Vector2i(1, 1)])
-	var seed := Seed.new(DataCatalog.get_seed(&"seed_parsnip"))
+	var seed := Seed.new(DataCatalog.get_seed(&"parsnip_seed"))
 	var planted := seed.use(map, [Vector2i(1, 1)], 1, 1)
 	assert_true(planted.succeeded())
 	var planted_ids := cell.cell_state().item_ids
@@ -56,8 +56,8 @@ func test_growth_uses_meta_thresholds_and_water_is_idempotent() -> void:
 
 func test_plant_state_round_trip_preserves_stage_and_instance_id() -> void:
 	var plant := PlantState.new()
-	plant.instance_id = &"crop_parsnip_7"
-	plant.meta_id = &"crop_parsnip"
+	plant.instance_id = &"parsnip_7"
+	plant.meta_id = &"parsnip"
 	plant.growth_days = 4
 	plant.planted_on_day = 1
 	plant.last_growth_day = 8

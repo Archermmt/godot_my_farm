@@ -20,14 +20,14 @@ func _run() -> void:
 		_fail("failed to advance to noon schedule")
 		return
 	await process_frame
-	if GameManager.get_npc(&"npc_villager").map_id != &"field" or GameManager.get_npc(&"npc_fisher").map_id != &"farm":
+	if GameManager.get_npc(&"npc_villager").map_id != &"field" or GameManager.get_npc(&"npc_fisher").map_id != &"farm" or GameManager.get_npc(&"npc_ranger").map_id != &"field":
 		_fail("noon cross-map schedule did not update global NPC states")
 		return
 	if not _assert_current_npcs([&"npc_fisher"]):
 		_fail("farm did not replace villager with fisher at noon")
 		return
 
-	MapManager.config = MapManager.config.duplicate() as AutoloadConfig
+	MapManager.config = MapManager.config.duplicate() as GameConfig
 	MapManager.config.transition_duration = 0.0
 	for index: int in 20:
 		var target_map: StringName = &"field" if index % 2 == 0 else &"farm"
@@ -38,7 +38,7 @@ func _run() -> void:
 		if not await _wait_transition():
 			_fail("map change %d timed out" % index)
 			return
-		var expected: Array[StringName] = [&"npc_villager"] if target_map == &"field" else [&"npc_fisher"]
+		var expected: Array[StringName] = [&"npc_villager", &"npc_ranger"] if target_map == &"field" else [&"npc_fisher"]
 		if not _assert_current_npcs(expected):
 			_fail("map change %d created wrong or duplicate NPC actors" % index)
 			return
@@ -46,10 +46,10 @@ func _run() -> void:
 	for _day: int in 2:
 		GameManager._complete_day()
 		await process_frame
-	if GameManager.npcs.size() != 2 or not _assert_current_npcs([&"npc_villager"]):
+	if GameManager.npcs.size() != 3 or not _assert_current_npcs([&"npc_villager"]):
 		_fail("two day advances changed NPC uniqueness or current farm actors")
 		return
-	print("[NpcScheduleFixture] PASS | npcs=2 | map_round_trips=20 | day_advances=2")
+	print("[NpcScheduleFixture] PASS | npcs=3 | map_round_trips=20 | day_advances=2")
 	main.queue_free()
 	await process_frame
 	quit(0)

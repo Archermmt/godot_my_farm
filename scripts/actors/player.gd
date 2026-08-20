@@ -81,12 +81,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		_release_interaction()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed("quick_save"):
+		GameManager.save_slot(0)
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("quick_load"):
+		GameManager.load_slot(0)
+		get_viewport().set_input_as_handled()
+		return
 	if is_input_locked() or not event.is_pressed() or (event is InputEventKey and event.is_echo()):
 		return
 	var handled := true
 	if event.is_action_pressed("use_held"):
 		_begin_interaction()
-	elif event.is_action_pressed("interact"):
+	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_interact_with_facing_target()
 	elif event.is_action_pressed("skip_day"):
 		GameManager.skip_day()
@@ -152,6 +160,10 @@ func _notification(what: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# EffectArea is top-level so its cell preview uses world coordinates; keep
+	# its proximity sensor centered on the player as the player moves.
+	if effect_area != null:
+		effect_area.global_position = global_position
 	input_direction = movement_vector()
 	walking = wants_walk()
 	if effect_area != null and effect_area.is_charging():

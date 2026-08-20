@@ -1,4 +1,4 @@
-# T04 地图、网格与场景切换
+# T05 地图、网格、场景切换与房屋
 
 ## 目标
 
@@ -6,11 +6,12 @@
 
 ## 依赖
 
-- T03 completed。
+- T04 completed。
 
 ## 交付范围
 
 - `scenes/maps/farm/farm.tscn`、`field/field.tscn`、`beach/beach.tscn`，每张地图通过根节点下唯一的 `TileMaps` 容器集中管理自己的 TileMapLayer。
+- `scenes/world/house.tscn` 与 `scripts/world/house.gd`，作为可复用的 farm 内房屋节点。
 - `scenes/world/scene_port.tscn`。
 - `scripts/world/base_map.gd`、`map_cell.gd`、`entity/entity.gd`、`scene_port.gd`，完善 MapManager。
 - 原创占位 TileSet/tiles、地图 registry、地图切换集成测试。
@@ -35,6 +36,15 @@
 - farm -> field -> beach -> field 后 Player instance 唯一、位置为目标 spawn。
 - 三张地图均至少为 48x32 cells；field 的 HillLayer 与曲折 RoadLayer、beach 的 WaterLayer 与不规则 CoastLayer 均包含序列化 cell。
 
+## 房屋实现要求
+
+1. House 是可独立实例化并挂到任意 BaseMap 的 Node2D；不得使用 MapManager 切换地图。
+2. 地板、墙和屋顶使用 House 自有 TileMapLayer，保持 identity transform，不加入 BaseMap.cell_flags。
+3. 墙体碰撞只在明确的 Door 开口留出通道；Door 与 FloorLayer 同属地面层，不遮挡 Player。
+4. InteriorArea 只响应 FarmPlayer；进入时隐藏 RoofLayer、放大相机并广播室内状态，离开时恢复。退出树时必须恢复。
+5. 室内包含床、电视、壁炉等家具；家具不堵门，并通过统一交互协议接入 T15。
+6. 新游戏从 farm 室外 default 点开始；只有穿过门进入 InteriorArea 后才触发室内逻辑。
+
 ## godot-ai 验收
 
 用 input_sequence 让 Player 走入每个 ScenePort，完成 farm/field/beach 往返。每张地图截图一张，检查探索尺寸、field 山坡/小径、beach 海岸线、淡入结束、相机、碰撞和唯一 Player；日志无 orphan/重复 signal/缺 spawn。
@@ -52,4 +62,4 @@
 - MapManager 已实现初始地图加载、输入/时间锁、Tween 淡入淡出、MapHost 替换、失败保留原地图和重复请求拒绝；ScenePort 只提交一次请求。
 - 自动化：三张地图均包含序列化 `tile_map_data`，map transition fixture 完成 `farm -> field -> beach`，往返过程中 Player 数量始终为 1。
 - 视觉验收目标：farm 房屋与农地、field 山坡/曲折小径、beach 不规则海岸线。
-- 下一任务：T04A 创造房屋。
+- 下一任务：T06 背包、Toolbar、Itembar 与手持物。

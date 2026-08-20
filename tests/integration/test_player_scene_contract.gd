@@ -80,10 +80,10 @@ func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
 	player_state.cell = Vector2i.ZERO
 	player_state.facing = &"down"
 	player_state.set_stamina(10)
-	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"tool_axe", 1))
+	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"axe", 1))
 	player_state.active_hand_source = PlayerState.ActiveHandSource.TOOLBAR
 	assert_equal(player.bind_state(player_state), OK)
-	var tool_meta := DataCatalog.get_item(&"tool_axe") as ToolMeta
+	var tool_meta := DataCatalog.get_item(&"axe") as ToolMeta
 	var tool := Tool.new(tool_meta)
 	assert_equal(player.effect_area.begin(player_state, map, tool), OK)
 	player._refresh_charge_bar()

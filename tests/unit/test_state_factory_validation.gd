@@ -2,9 +2,9 @@ extends ProjectTestCase
 
 
 func test_backpack_slot_rejects_invalid_amount_and_missing_id() -> void:
-	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "material_wood", "amount": "3"}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "wood", "amount": "3"}) == null)
 	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "", "amount": 3}) == null)
-	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "material_wood", "amount": -1}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "wood", "amount": -1}) == null)
 
 
 func test_backpack_rejects_invalid_nested_slot() -> void:
@@ -15,7 +15,7 @@ func test_backpack_rejects_invalid_nested_slot() -> void:
 		"inventory_capacity": 1,
 	}) == null)
 	assert_true(BackpackState.from_dict({
-		"slots": {"inventory_0": {"slot_id": "inventory_0", "item_id": "material_wood", "amount": -1}},
+		"slots": {"inventory_0": {"slot_id": "inventory_0", "item_id": "wood", "amount": -1}},
 		"toolbar": [],
 		"itembar": [],
 		"inventory_capacity": 1,
@@ -79,7 +79,7 @@ func test_item_state_rejects_unknown_state_type() -> void:
 	assert_true(ItemCodec.from_dict({
 		"state_type": "unknown",
 		"instance_id": "item_1_2",
-		"meta_id": "material_wood",
+		"meta_id": "wood",
 		"cell": {"x": 1, "y": 2},
 		"random_seed": 0,
 		"flags": [],
@@ -89,7 +89,7 @@ func test_item_state_rejects_unknown_state_type() -> void:
 func test_base_item_state_round_trip_preserves_base_type() -> void:
 	var state := ItemState.new()
 	state.instance_id = &"wood_pickup_1"
-	state.meta_id = &"material_wood"
+	state.meta_id = &"wood"
 	state.random_seed = 12
 	var restored := ItemCodec.from_dict(ItemCodec.to_dict(state))
 	assert_true(restored != null)

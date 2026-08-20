@@ -1,4 +1,4 @@
-class_name AutoloadConfig
+class_name GameConfig
 extends Resource
 
 @export_category("Catalog")

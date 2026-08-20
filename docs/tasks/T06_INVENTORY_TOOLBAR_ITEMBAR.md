@@ -1,4 +1,4 @@
-# T05 背包、Toolbar、Itembar 与手持物
+# T06 背包、Toolbar、Itembar 与手持物
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T04A completed。
+- T05 completed。
 
 ## 交付范围
 
@@ -61,4 +61,4 @@
 - 自动化：63 tests / 3936 assertions；InventoryKeyboardTest、MapTransitionTest、PlayerCollisionTest、主场景启动与 `git diff --check` 全部通过。
 - 视觉证据：`screenshots/t05/inventory.png`（1280x720 实际 Godot framebuffer），6/10/20 格容器、键盘焦点、详情和手持 HUD 均无裁切。
 - 完成标准包含生成并配置背包可见物品图标；不得以两字母缩写作为最终 Slot 表现。
-- 下一任务：T06 统一目标预览与蓄力交互。
+- 下一任务：T07 统一目标预览与蓄力交互。

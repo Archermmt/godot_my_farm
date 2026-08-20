@@ -42,7 +42,7 @@ func test_weather_tint_changes_daylight_and_interior_stays_more_neutral() -> voi
 	manager.free()
 
 
-func test_default_autoload_configuration_exposes_season_specific_weights() -> void:
+func test_default_game_configuration_exposes_season_specific_weights() -> void:
 	assert_equal(CalendarManager.config.season_metas.size(), 4)
 	for meta: SeasonMeta in CalendarManager.config.season_metas.values():
 		var total := 0.0

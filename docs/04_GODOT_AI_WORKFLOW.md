@@ -8,7 +8,7 @@ godot-ai 是开发期 MCP 辅助工具：Codex 通过它读取 Godot 编辑器�
 
 ## 2. 前置条件
 
-T00 在任何场景写入前确认：
+T01 在任何场景写入前确认：
 
 1. 安装 Godot 4.7 stable 标准版并可从命令行运行。
 2. 按 godot-ai 自身 README 安装 `addons/godot_ai` 并在当前项目启用插件。

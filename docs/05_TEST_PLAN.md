@@ -13,7 +13,7 @@
 
 ## 2. 自动化测试结构
 
-不引入第三方测试框架。T00 创建可从命令行运行的 `tests/test_runner.gd`，它扩展 `SceneTree`，加载测试套件、统计断言并以非零 exit code 表示失败。
+不引入第三方测试框架。T01 创建可从命令行运行的 `tests/test_runner.gd`，它扩展 `SceneTree`，加载测试套件、统计断言并以非零 exit code 表示失败。
 
 目标命令：
 
@@ -23,7 +23,7 @@ godot --headless --path . --import
 godot --headless --path . --quit
 ```
 
-若安装命令名是 `godot4` 或应用绝对路径，T00 记录到 STATUS，不在脚本里硬编码。
+若安装命令名是 `godot4` 或应用绝对路径，T01 记录到 STATUS，不在脚本里硬编码。
 
 测试规则：
 

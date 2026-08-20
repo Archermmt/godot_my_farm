@@ -5,10 +5,10 @@
 ## 1. 工具链
 
 - 项目基线为 Godot **4.7 stable 标准构建**，不是 .NET/Mono 构建；godot-ai 3.0.7 要求 Godot 4.5+，因此不得降回 4.3/4.4。
-- T00 必须先记录实际 `godot --version`；`project.godot` 中版本敏感设置以安装版本为准，不凭记忆硬编码。
+- T01 必须先记录实际 `godot --version`；`project.godot` 中版本敏感设置以安装版本为准，不凭记忆硬编码。
 - 游戏代码全部使用 GDScript 2.0。禁止 `.cs`、`.csproj`、`.sln` 和 C# 插件。
 - 运行时不得依赖 godot-ai；它只用于开发、编辑器操作、验证和截图。
-- 不增加第三方运行时/测试插件，除非用户明确批准并记录原因。
+- 不增加第三方运行时/测试插件，除非用户明确批准并记录原因；T15 已明确允许使用 Dialogic 等对话插件，并要求通过适配层隔离插件 API。
 
 ## 2. 目录和命名
 
@@ -19,7 +19,8 @@
 - 节点：`PascalCase`，同一场景内名称稳定；需要脚本引用的节点设置为唯一名称。
 - 变量、方法、信号和 InputMap action：`snake_case`。
 - 常量：`UPPER_SNAKE_CASE`。
-- Resource ID：稳定的英文 `StringName`，例如 `&"tool_hoe"`、`&"crop_parsnip"`；显示文本与 ID 分离。
+- Resource ID：稳定的英文 `StringName`，例如 `&"hoe"`、`&"parsnip"`；显示文本与 ID 分离。
+- 配置 Dictionary 已经表达数据类别时，key 不重复类别前缀；例如 `npc_schedules` 使用 `fisher`、`villager`、`ranger`，不使用 `schedule_fisher`。
 - 信号使用完成事实命名，例如 `item_added`、`day_advanced`，请求型事件以 `request_` 开头。
 
 ## 3. GDScript 编码规则
@@ -67,14 +68,14 @@
 - `SeedMeta` 继承 ItemMeta，并通过唯一的 `plant_id` 单向引用 PlantMeta；PlantMeta 不保存反向 seed ID。Seed 构造时从 DataCatalog 解析并缓存 PlantMeta，执行 use 时不得遍历 Catalog 查找关联。
 - 物品使用、工具作用、播种、采集和放置逻辑由对应 Item/Tool 运行时类型实现；不得为这些类别再建立只做转发或 action_id 标记的 UseAction/GridToolAction/SeedAction 等空策略层。
 - Meta 只用于一份类型定义被多个 State/运行时实例共享的场景，例如同种 Item 的贴图、价格、成长阶段和掉落规则。唯一 Runtime Object 不得仅因含有静态初始值就增加 Meta；不得把运行时可变数据写回 Meta，也不得把 Meta 字段复制进存档 State。
-- Player 使用 `PlayerState -> FarmPlayer`，不建立 PlayerMeta。`AutoloadConfig.player_state_template` 是 Inspector 可编辑的新游戏 State 模板，直接包含出生信息、初始属性以及 BackpackState 的容量、命名槽位和 BackpackSlot；新游戏从模板深复制，读档完全从快照恢复，不依赖当前模板。
+- Player 使用 `PlayerState -> FarmPlayer`，不建立 PlayerMeta。`GameConfig.player_state_template` 是 Inspector 可编辑的新游戏 State 模板，直接包含出生信息、初始属性以及 BackpackState 的容量、命名槽位和 BackpackSlot；新游戏从模板深复制，读档完全从快照恢复，不依赖当前模板。
 - Cell 使用 `CellState -> MapCell`，不建立 CellMeta。地图 TileMapLayer 可重建的 BASE/DIGGABLE 等静态 flag 直接保存在当前 MapCell.static_flags；只有 DUG/WATERED、item_ids 等动态数据进入 CellState 和存档。
 - State 只保存每个实例的可变数据。`ItemState.meta_id` 是 ItemState 到 `ItemMeta.id` 的唯一连接；不得再保存静态类别或其他可从 Meta 获得的字段。序列化中的 `state_type` 只用于恢复具体 State 子类，不得代替 meta_id 或承载业务类别判断。
 - Resource 之间使用稳定 ID 关联，避免整个运行时状态通过循环 Resource 引用序列化。
 - 运行时工厂负责选择并实例化 Item Scene；业务系统不得散落字符串路径加载，Meta 不得保存 `PackedScene` 或其他运行时节点结构信息。
 - 普通 Item、Plant 和 Harvestable 分别使用一个通用运行时场景，BaseMap 根据 State/Meta 子类选择。只有碰撞体、节点结构或运行时组件确实不同的 Item 才建立专用 Scene，并在运行时工厂中显式注册；不得为仅贴图或数值不同的 Item 建立重复场景。
 - Item 的图标、数值和阶段配置属于 Meta（例如 `icon_texture`、成长周期、阶段贴图、最大生命）；通用场景只负责公共节点结构、碰撞和视觉组件。一个 Meta 对应一种明确的运行时根节点类型，Plant、Harvestable 和普通 Item 不得共用同一个 Meta 充当不同运行时类型。
-- Item Meta 默认直接内嵌在 `data/autoload_config.tres` 的 `items` Dictionary 中，包括 Plant、Harvestable、Tool、Seed 和普通 Item；仅当某个 Resource 需要被多个配置直接引用或具有独立文件生命周期时才拆成单独 `.tres`。PlantStage、HarvestableStage 和掉落项等父对象私有数据继续内嵌，不为每个 item 建立特例资源文件。State 只保存运行时变化值，场景中不得增加 `State` 节点承载 Meta 配置。
+- Item Meta 默认直接内嵌在 `data/game_config.tres` 的 `items` Dictionary 中，包括 Plant、Harvestable、Tool、Seed 和普通 Item；仅当某个 Resource 需要被多个配置直接引用或具有独立文件生命周期时才拆成单独 `.tres`。PlantStage、HarvestableStage 和掉落项等父对象私有数据继续内嵌，不为每个 item 建立特例资源文件。State 只保存运行时变化值，场景中不得增加 `State` 节点承载 Meta 配置。
 
 ### 5.1 Meta、State 与 Runtime Object 构建规范
 
@@ -125,11 +126,11 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 - State/DTO 不访问或持有 Autoload。需要 Catalog 参与的初始化、校验和创建逻辑由 GameManager、BaseMap 等运行时所有者完成，避免 State 脚本与 Autoload 形成资源加载循环。
 - RefCounted 领域行为对象原则上不访问 EventBus、MapManager 或 AudioManager，应返回结构化结果，由 Player、BaseMap 等运行时 Node 提交状态并发出事实信号和反馈。只读 Catalog 关联可以在对象创建时通过全局 Catalog 解析。
 - Autoload 默认直接注册 `.gd` 脚本。没有固定子节点结构的 Manager 不得为 Inspector 配置增加空壳 `.tscn`；只有确实需要持久节点层级、预建子节点或编辑器空间布局时才使用场景型 Autoload。
-- `data/autoload_config.tres` 是所有 Autoload 初始配置的唯一 Inspector 入口；Manager 直接持有同一 `AutoloadConfig`，不得把配置字段复制到节点导出属性。存档或玩家设置会改变的值必须使用独立运行时字段，例如 `initial_time_scale` 只初始化 `GameManager.time_scale`，由 `CalendarManager` 推进时间，读档只覆盖运行时值。
-- `AutoloadConfig` 中“稳定 ID -> 控制对象/Resource”集合优先使用类型化 `Dictionary`；key 必须直接说明该项控制的对象。只有顺序本身有业务意义，或元素没有稳定 key 时才使用 `Array`。
+- `data/game_config.tres` 是所有 Autoload 初始配置的唯一 Inspector 入口；Manager 直接持有同一 `GameConfig`，不得把配置字段复制到节点导出属性。存档或玩家设置会改变的值必须使用独立运行时字段，例如 `initial_time_scale` 只初始化 `GameManager.time_scale`，由 `CalendarManager` 推进时间，读档只覆盖运行时值。
+- `GameConfig` 中“稳定 ID -> 控制对象/Resource”集合优先使用类型化 `Dictionary`；key 必须直接说明该项控制的对象。只有顺序本身有业务意义，或元素没有稳定 key 时才使用 `Array`。
 - Config Dictionary 是配置和 ID 查询的唯一数据源，不得再建立与它完全同构的 `_definitions`、`_items` 等私有副本。允许保留不同查询维度的派生索引、对象池、冷却记录和其他运行时状态，例如 CalendarManager 的 month -> SeasonMeta 索引。
 - Dictionary key 已能完整表达身份，且 Resource 不会脱离所属 Manager 单独流转时，Resource 不重复保存 ID，例如 AudioDefinition 和 EffectDefinition。Resource 离开 Manager 后仍需自描述时保留内部 ID，例如 ItemMeta、NpcSchedule 和 SeasonMeta，并在启动时强制校验内部 ID 与 Dictionary key 一致。
-- DataCatalog、AudioManager、EffectManager、CalendarManager、GameManager 和 MapManager 均读取同一个 `AutoloadConfig`；不再为各 Manager 增加同构配置 Resource 或场景副本。SeasonMeta 中的月份归属属于配置，CalendarState 只保存同步后的派生 `season_id`。
+- DataCatalog、AudioManager、EffectManager、CalendarManager、GameManager 和 MapManager 均读取同一个 `GameConfig`；不再为各 Manager 增加同构配置 Resource 或场景副本。SeasonMeta 中的月份归属属于配置，CalendarState 只保存同步后的派生 `season_id`。
 
 ## 7. 事件与数据所有权
 
@@ -231,7 +232,7 @@ Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩
 - ItemState 及其子类放在 scripts/state/item/，BackpackState/BackpackSlot 放在 scripts/state/inventory/，CellState 放在 scripts/state/；Item 基类和运行时子类放在与 world 同级的 scripts/items/。
 - 浇水使用 `CellState.CellFlag.WATERED`；日推进逻辑消费前一天的浇水状态后清除该 flag。
 - 雨或暴风雨开始、雨天载入地图、以及雨天使用 Hoe 新增 DUG 时，BaseMap 必须给对应 DUG cell 添加 WATERED 并重建 WateredLayer；CalendarManager 只选择天气和发出事实信号，不直接修改地图状态。
-- `AutoloadConfig.weather_icons: Dictionary[StringName, Texture2D]` 必须覆盖所有 SeasonMeta 中出现的天气 ID。状态面板通过 CalendarManager 查询当前天气图标并实时切换，不保存第二份天气贴图映射，也不用天气文字代替图标。
+- `GameConfig.weather_icons: Dictionary[StringName, Texture2D]` 必须覆盖所有 SeasonMeta 中出现的天气 ID。状态面板通过 CalendarManager 查询当前天气图标并实时切换，不保存第二份天气贴图映射，也不用天气文字代替图标。
 - Hoe/WateringCan 的多格操作由运行时 `Tool` 统一执行：先用 MapCell 查询收集有效格，再整批校验体力，最后原子修改 CellState。Tool/Seed 不提供反复 new/free 的静态 `perform` 入口；Player 通过自身 `PlayerBackpack` 复用当前背包中可用的 Tool/Seed 运行时对象，只有对应 BackpackSlot 消失时才从 Backpack 删除。`SeedOutcome` 与 `ToolOutcome` 是两个独立结果类型，不建立只有少量公共字段的 ItemOutcome；`CellToolOutcome` 和 `ItemToolOutcome` 继承 ToolOutcome，分别承载 cell 投影结果与采集对象结果。所有 Outcome 一类一文件，统一放在 `scripts/items/outcome/`；UI 不从日志推断结果。
 - 一次 Tool 事务只消耗一次 `base_stamina_cost`；蓄力只扩大目标范围，不得将消耗乘以有效格数量，否则最大蓄力范围可能在满体力时也无法使用。
 - MapCell 的工具行为统一通过 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，不得为 Hoe/WateringCan 保留重复的 till/water 方法。Tool 不持有或修改 PlayerState；Player 根据成功的 ToolOutcome.stamina_spent 更新体力，EffectArea 直接读取 PlayerState 但不修改其体力。
@@ -257,7 +258,7 @@ Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩
 
 ## 10. 像素、美术和 UI
 
-- T00 选择并记录基准视口、拉伸模式、像素吸附和贴图过滤；整个项目保持一致。
+- T01 选择并记录基准视口、拉伸模式、像素吸附和贴图过滤；整个项目保持一致。
 - 像素贴图默认 nearest filtering，不启用会造成边缘渗色的 mipmap。
 - 角色、目标格、地块和世界对象使用整数尺寸/位置策略；Camera2D 缩放使用稳定整数倍。
 - 世界内容在 Node2D/CanvasItem 层；HUD 在独立 CanvasLayer。UI 不跟随世界相机缩放。

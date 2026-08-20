@@ -165,12 +165,12 @@ func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
 	var player_state := PlayerState.new()
 	player_state.set_stamina(10)
 	var coordinates := Vector2i(8, 10)
-	var hoe := Tool.new(DataCatalog.get_item(&"tool_hoe") as ToolMeta)
+	var hoe := Tool.new(DataCatalog.get_item(&"hoe") as ToolMeta)
 	var hoe_result := hoe.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
 	assert_true(hoe_result.succeeded())
 	assert_equal(hoe_result.projection_error, OK)
 	player_state.set_stamina(player_state.stamina - hoe_result.stamina_spent)
-	var watering_can := Tool.new(DataCatalog.get_item(&"tool_watering_can") as ToolMeta)
+	var watering_can := Tool.new(DataCatalog.get_item(&"watering_can") as ToolMeta)
 	var water_result := watering_can.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
 	assert_true(water_result.succeeded())
 	assert_equal(water_result.projection_error, OK)
@@ -203,7 +203,7 @@ func test_base_map_restores_and_operates_on_state_dtos() -> void:
 	persisted_cell.flags = CellState.CellFlag.DUG
 	var persisted_item := PlantState.new()
 	persisted_item.instance_id = &"crop_5_9"
-	persisted_item.meta_id = &"crop_parsnip"
+	persisted_item.meta_id = &"parsnip"
 	persisted_item.cell = persisted_cell.cell
 	persisted_cell.item_ids = [persisted_item.instance_id]
 	first_state.cells[persisted_cell.cell] = persisted_cell
@@ -266,7 +266,7 @@ func test_each_map_owns_a_distinct_tilemap_hierarchy() -> void:
 	assert_equal(farm.configure_state(farm_state), OK)
 	var plant_state := PlantState.new()
 	plant_state.instance_id = &"crop_runtime_test"
-	plant_state.meta_id = &"crop_parsnip"
+	plant_state.meta_id = &"parsnip"
 	assert_equal(farm.add_item_state(plant_state, Vector2i(5, 9)), OK)
 	var plant := farm.get_item(plant_state.instance_id)
 	assert_true(plant.get_parent() == farm.get_node("MapItems/Plants"))
@@ -345,7 +345,7 @@ func test_base_map_item_helpers_handle_missing_values() -> void:
 	assert_equal(base_map.add_item(null), ERR_INVALID_PARAMETER)
 	var state := ItemState.new()
 	state.instance_id = &"item_test"
-	state.meta_id = &"material_wood"
+	state.meta_id = &"wood"
 	var item := Item.new()
 	assert_equal(item.bind_state(state, DataCatalog.get_item(state.meta_id)), OK)
 	assert_equal(base_map.add_item(item), ERR_UNCONFIGURED)
@@ -363,7 +363,7 @@ func test_base_map_rejects_meta_state_mismatch() -> void:
 	assert_equal(field.configure_state(map_state), OK)
 	var invalid_crop := ItemState.new()
 	invalid_crop.instance_id = &"invalid_crop"
-	invalid_crop.meta_id = &"crop_parsnip"
+	invalid_crop.meta_id = &"parsnip"
 	assert_equal(field.add_item_state(invalid_crop, Vector2i(5, 9)), ERR_INVALID_PARAMETER)
 	var harvestable := HarvestableState.new()
 	harvestable.instance_id = &"tree_runtime"

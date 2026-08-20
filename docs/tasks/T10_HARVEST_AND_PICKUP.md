@@ -1,4 +1,4 @@
-# T09 采集对象、掉落与拾取
+# T10 采集对象、掉落与拾取
 
 ## 目标
 
@@ -55,4 +55,4 @@
 
 ## 完成记录
 
-STATUS 记录固定 seed、各掉落、满包结果、run_id 和关键截图；总表 T09 completed。
+STATUS 记录固定 seed、各掉落、满包结果、run_id 和关键截图；总表 T10 completed。

@@ -77,8 +77,8 @@ plants_host = NodePath("MapItems/Plants")
 script = ExtResource("2_d0ny2")
 candidates = Dictionary[StringName, ExtResource("6_candidate")]({
 &"grass": SubResource("GenerationGrass"),
-&"material_stone": SubResource("GenerationStone"),
-&"material_wood": SubResource("GenerationWood"),
+&"stone": SubResource("GenerationStone"),
+&"wood": SubResource("GenerationWood"),
 &"rock": SubResource("GenerationRock"),
 &"tree": SubResource("GenerationTree")
 })

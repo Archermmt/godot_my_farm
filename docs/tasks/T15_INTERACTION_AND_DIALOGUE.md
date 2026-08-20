@@ -1,10 +1,10 @@
-# T13A 场景物件、NPC 交互与对话气泡
+# T15 场景物件、NPC 交互与对话气泡
 
 ## 目标
 
-在 T13 的 NPC 移动和 T14 的持久化之间，建立统一的面对面交互流程。玩家可以与房屋内的床、电视等场景物件交互，也可以与 NPC 交互并进入可推进的对话。这里的“场景物件”是地图中已实例化的家具或设施，不是背包中的 `Item`。交互目标由玩家当前地图、位置和 facing 决定；对话期间角色停止移动，直到对话结束或被取消。
+在 T14 的 NPC 移动和 T16 的持久化之间，建立统一的面对面交互流程。玩家可以与房屋内的床、电视等场景物件交互，也可以与 NPC 交互并进入可推进的对话。这里的“场景物件”是地图中已实例化的家具或设施，不是背包中的 `Item`。交互目标由独立场景中的 `InteractionArea` 与玩家 `EffectArea` 的进入/离开事件发现；对话期间角色停止移动，直到对话结束或被取消。
 
-本任务参考 GDQuest Open RPG 的对话流程，但不要求引入 Dialogic 插件。参考项目将对话内容放在可编辑的 `DialogicTimeline` 资源中，触发脚本只调用 `Dialogic.start_timeline()`，通过 `timeline_ended` 等信号等待结束；文本气泡由可替换的默认布局场景实例化，系统内部区分 `IDLE`、文本揭示和等待输入等状态。本项目采用相同的职责分离，用自己的轻量实现保持当前 DataCatalog、GameManager 和 UI 结构。
+本任务参考 GDQuest Open RPG 的对话流程，允许使用 Dialogic 等成熟插件，不要求所有能力都用 Godot 原生代码重写。参考项目将对话内容放在可编辑的 `DialogicTimeline` 资源中，触发脚本只调用 `Dialogic.start_timeline()`，通过 `timeline_ended` 等信号等待结束；文本气泡由可替换的默认布局场景实例化，系统内部区分 `IDLE`、文本揭示和等待输入等状态。若引入插件，插件负责 timeline、会话和气泡基础设施，本项目仍保留 `Player -> interaction target` 的目标选择、GameManager 的状态边界以及插件适配层，避免 NPC 或家具直接依赖插件 API。当前仓库的轻量实现可以作为无插件 fallback。
 
 参考代码：
 
@@ -30,7 +30,13 @@
 
 ## 依赖
 
-- T04、T04A、T10、T12、T13 completed。
+- T05、T11、T13、T14 completed。
+
+## 实现策略
+
+本任务允许使用 Dialogic 等插件。实现时先以插件提供的 timeline、会话状态和气泡布局为优先候选；项目通过一个适配层把 `dialogue_id`、目标节点、Player 锁和结束信号接入现有交互协议。NPC、床和电视只返回交互结果，不直接调用插件 API。
+
+如果运行环境没有插件，则使用仓库内的 `DialogueController`、`DialogueDefinition`、`DialogueLine` 和 `dialogue_bubble.tscn` fallback。两种实现必须提供相同的 begin/advance/cancel/ended 行为，不能让地图目标依赖具体实现。
 
 ## 交付范围
 
@@ -46,7 +52,7 @@
 ### 1. 目标与查询
 
 1. 目标必须是当前地图中已实例化的运行时对象，或由 BaseMap 根据目标 cell 返回的对象；不能让 Player 反向遍历全局所有 NPC/Item。
-2. EffectArea 继续只负责工具/种子作用区域；普通交互使用独立的 facing-cell 查询，不把对话逻辑塞入 EffectArea。
+2. `EffectArea` 同时提供工具/种子预览和交互范围传感器；它只转发目标进入/离开事件，不负责创建气泡或执行对话业务。
 3. 目标查询按以下顺序处理：计算 player 当前 cell 前方的首个 cell，从 BaseMap/当前场景收集该 cell 上的交互目标，按目标优先级和距离选出一个目标，在目标不可用时返回原因但不打开气泡。
 4. NPC、家具和设备可以共享同一交互协议，但其业务行为保留在各自 runtime object 中。不要为每一种目标创建只转发调用的 controller。
 
@@ -73,6 +79,7 @@ Player 负责输入、朝向目标、调用目标并消费结果；目标负责�
 ### 4. 气泡呈现
 
 - 气泡是独立可编辑场景，由 DialogueController 实例化和销毁；NPC/家具不直接持有 UI 节点。
+- NPC、床、电视、壁炉等可交互对象必须是独立场景，并在场景内部拥有 `InteractionArea`；对象不直接持有气泡节点。
 - 气泡锚点由 speaker 的 world position 或屏幕安全区域计算，不能被摄像机边界裁掉；玩家与 NPC 对话时气泡跟随 speaker。
 - 文本揭示必须可被一次推进输入跳过；文本完整后再次输入推进下一行；最后一行输入关闭。
 - UI 必须提供关闭/取消路径，并在目标被销毁、地图切换或会话异常时自动关闭。
@@ -84,6 +91,7 @@ Player 负责输入、朝向目标、调用目标并消费结果；目标负责�
 2. 玩家面对电视按 `interact`，打开至少两行可推进的电视信息对话，逐字显示、跳过和关闭均正常。
 3. 玩家面对壁炉或其他家具时，未配置 dialogue 的目标给出明确不可交互结果，不产生空气泡或错误日志。
 4. 交互目标不在 facing cell、被墙阻挡、超出范围或玩家处于工具 hold 状态时，按键不会误触发。
+5. 玩家 `EffectArea` 进入目标 `InteractionArea` 时显示范围提示气泡，离开时只隐藏对应气泡；多个目标重叠时不得残留旧目标提示。
 
 ## NPC 交互验收场景
 
@@ -99,6 +107,7 @@ Player 负责输入、朝向目标、调用目标并消费结果；目标负责�
 - DialogueController 的状态转换、逐字揭示跳过、推进、取消、busy 和异常清理。
 - 交互结果到床/电视/NPC 行为的映射；对话期间输入被正确锁定，结束后只释放一次。
 - 地图切换、目标销毁、换日请求和加载请求与活动对话的竞态测试。
+- 插件适配层（若启用）与 fallback 的行为契约测试：相同 dialogue id、输入序列、Player lock 和 ended 信号结果一致。
 
 ## godot-ai / 手动验收
 
@@ -109,9 +118,9 @@ Player 负责输入、朝向目标、调用目标并消费结果；目标负责�
 ## 不做
 
 - 不做好感度、任务树、婚恋、商店、条件分支/复杂 choice effect 或语音配音；床的确认/取消二选一不在此限制内。
-- 不要求完整复刻 Dialogic 编辑器；只实现本任务所需的 Resource 数据和可编辑气泡场景。
+- 不要求重复实现已有插件提供的 timeline 编辑器、会话状态机或气泡布局；若插件满足验收标准，优先复用插件并通过适配层接入当前交互协议。无插件环境下才实现本任务所需的 Resource 数据和可编辑气泡场景。
 - 不把 DialogueController 变成 GameManager 的业务逻辑；GameManager 只接收需要保存或触发全局状态变化的结果。
 
 ## 完成记录
 
-STATUS 记录 dialogue definition 数量、床/电视/NPC 验收摘要、输入序列、截图路径、run_id 和遗留风险；总表 T13A completed 后 T14 才可进入 `in_progress`。
+STATUS 记录 dialogue definition 数量、床/电视/NPC 验收摘要、输入序列、截图路径、run_id 和遗留风险；总表 T15 completed 后 T16 才可进入 `in_progress`。

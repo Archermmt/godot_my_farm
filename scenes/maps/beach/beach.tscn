@@ -175,8 +175,8 @@ plants_host = NodePath("MapItems/Plants")
 script = ExtResource("2_jqml3")
 candidates = Dictionary[StringName, ExtResource("6_candidate")]({
 &"grass": SubResource("GenerationGrass"),
-&"material_stone": SubResource("GenerationStone"),
-&"material_wood": SubResource("GenerationWood"),
+&"stone": SubResource("GenerationStone"),
+&"wood": SubResource("GenerationWood"),
 &"rock": SubResource("GenerationRock")
 })
 seed_salt = 254111128

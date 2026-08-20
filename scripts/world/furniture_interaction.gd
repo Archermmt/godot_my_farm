@@ -1,7 +1,5 @@
 class_name FurnitureInteraction
-extends Node2D
-
-const InteractionResultClass = preload("res://scripts/interaction/interaction_result.gd")
+extends InteractionTarget
 
 enum FurnitureKind { BED, TELEVISION, FIREPLACE }
 

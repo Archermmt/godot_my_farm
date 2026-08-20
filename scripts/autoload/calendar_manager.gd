@@ -1,9 +1,9 @@
 class_name CalendarManagerService
 extends CanvasModulate
 
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var current_weather: StringName = &""
 var _month_seasons: Dictionary[int, SeasonMeta] = {}
@@ -95,7 +95,7 @@ func configure_seasons(entries: Dictionary[StringName, SeasonMeta]) -> Array[Str
 	var errors := _build_season_index(entries)
 	if not errors.is_empty():
 		return errors
-	config = config.duplicate() as AutoloadConfig
+	config = config.duplicate() as GameConfig
 	config.season_metas = entries.duplicate()
 	return errors
 

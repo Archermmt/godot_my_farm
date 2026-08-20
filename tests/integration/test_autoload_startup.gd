@@ -26,17 +26,17 @@ func test_game_services_start_in_architecture_order() -> void:
 
 func test_autoload_definitions_and_new_game_are_ready() -> void:
 	assert_true(DataCatalog.is_ready_for_game())
-	assert_equal((DataCatalog.get_item(&"tool_hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
+	assert_equal((DataCatalog.get_item(&"hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
 	assert_true(GameManager.is_initialized())
 	assert_equal(GameManager.player.map_id, &"farm")
 	assert_equal(GameManager.player.spawn_id, &"default")
-	assert_equal(GameManager.player.backpack_state.count_item(&"itembar", &"seed_parsnip"), 15)
-	assert_equal(GameManager.player.backpack_state.count_item(&"toolbar", &"tool_hoe"), 1)
+	assert_equal(GameManager.player.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(GameManager.player.backpack_state.count_item(&"toolbar", &"hoe"), 1)
 	assert_equal(GameManager.used_inventory_slots(), 0)
 	assert_true(GameManager.can_snapshot())
 
 
-func test_configurable_managers_load_shared_autoload_config() -> void:
+func test_configurable_managers_load_shared_game_config() -> void:
 	assert_true(GameManager.config == DataCatalog.config)
 	assert_true(MapManager.config == DataCatalog.config)
 	assert_true(CalendarManager.config == DataCatalog.config)
@@ -54,4 +54,4 @@ func test_configurable_managers_load_shared_autoload_config() -> void:
 	assert_equal(AudioManager.config.sfx_pool_limit, 10)
 	assert_true(EffectManager.is_configured())
 	assert_equal(EffectManager.definition_count(), 7)
-	assert_equal(EffectManager.weather_scene_count(), 2)
+	assert_equal(EffectManager.weather_scene_count(), 4)

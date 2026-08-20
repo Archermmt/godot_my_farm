@@ -13,6 +13,21 @@ var target_position := Vector2.ZERO
 var _warning_key: StringName = &""
 var _animation_state: StringName = &""
 
+
+func on_effect_area_entered(effect_area: EffectArea) -> void:
+	var player := effect_area.get_parent() as FarmPlayer
+	var controller := get_tree().get_first_node_in_group("dialogue_controller")
+	if player != null and state == null:
+		return
+	if player != null and controller != null and controller.has_method("show_prompt"):
+		controller.call("show_prompt", self, player)
+
+
+func on_effect_area_exited(effect_area: EffectArea) -> void:
+	var controller := get_tree().get_first_node_in_group("dialogue_controller")
+	if controller != null and controller.has_method("hide_prompt"):
+		controller.call("hide_prompt", self)
+
 func interaction_rejection_reason(_player_state: PlayerState) -> StringName:
 	return &"" if state != null else &"unavailable"
 
@@ -22,6 +37,7 @@ func interaction_prompt() -> String:
 func interact(_player: FarmPlayer):
 	match state.npc_id if state != null else &"":
 		&"npc_fisher": return InteractionResultClass.dialogue(&"npc_fisher_default")
+		&"npc_ranger": return InteractionResultClass.dialogue(&"npc_ranger_default")
 		_: return InteractionResultClass.dialogue(&"npc_villager_default")
 
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D

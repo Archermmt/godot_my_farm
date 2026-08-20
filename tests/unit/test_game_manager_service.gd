@@ -23,8 +23,8 @@ func test_new_game_uses_inspector_editable_player_state_template() -> void:
 	template.stamina = 175
 	template.gold = 725
 	template.backpack_state = BackpackState.new(4, 2, 3)
-	assert_true(template.backpack_state.set_slot(&"itembar", 1, BackpackSlot.new(&"itembar_1", &"seed_potato", 8)))
-	game_manager.config = game_manager.config.duplicate() as AutoloadConfig
+	assert_true(template.backpack_state.set_slot(&"itembar", 1, BackpackSlot.new(&"itembar_1", &"potato_seed", 8)))
+	game_manager.config = game_manager.config.duplicate() as GameConfig
 	game_manager.config.player_state_template = template
 
 	assert_equal(game_manager.new_game(321), OK)
@@ -40,7 +40,7 @@ func test_new_game_uses_inspector_editable_player_state_template() -> void:
 	assert_equal(game_manager.player.backpack_state.capacity(&"inventory"), 4)
 	assert_equal(game_manager.player.backpack_state.capacity(&"toolbar"), 2)
 	assert_equal(game_manager.player.backpack_state.capacity(&"itembar"), 3)
-	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 1).item_id, &"seed_potato")
+	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 1).item_id, &"potato_seed")
 	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 1).amount, 8)
 	assert_equal(game_manager.player.active_hand_source, PlayerState.ActiveHandSource.NONE)
 	game_manager.free()
@@ -52,7 +52,7 @@ func test_snapshot_restore_does_not_depend_on_current_player_template() -> void:
 	var snapshot := game_manager.snapshot()
 	var replacement_template := PlayerState.new()
 	replacement_template.backpack_state = BackpackState.new(1, 1, 1)
-	game_manager.config = game_manager.config.duplicate() as AutoloadConfig
+	game_manager.config = game_manager.config.duplicate() as GameConfig
 	game_manager.config.player_state_template = replacement_template
 
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
@@ -70,9 +70,9 @@ func test_new_game_is_deterministic_and_does_not_accumulate_inventory() -> void:
 	assert_equal(game_manager.player.backpack_state.capacity(&"inventory"), 20)
 	assert_equal(game_manager.player.backpack_state.capacity(&"toolbar"), 6)
 	assert_equal(game_manager.player.backpack_state.capacity(&"itembar"), 10)
-	assert_equal(game_manager.player.backpack_state.count_item(&"itembar", &"seed_parsnip"), 15)
-	assert_equal(game_manager.player.backpack_state.count_item(&"inventory", &"seed_parsnip"), 0)
-	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket", &"tool_pickaxe", &"tool_axe"]:
+	assert_equal(game_manager.player.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(game_manager.player.backpack_state.count_item(&"inventory", &"parsnip_seed"), 0)
+	for tool_id: StringName in [&"hoe", &"watering_can", &"sickle", &"basket", &"pickaxe", &"axe"]:
 		assert_equal(game_manager.player.backpack_state.count_item(&"toolbar", tool_id), 1)
 	assert_equal(game_manager.player.map_id, &"farm")
 	assert_equal(game_manager.player.spawn_id, &"default")
@@ -138,7 +138,7 @@ func test_npcs_are_global_and_keep_their_current_map_location() -> void:
 	assert_equal(game_manager.new_game(77), OK)
 	var npc := NpcState.new()
 	npc.npc_id = &"npc_custom"
-	npc.schedule_id = &"schedule_villager"
+	npc.schedule_id = &"villager"
 	npc.map_id = &"field"
 	npc.cell = Vector2i(12, 8)
 	npc.current_event_id = &"morning_field"
@@ -148,7 +148,7 @@ func test_npcs_are_global_and_keep_their_current_map_location() -> void:
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game_manager.snapshot())) as Dictionary
 	assert_true(not (snapshot["maps"] as Array)[0].has("npcs"))
 	assert_equal(game_manager.new_game(77), OK)
-	assert_equal(game_manager.npcs.size(), 2)
+	assert_equal(game_manager.npcs.size(), 3)
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
 	var restored := game_manager.get_npc(&"npc_custom")
 	assert_equal(restored.map_id, &"field")
@@ -189,12 +189,12 @@ func test_bar_selection_switches_the_single_active_hand() -> void:
 	assert_true(game_manager.player.active_stack().is_empty())
 	assert_equal(game_manager.player.select_bar_relative(PlayerState.ActiveHandSource.ITEMBAR, 1), OK)
 	assert_equal(game_manager.player.active_hand_source, PlayerState.ActiveHandSource.ITEMBAR)
-	assert_equal(game_manager.player.active_stack().item_id, &"seed_pumpkin")
+	assert_equal(game_manager.player.active_stack().item_id, &"pumpkin_seed")
 	assert_equal(game_manager.player.select_bar_index(PlayerState.ActiveHandSource.ITEMBAR, 0), OK)
-	assert_equal(game_manager.player.active_stack().item_id, &"seed_parsnip")
+	assert_equal(game_manager.player.active_stack().item_id, &"parsnip_seed")
 	assert_equal(game_manager.player.select_bar_relative(PlayerState.ActiveHandSource.TOOLBAR, -1), OK)
 	assert_equal(game_manager.player.active_hand_source, PlayerState.ActiveHandSource.TOOLBAR)
-	assert_equal(game_manager.player.active_stack().item_id, &"tool_axe")
+	assert_equal(game_manager.player.active_stack().item_id, &"axe")
 	game_manager.free()
 
 
@@ -202,16 +202,16 @@ func test_cross_container_exchange_enforces_types_and_merges_atomically() -> voi
 	var game_manager := GameManagerService.new()
 	assert_equal(game_manager.new_game(7), OK)
 	var before := game_manager.snapshot()
-	assert_equal(game_manager.player.exchange_container_slots(&"toolbar", 0, &"itembar", 1, DataCatalog.get_item(&"tool_hoe"), DataCatalog.get_item(&"seed_parsnip")), ERR_UNAVAILABLE)
+	assert_equal(game_manager.player.exchange_container_slots(&"toolbar", 0, &"itembar", 1, DataCatalog.get_item(&"hoe"), DataCatalog.get_item(&"parsnip_seed")), ERR_UNAVAILABLE)
 	assert_equal(game_manager.snapshot(), before)
-	assert_true(game_manager.player.backpack_state.set_slot(&"inventory", 0, BackpackSlot.new(&"inventory_0", &"seed_parsnip", 10)))
-	assert_equal(game_manager.player.exchange_container_slots(&"inventory", 0, &"itembar", 0, DataCatalog.get_item(&"seed_parsnip"), DataCatalog.get_item(&"seed_parsnip")), OK)
+	assert_true(game_manager.player.backpack_state.set_slot(&"inventory", 0, BackpackSlot.new(&"inventory_0", &"parsnip_seed", 10)))
+	assert_equal(game_manager.player.exchange_container_slots(&"inventory", 0, &"itembar", 0, DataCatalog.get_item(&"parsnip_seed"), DataCatalog.get_item(&"parsnip_seed")), OK)
 	assert_true(game_manager.player.backpack_state.get_slot(&"inventory", 0).is_empty())
 	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 0).amount, 25)
-	assert_true(game_manager.player.backpack_state.set_slot(&"inventory", 1, BackpackSlot.new(&"inventory_1", &"material_wood", 3)))
-	assert_equal(game_manager.player.exchange_container_slots(&"inventory", 1, &"itembar", 3, DataCatalog.get_item(&"material_wood"), null), OK)
-	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 3).item_id, &"material_wood")
-	assert_equal(game_manager.player.exchange_container_slots(&"itembar", 3, &"toolbar", 0, DataCatalog.get_item(&"material_wood"), DataCatalog.get_item(&"tool_hoe")), ERR_UNAVAILABLE)
+	assert_true(game_manager.player.backpack_state.set_slot(&"inventory", 1, BackpackSlot.new(&"inventory_1", &"wood", 3)))
+	assert_equal(game_manager.player.exchange_container_slots(&"inventory", 1, &"itembar", 3, DataCatalog.get_item(&"wood"), null), OK)
+	assert_equal(game_manager.player.backpack_state.get_slot(&"itembar", 3).item_id, &"wood")
+	assert_equal(game_manager.player.exchange_container_slots(&"itembar", 3, &"toolbar", 0, DataCatalog.get_item(&"wood"), DataCatalog.get_item(&"hoe")), ERR_UNAVAILABLE)
 	game_manager.free()
 
 
@@ -223,16 +223,71 @@ func test_toolbar_itembar_and_active_hand_round_trip() -> void:
 	assert_equal(game_manager.new_game(8), OK)
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
 	assert_equal(game_manager.player.active_hand_source, PlayerState.ActiveHandSource.ITEMBAR)
-	assert_equal(game_manager.player.backpack_state.count_item(&"toolbar", &"tool_pickaxe"), 1)
-	assert_equal(game_manager.player.backpack_state.count_item(&"itembar", &"seed_parsnip"), 15)
-	assert_equal(game_manager.player.active_stack().item_id, &"seed_parsnip")
+	assert_equal(game_manager.player.backpack_state.count_item(&"toolbar", &"pickaxe"), 1)
+	assert_equal(game_manager.player.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(game_manager.player.active_stack().item_id, &"parsnip_seed")
+	game_manager.free()
+
+
+func test_versioned_slot_save_load_is_atomic_and_round_trips_state() -> void:
+	var game_manager := GameManagerService.new()
+	assert_equal(game_manager.new_game(456), OK)
+	game_manager.save_directory = "/tmp/godot_my_farm_t16_slot"
+	game_manager.calendar.day = 12
+	game_manager.player.gold = 987
+	var slot := 91
+	var path := game_manager.save_path(slot)
+	var backup := path + ".bak"
+	DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(backup)
+	assert_equal(game_manager.save_slot(slot), OK)
+	assert_true(FileAccess.file_exists(path))
+	var envelope := JSON.parse_string(FileAccess.get_file_as_string(path)) as Dictionary
+	assert_equal(envelope.get("schema_version", -1), 1)
+	assert_true(envelope.has("saved_at"))
+	assert_true((envelope.get("snapshot", {}) as Dictionary).has("game"))
+	game_manager.player.gold = 654
+	assert_equal(game_manager.save_slot(slot), OK)
+	assert_true(FileAccess.file_exists(backup))
+	assert_true(not FileAccess.file_exists(path + ".tmp"))
+	game_manager.calendar.day = 1
+	game_manager.player.gold = 1
+	assert_equal(game_manager.load_slot(slot), OK)
+	assert_equal(game_manager.calendar.day, 12)
+	assert_equal(game_manager.player.gold, 654)
+	DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(backup)
+	game_manager.free()
+
+
+func test_invalid_or_future_slot_does_not_replace_current_state() -> void:
+	var game_manager := GameManagerService.new()
+	assert_equal(game_manager.new_game(789), OK)
+	game_manager.save_directory = "/tmp/godot_my_farm_t16_slot_invalid"
+	game_manager.player.gold = 432
+	var slot := 92
+	var path := game_manager.save_path(slot)
+	DirAccess.make_dir_recursive_absolute(game_manager.save_directory)
+	DirAccess.remove_absolute(path)
+	var future := {"schema_version": 99, "saved_at": "test", "snapshot": game_manager.build_snapshot()}
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(future))
+	file.close()
+	assert_equal(game_manager.load_slot(slot), ERR_INVALID_DATA)
+	assert_equal(game_manager.player.gold, 432)
+	var corrupt := FileAccess.open(path, FileAccess.WRITE)
+	corrupt.store_string("{broken")
+	corrupt.close()
+	assert_equal(game_manager.load_slot(slot), ERR_INVALID_DATA)
+	assert_equal(game_manager.player.gold, 432)
+	DirAccess.remove_absolute(path)
 	game_manager.free()
 
 
 func _npc_dict(npc_id: String, map_id: String) -> Dictionary:
 	return {
 		"npc_id": npc_id,
-		"schedule_id": "schedule_villager",
+		"schedule_id": "villager",
 		"map_id": map_id,
 		"cell": {"x": 1, "y": 2},
 		"facing": "down",

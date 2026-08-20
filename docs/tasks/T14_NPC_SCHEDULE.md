@@ -1,12 +1,12 @@
-# T13 NPC 日程与跨地图导航
+# T14 NPC 日程与跨地图导航
 
 ## 目标
 
-实现至少两个 NPC 的数据驱动日程、当前地图路径移动和跨地图状态迁移，复现参考项目 NPC 原型的可见能力。
+实现至少三个 NPC 的数据驱动日程、当前地图路径移动和跨地图状态迁移，复现参考项目 NPC 原型的可见能力；新游戏 06:00 时 farm、field、beach 各有一个 NPC。
 
 ## 依赖
 
-- T04、T10、T11 completed。
+- T05、T11、T12 completed。
 
 ## 交付范围
 
@@ -30,13 +30,14 @@
 
 - 季节/星期过滤、冲突校验、fallback、跨午夜事件。
 - NPC 场景原生 NavigationAgent2D、移动动画和不可达终止。
+- `GameConfig.npc_schedules` 使用无冗余类别前缀的 key（`villager`、`fisher`、`ranger`），并与每个 `NpcSchedule.id` 完全一致。
 - 固定时间点计算相同 NPC map/cell；地图切换实例唯一。
 - 时间大步跳过多个事件时落到当前有效事件，不依次播放过时动作。
 - 20 次地图往返和两次换日无重复 NPC/signal。
 
 ## godot-ai 验收
 
-在两个受控时间点观察两名 NPC，用 input_sequence 跟随/阻挡测试路径，并触发至少一次 NPC 跨地图。截图每名 NPC 的两种位置；读取 NpcState map/cell/schedule ID，日志无 path spam 或穿障碍。
+在两个受控时间点观察三名 NPC，用 input_sequence 跟随/阻挡测试路径，并触发至少一次 NPC 跨地图。新游戏开始后分别进入 farm、field、beach，确认每张地图恰有一名 NPC；截图每名 NPC 的两种位置，读取 NpcState map/cell/schedule ID，日志无 path spam 或穿障碍。
 
 ## 不做
 
@@ -45,4 +46,4 @@
 
 ## 完成记录
 
-STATUS 记录 NPC IDs、schedule 摘要、路径断言、跨图结果、run_id 和截图；总表 T13 completed。
+STATUS 记录 NPC IDs、schedule 摘要、路径断言、跨图结果、run_id 和截图；总表 T14 completed。

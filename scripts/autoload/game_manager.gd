@@ -1,9 +1,12 @@
 class_name GameManagerService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
+const SAVE_SCHEMA_VERSION := 1
+const SAVE_DIRECTORY := "user://saves"
+const SAVE_FILE_TEMPLATE := SAVE_DIRECTORY + "/slot_%d.json"
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var player: PlayerState = null
 var maps: Dictionary[StringName, MapState] = {}
@@ -17,6 +20,8 @@ var _running: bool = false
 var _pause_reasons: Dictionary[StringName, bool] = {}
 var _time_accumulator: float = 0.0
 var _ending_day: bool = false
+var _save_in_progress := false
+var save_directory: String = SAVE_DIRECTORY
 
 var _initialized: bool = false
 
@@ -294,6 +299,14 @@ func build_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func save_path(slot: int = 0) -> String:
+	return "%s/slot_%d.json" % [save_directory, maxi(0, slot)]
+
+
+func save_exists(slot: int = 0) -> bool:
+	return FileAccess.file_exists(save_path(slot))
+
+
 func replace_build_snapshot(data: Dictionary) -> Error:
 	if not SerializationUtil.has_valid_dictionary(data, "game") or not SerializationUtil.has_valid_dictionary(data, "time"):
 		return ERR_INVALID_DATA
@@ -323,12 +336,123 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 	return OK
 
 
-func save_slot(_slot: int = 0) -> Error:
-	return ERR_UNAVAILABLE
+func save_slot(slot: int = 0) -> Error:
+	if not can_snapshot() or _save_in_progress or slot < 0:
+		return ERR_BUSY if _save_in_progress else ERR_UNAVAILABLE
+	if self == GameManager and is_instance_valid(MapManager) and MapManager.is_transitioning():
+		return ERR_BUSY
+	_save_in_progress = true
+	var previous_slot := current_slot
+	current_slot = slot
+	var result := _write_save_file(slot)
+	_save_in_progress = false
+	if result == OK:
+		EventBus.save_completed.emit(slot)
+	else:
+		current_slot = previous_slot
+		_notify_save_error("SAVE FAILED")
+	return result
 
 
-func load_slot(_slot: int = 0) -> Error:
-	return ERR_UNAVAILABLE
+func load_slot(slot: int = 0) -> Error:
+	if not _initialized:
+		return ERR_UNAVAILABLE
+	if _save_in_progress or slot < 0:
+		return ERR_BUSY if _save_in_progress else ERR_INVALID_PARAMETER
+	if not FileAccess.file_exists(save_path(slot)):
+		_notify_save_error("NO SAVE FOUND")
+		return ERR_FILE_NOT_FOUND
+	if self == GameManager and is_instance_valid(MapManager) and (MapManager.is_transitioning() or _dialogue_is_active()):
+		return ERR_BUSY
+	var file := FileAccess.open(save_path(slot), FileAccess.READ)
+	if file == null:
+		return ERR_CANT_OPEN
+	var text := file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_notify_save_error("SAVE DATA CORRUPTED")
+		return ERR_INVALID_DATA
+	var envelope := parsed as Dictionary
+	var migrated := _migrate_save(envelope)
+	if migrated.is_empty():
+		_notify_save_error("UNSUPPORTED SAVE VERSION")
+		return ERR_INVALID_DATA
+	var before := build_snapshot()
+	var result := replace_build_snapshot(migrated.get("snapshot", {}) as Dictionary)
+	if result != OK:
+		if not before.is_empty():
+			replace_build_snapshot(before)
+		_notify_save_error("SAVE DATA INVALID")
+		return result
+	if self == GameManager and is_instance_valid(MapManager) and MapManager.current_map() != null:
+		var map_error := MapManager.apply_loaded_state()
+		if map_error != OK:
+			if not before.is_empty():
+				replace_build_snapshot(before)
+			_notify_save_error("MAP RESTORE FAILED")
+			return map_error
+	current_slot = slot
+	EventBus.load_completed.emit(slot)
+	return OK
+
+
+func _write_save_file(slot: int) -> Error:
+	var snapshot_data := build_snapshot()
+	if snapshot_data.is_empty():
+		return ERR_UNAVAILABLE
+	var envelope := {
+		"schema_version": SAVE_SCHEMA_VERSION,
+		"saved_at": Time.get_datetime_string_from_system(true),
+		"game_version": game_version,
+		"snapshot": snapshot_data,
+	}.duplicate(true)
+	var save_directory_path := ProjectSettings.globalize_path(save_directory)
+	var directory_error := DirAccess.make_dir_recursive_absolute(save_directory_path)
+	if directory_error != OK and not DirAccess.dir_exists_absolute(save_directory_path):
+		return ERR_CANT_CREATE
+	var path := save_path(slot)
+	var temp_path := path + ".tmp"
+	var temp := FileAccess.open(temp_path, FileAccess.WRITE)
+	if temp == null:
+		return ERR_CANT_OPEN
+	temp.store_string(JSON.stringify(envelope, "\t"))
+	temp.flush()
+	temp.close()
+	if FileAccess.file_exists(path):
+		var backup_error := DirAccess.copy_absolute(path, path + ".bak")
+		if backup_error != OK:
+			DirAccess.remove_absolute(temp_path)
+			return backup_error
+	var replace_error := DirAccess.rename_absolute(temp_path, path)
+	if replace_error != OK:
+		DirAccess.remove_absolute(temp_path)
+	return replace_error
+
+
+func _migrate_save(envelope: Dictionary) -> Dictionary:
+	var raw_version: Variant = envelope.get("schema_version", null)
+	if (typeof(raw_version) != TYPE_INT and typeof(raw_version) != TYPE_FLOAT) or int(raw_version) != raw_version or int(raw_version) > SAVE_SCHEMA_VERSION or int(raw_version) < 1:
+		return {}
+	var snapshot_data: Variant = envelope.get("snapshot", null)
+	if typeof(snapshot_data) != TYPE_DICTIONARY:
+		return {}
+	return {"snapshot": (snapshot_data as Dictionary).duplicate(true)}
+
+
+func _notify_save_error(message: String) -> void:
+	if not is_inside_tree():
+		return
+	var controller := get_tree().get_first_node_in_group("presentation_controller")
+	if controller != null and controller.has_method("show_toast"):
+		controller.call("show_toast", message, true)
+
+
+func _dialogue_is_active() -> bool:
+	if not is_inside_tree():
+		return false
+	var controller := get_tree().get_first_node_in_group("dialogue_controller")
+	return controller != null and controller.has_method("is_active") and bool(controller.call("is_active"))
 
 
 func replace_snapshot(data: Dictionary) -> Error:

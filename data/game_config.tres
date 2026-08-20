@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AutoloadConfig" format=3 uid="uid://3efsafa5b55v"]
+[gd_resource type="Resource" script_class="GameConfig" format=3 uid="uid://3efsafa5b55v"]
 
 [ext_resource type="Script" uid="uid://dpulndsv7rj3f" path="res://scripts/data/audio_definition.gd" id="1_bgp3f"]
 [ext_resource type="Script" uid="uid://x4wkosixle65" path="res://scripts/data/effect_definition.gd" id="2_wx4dx"]
@@ -26,9 +26,10 @@
 [ext_resource type="Script" uid="uid://ckdo74vx1vey0" path="res://scripts/state/inventory/backpack_state.gd" id="22_ljkmd"]
 [ext_resource type="Script" uid="uid://clbw1pl4b3h7c" path="res://scripts/state/inventory/backpack_slot.gd" id="23_wd3wu"]
 [ext_resource type="Script" uid="uid://mjlcon3icyhd" path="res://scripts/state/player_state.gd" id="24_omn50"]
-[ext_resource type="Script" uid="uid://bb8g22807yfxu" path="res://scripts/data/autoload_config.gd" id="25_vkq73"]
+[ext_resource type="Script" uid="uid://bb8g22807yfxu" path="res://scripts/data/game_config.gd" id="25_vkq73"]
 [ext_resource type="Script" uid="uid://bbn8cfhx6j7kh" path="res://scripts/data/season_meta.gd" id="26_pa6h3"]
 [ext_resource type="PackedScene" path="res://scenes/effects/rain_weather.tscn" id="27_6vsky"]
+[ext_resource type="PackedScene" path="res://scenes/effects/cloud_shadow_weather.tscn" id="31_cloud_shadow"]
 [ext_resource type="Texture2D" uid="uid://dw66wkhlntx8i" path="res://assets/art/ui/weather_icons.svg" id="28_weather_icons"]
 
 [sub_resource type="Resource" id="Resource_xsjy0"]
@@ -182,7 +183,7 @@ scene = ExtResource("5_lrfhq")
 script = ExtResource("2_wx4dx")
 scene = ExtResource("5_lrfhq")
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_crop_parsnip_icon"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_parsnip_icon"]
 atlas = ExtResource("15_rjflr")
 region = Rect2(512, 0, 32, 32)
 
@@ -218,7 +219,7 @@ state_tags = Array[StringName]([&"growing"])
 
 [sub_resource type="Resource" id="Resource_7gbno"]
 script = ExtResource("8_1055k")
-item_id = &"produce_parsnip"
+item_id = &"parsnip_harvest"
 max_amount = 2
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_d7i4o"]
@@ -240,14 +241,14 @@ required_tool = 4
 max_health = 2
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
-id = &"crop_parsnip"
+id = &"parsnip"
 display_name = "Parsnip Plant"
 description = "A growing parsnip plant."
 item_type = 5
 can_pickup = false
-icon_texture = SubResource("AtlasTexture_crop_parsnip_icon")
+icon_texture = SubResource("AtlasTexture_parsnip_icon")
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_crop_potato_icon"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_potato_icon"]
 atlas = ExtResource("15_rjflr")
 region = Rect2(544, 0, 32, 32)
 
@@ -283,7 +284,7 @@ state_tags = Array[StringName]([&"growing"])
 
 [sub_resource type="Resource" id="Resource_grriv"]
 script = ExtResource("8_1055k")
-item_id = &"produce_potato"
+item_id = &"potato_harvest"
 min_amount = 2
 max_amount = 4
 
@@ -306,14 +307,14 @@ required_tool = 4
 max_health = 2
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
-id = &"crop_potato"
+id = &"potato"
 display_name = "Potato Plant"
 description = "A growing potato plant."
 item_type = 5
 can_pickup = false
-icon_texture = SubResource("AtlasTexture_crop_potato_icon")
+icon_texture = SubResource("AtlasTexture_potato_icon")
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_crop_pumpkin_icon"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_pumpkin_icon"]
 atlas = ExtResource("15_rjflr")
 region = Rect2(576, 0, 32, 32)
 
@@ -349,7 +350,7 @@ state_tags = Array[StringName]([&"growing"])
 
 [sub_resource type="Resource" id="Resource_prm5a"]
 script = ExtResource("8_1055k")
-item_id = &"produce_pumpkin"
+item_id = &"pumpkin_harvest"
 max_amount = 2
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_yn4eg"]
@@ -371,12 +372,12 @@ required_tool = 4
 max_health = 3
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
-id = &"crop_pumpkin"
+id = &"pumpkin"
 display_name = "Pumpkin Plant"
 description = "A growing pumpkin plant."
 item_type = 5
 can_pickup = false
-icon_texture = SubResource("AtlasTexture_crop_pumpkin_icon")
+icon_texture = SubResource("AtlasTexture_pumpkin_icon")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ri6w1"]
 atlas = ExtResource("15_rjflr")
@@ -384,7 +385,7 @@ region = Rect2(480, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_rskct"]
 script = ExtResource("7_7qpun")
-id = &"food_bread"
+id = &"bread"
 display_name = "Bread"
 description = "Restores a little stamina."
 item_type = 2
@@ -395,7 +396,7 @@ sell_price = 30
 
 [sub_resource type="Resource" id="Resource_kl8hb"]
 script = ExtResource("8_1055k")
-item_id = &"material_grass"
+item_id = &"fiber"
 max_amount = 2
 chance = 0.8
 
@@ -431,7 +432,7 @@ region = Rect2(448, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_8rm52"]
 script = ExtResource("7_7qpun")
-id = &"material_grass"
+id = &"fiber"
 display_name = "Fiber"
 description = "Plant fiber cut from grass."
 icon_texture = SubResource("AtlasTexture_rgsg0")
@@ -444,7 +445,7 @@ region = Rect2(416, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_mhoxg"]
 script = ExtResource("7_7qpun")
-id = &"material_stone"
+id = &"stone"
 display_name = "Stone"
 description = "A sturdy piece of stone."
 icon_texture = SubResource("AtlasTexture_k6ul2")
@@ -457,7 +458,7 @@ region = Rect2(384, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_phlge"]
 script = ExtResource("7_7qpun")
-id = &"material_wood"
+id = &"wood"
 display_name = "Wood"
 description = "Useful building material."
 icon_texture = SubResource("AtlasTexture_d6crp")
@@ -470,7 +471,7 @@ region = Rect2(288, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_04mp4"]
 script = ExtResource("7_7qpun")
-id = &"produce_parsnip"
+id = &"parsnip_harvest"
 display_name = "Parsnip"
 description = "A crisp spring root."
 item_type = 2
@@ -484,7 +485,7 @@ region = Rect2(352, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_limxd"]
 script = ExtResource("7_7qpun")
-id = &"produce_potato"
+id = &"potato_harvest"
 display_name = "Potato"
 description = "A dependable root crop."
 item_type = 2
@@ -498,7 +499,7 @@ region = Rect2(320, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_822xh"]
 script = ExtResource("7_7qpun")
-id = &"produce_pumpkin"
+id = &"pumpkin_harvest"
 display_name = "Pumpkin"
 description = "A sturdy autumn gourd."
 item_type = 2
@@ -508,7 +509,7 @@ sell_price = 60
 
 [sub_resource type="Resource" id="Resource_jainb"]
 script = ExtResource("8_1055k")
-item_id = &"material_stone"
+item_id = &"stone"
 max_amount = 3
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rock_icon"]
@@ -563,8 +564,8 @@ region = Rect2(192, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_4x1xf"]
 script = ExtResource("18_qwfmb")
-plant_id = &"crop_parsnip"
-id = &"seed_parsnip"
+plant_id = &"parsnip"
+id = &"parsnip_seed"
 display_name = "Parsnip Seeds"
 description = "Plant in tilled soil."
 item_type = 1
@@ -578,8 +579,8 @@ region = Rect2(256, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_e67s4"]
 script = ExtResource("18_qwfmb")
-plant_id = &"crop_potato"
-id = &"seed_potato"
+plant_id = &"potato"
+id = &"potato_seed"
 display_name = "Potato Seeds"
 description = "Plant in tilled soil."
 item_type = 1
@@ -593,8 +594,8 @@ region = Rect2(224, 0, 32, 32)
 
 [sub_resource type="Resource" id="Resource_2e15u"]
 script = ExtResource("18_qwfmb")
-plant_id = &"crop_pumpkin"
-id = &"seed_pumpkin"
+plant_id = &"pumpkin"
+id = &"pumpkin_seed"
 display_name = "Pumpkin Seeds"
 description = "Plant in tilled soil."
 item_type = 1
@@ -647,7 +648,7 @@ tool_kind = 6
 base_stamina_cost = 2
 charge_levels = Array[Vector2i]([Vector2i(1, 1)])
 damage_multipliers = Array[int]([1, 2, 3])
-id = &"tool_axe"
+id = &"axe"
 display_name = "Axe"
 description = "Chops trees and stumps."
 item_type = 0
@@ -660,7 +661,7 @@ region = Rect2(96, 0, 32, 32)
 [sub_resource type="Resource" id="Resource_w6qbl"]
 script = ExtResource("19_hnic0")
 tool_kind = 4
-id = &"tool_basket"
+id = &"basket"
 display_name = "Harvest Basket"
 description = "Harvests ripe produce."
 item_type = 0
@@ -674,7 +675,7 @@ region = Rect2(0, 0, 32, 32)
 script = ExtResource("19_hnic0")
 tool_kind = 1
 base_stamina_cost = 2
-id = &"tool_hoe"
+id = &"hoe"
 display_name = "Hoe"
 description = "Tills farmable soil."
 item_type = 0
@@ -690,7 +691,7 @@ tool_kind = 5
 base_stamina_cost = 2
 charge_levels = Array[Vector2i]([Vector2i(1, 1)])
 damage_multipliers = Array[int]([1, 2, 3])
-id = &"tool_pickaxe"
+id = &"pickaxe"
 display_name = "Pickaxe"
 description = "Breaks stone."
 item_type = 0
@@ -704,7 +705,7 @@ region = Rect2(64, 0, 32, 32)
 script = ExtResource("19_hnic0")
 tool_kind = 3
 base_stamina_cost = 1
-id = &"tool_sickle"
+id = &"sickle"
 display_name = "Sickle"
 description = "Cuts grass and light plants."
 item_type = 0
@@ -718,7 +719,7 @@ region = Rect2(32, 0, 32, 32)
 script = ExtResource("19_hnic0")
 tool_kind = 2
 base_stamina_cost = 1
-id = &"tool_watering_can"
+id = &"watering_can"
 display_name = "Watering Can"
 description = "Waters tilled soil."
 item_type = 0
@@ -726,7 +727,7 @@ icon_texture = SubResource("AtlasTexture_26b08")
 
 [sub_resource type="Resource" id="Resource_45sfg"]
 script = ExtResource("8_1055k")
-item_id = &"material_wood"
+item_id = &"wood"
 min_amount = 2
 max_amount = 4
 
@@ -810,7 +811,7 @@ behavior_id = &"idle"
 
 [sub_resource type="Resource" id="Resource_lsgvn"]
 script = ExtResource("20_25ukt")
-id = &"schedule_villager"
+id = &"villager"
 npc_id = &"npc_villager"
 display_name = "Mina"
 body_color = Color(0.45, 0.72, 0.86, 1)
@@ -853,7 +854,7 @@ behavior_id = &"idle"
 
 [sub_resource type="Resource" id="Resource_fisher_schedule"]
 script = ExtResource("20_25ukt")
-id = &"schedule_fisher"
+id = &"fisher"
 npc_id = &"npc_fisher"
 display_name = "Tao"
 body_color = Color(0.38, 0.64, 0.56, 1)
@@ -863,6 +864,30 @@ fallback_map_id = &"beach"
 fallback_cell = Vector2i(18, 8)
 fallback_behavior_id = &"idle"
 events = Array[ExtResource("21_u0law")]([SubResource("Resource_fisher_morning"), SubResource("Resource_fisher_farm"), SubResource("Resource_fisher_evening")])
+
+[sub_resource type="Resource" id="Resource_ranger_field"]
+script = ExtResource("21_u0law")
+id = &"day_field"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 360
+duration_minutes = 960
+map_id = &"field"
+target_cell = Vector2i(10, 18)
+behavior_id = &"patrol"
+
+[sub_resource type="Resource" id="Resource_ranger_schedule"]
+script = ExtResource("20_25ukt")
+id = &"ranger"
+npc_id = &"npc_ranger"
+display_name = "Rowan"
+body_color = Color(0.58, 0.72, 0.38, 1)
+accent_color = Color(0.9, 0.58, 0.2, 1)
+move_speed = 46.0
+fallback_map_id = &"field"
+fallback_cell = Vector2i(10, 18)
+fallback_behavior_id = &"patrol"
+events = Array[ExtResource("21_u0law")]([SubResource("Resource_ranger_field")])
 
 [sub_resource type="Resource" id="Resource_ifkvh"]
 script = ExtResource("23_wd3wu")
@@ -947,19 +972,19 @@ slot_id = &"inventory_9"
 [sub_resource type="Resource" id="Resource_tsiuo"]
 script = ExtResource("23_wd3wu")
 slot_id = &"itembar_0"
-item_id = &"seed_parsnip"
+item_id = &"parsnip_seed"
 amount = 15
 
 [sub_resource type="Resource" id="Resource_r6l7i"]
 script = ExtResource("23_wd3wu")
 slot_id = &"itembar_1"
-item_id = &"seed_pumpkin"
+item_id = &"pumpkin_seed"
 amount = 10
 
 [sub_resource type="Resource" id="Resource_i12bl"]
 script = ExtResource("23_wd3wu")
 slot_id = &"itembar_2"
-item_id = &"seed_potato"
+item_id = &"potato_seed"
 amount = 10
 
 [sub_resource type="Resource" id="Resource_kpiqu"]
@@ -993,37 +1018,37 @@ slot_id = &"itembar_9"
 [sub_resource type="Resource" id="Resource_nicuf"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_0"
-item_id = &"tool_hoe"
+item_id = &"hoe"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_vi06p"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_1"
-item_id = &"tool_watering_can"
+item_id = &"watering_can"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_akdo2"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_2"
-item_id = &"tool_sickle"
+item_id = &"sickle"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_xli7v"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_3"
-item_id = &"tool_basket"
+item_id = &"basket"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_xhpq1"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_4"
-item_id = &"tool_pickaxe"
+item_id = &"pickaxe"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_sinle"]
 script = ExtResource("23_wd3wu")
 slot_id = &"toolbar_5"
-item_id = &"tool_axe"
+item_id = &"axe"
 amount = 1
 
 [sub_resource type="Resource" id="Resource_hge5j"]
@@ -1209,39 +1234,58 @@ script = ExtResource("30_dialogue_definition")
 id = &"npc_fisher_default"
 lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_tao_line_0"), SubResource("Resource_dialogue_tao_line_1")])
 
+[sub_resource type="Resource" id="Resource_dialogue_rowan_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_ranger"
+speaker_name = "Rowan"
+text = "The trail bends around the hills. Watch your footing near the narrow paths."
+
+[sub_resource type="Resource" id="Resource_dialogue_rowan_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_ranger"
+speaker_name = "Rowan"
+text = "I patrol the field each day, so I may know what has changed out here."
+
+[sub_resource type="Resource" id="Resource_dialogue_rowan"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_ranger_default"
+lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_rowan_line_0"), SubResource("Resource_dialogue_rowan_line_1")])
+
 [resource]
 script = ExtResource("25_vkq73")
 items = Dictionary[StringName, ExtResource("7_7qpun")]({
-&"crop_parsnip": SubResource("Resource_bjumj"),
-&"crop_potato": SubResource("Resource_8id26"),
-&"crop_pumpkin": SubResource("Resource_futy8"),
-&"food_bread": SubResource("Resource_rskct"),
+&"parsnip": SubResource("Resource_bjumj"),
+&"potato": SubResource("Resource_8id26"),
+&"pumpkin": SubResource("Resource_futy8"),
+&"bread": SubResource("Resource_rskct"),
 &"grass": SubResource("Resource_8rmlr"),
-&"material_grass": SubResource("Resource_8rm52"),
-&"material_stone": SubResource("Resource_mhoxg"),
-&"material_wood": SubResource("Resource_phlge"),
-&"produce_parsnip": SubResource("Resource_04mp4"),
-&"produce_potato": SubResource("Resource_limxd"),
-&"produce_pumpkin": SubResource("Resource_822xh"),
+&"fiber": SubResource("Resource_8rm52"),
+&"stone": SubResource("Resource_mhoxg"),
+&"wood": SubResource("Resource_phlge"),
+&"parsnip_harvest": SubResource("Resource_04mp4"),
+&"potato_harvest": SubResource("Resource_limxd"),
+&"pumpkin_harvest": SubResource("Resource_822xh"),
 &"rock": SubResource("Resource_46n8c"),
-&"seed_parsnip": SubResource("Resource_4x1xf"),
-&"seed_potato": SubResource("Resource_e67s4"),
-&"seed_pumpkin": SubResource("Resource_2e15u"),
+&"parsnip_seed": SubResource("Resource_4x1xf"),
+&"potato_seed": SubResource("Resource_e67s4"),
+&"pumpkin_seed": SubResource("Resource_2e15u"),
 &"stump": SubResource("Resource_af2gn"),
-&"tool_axe": SubResource("Resource_runr0"),
-&"tool_basket": SubResource("Resource_w6qbl"),
-&"tool_hoe": SubResource("Resource_brrha"),
-&"tool_pickaxe": SubResource("Resource_sp25w"),
-&"tool_sickle": SubResource("Resource_g3agm"),
-&"tool_watering_can": SubResource("Resource_8x1m5"),
+&"axe": SubResource("Resource_runr0"),
+&"basket": SubResource("Resource_w6qbl"),
+&"hoe": SubResource("Resource_brrha"),
+&"pickaxe": SubResource("Resource_sp25w"),
+&"sickle": SubResource("Resource_g3agm"),
+&"watering_can": SubResource("Resource_8x1m5"),
 &"tree": SubResource("Resource_a8bqh")
 })
 npc_schedules = Dictionary[StringName, ExtResource("20_25ukt")]({
-&"schedule_fisher": SubResource("Resource_fisher_schedule"),
-&"schedule_villager": SubResource("Resource_lsgvn")
+&"fisher": SubResource("Resource_fisher_schedule"),
+&"ranger": SubResource("Resource_ranger_schedule"),
+&"villager": SubResource("Resource_lsgvn")
 })
 dialogue_definitions = Dictionary[StringName, ExtResource("30_dialogue_definition")]({
 &"npc_fisher_default": SubResource("Resource_dialogue_tao"),
+&"npc_ranger_default": SubResource("Resource_dialogue_rowan"),
 &"npc_villager_default": SubResource("Resource_dialogue_mina"),
 &"television_report": SubResource("Resource_dialogue_tv")
 })
@@ -1273,6 +1317,8 @@ effect_definitions = Dictionary[StringName, ExtResource("2_wx4dx")]({
 &"water": SubResource("Resource_k1l6q")
 })
 weather_effect_scenes = Dictionary[StringName, PackedScene]({
+&"clear": ExtResource("31_cloud_shadow"),
+&"cloudy": ExtResource("31_cloud_shadow"),
 &"rain": ExtResource("27_6vsky"),
 &"storm": ExtResource("27_6vsky")
 })

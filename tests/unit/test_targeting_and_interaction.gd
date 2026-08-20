@@ -6,7 +6,7 @@ func test_target_preview_respects_facing_and_charge_shape() -> void:
 	var meta := ToolMeta.new()
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var tool := Tool.new(meta)
-	var player_state := _player_state(Vector2i(5, 5), &"right", &"tool_hoe", 1, 10)
+	var player_state := _player_state(Vector2i(5, 5), &"right", &"hoe", 1, 10)
 	var cursor := EffectArea.new()
 	assert_equal(cursor.begin(player_state, map, tool), OK)
 	cursor.update(0.3)
@@ -20,7 +20,7 @@ func test_target_preview_respects_facing_and_charge_shape() -> void:
 
 
 func test_pickaxe_and_axe_charge_damage_without_expanding_preview() -> void:
-	for tool_id: StringName in [&"tool_pickaxe", &"tool_axe"]:
+	for tool_id: StringName in [&"pickaxe", &"axe"]:
 		var meta := DataCatalog.get_item(tool_id) as ToolMeta
 		assert_equal(meta.charge_levels, [Vector2i(1, 1)])
 		assert_equal(meta.damage_multipliers, [1, 2, 3])
@@ -41,18 +41,18 @@ func test_pickaxe_and_axe_charge_damage_without_expanding_preview() -> void:
 
 
 func test_other_tools_keep_five_charge_levels() -> void:
-	for tool_id: StringName in [&"tool_hoe", &"tool_watering_can", &"tool_sickle", &"tool_basket"]:
+	for tool_id: StringName in [&"hoe", &"watering_can", &"sickle", &"basket"]:
 		var meta := DataCatalog.get_item(tool_id) as ToolMeta
 		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3), Vector2i(9, 9)])
 		assert_equal(meta.max_charge_level(), 4)
-	for tool_id: StringName in [&"tool_pickaxe", &"tool_axe"]:
+	for tool_id: StringName in [&"pickaxe", &"axe"]:
 		assert_equal((DataCatalog.get_item(tool_id) as ToolMeta).max_charge_level(), 2)
 
 
 func test_tool_meta_defines_charge_levels_and_progress() -> void:
 	var map := _make_map(12, 12, CellState.CellFlag.DIGGABLE)
-	var player_state := _player_state(Vector2i(5, 5), &"right", &"tool_hoe", 1, 10)
-	var meta := DataCatalog.get_item(&"tool_hoe") as ToolMeta
+	var player_state := _player_state(Vector2i(5, 5), &"right", &"hoe", 1, 10)
+	var meta := DataCatalog.get_item(&"hoe") as ToolMeta
 	var tool := Tool.new(meta)
 	var cursor := EffectArea.new()
 	assert_equal(cursor.begin(player_state, map, tool), OK)
@@ -67,9 +67,9 @@ func test_tool_meta_defines_charge_levels_and_progress() -> void:
 
 func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
 	var map := _make_map(8, 8, CellState.CellFlag.DROPABLE, CellState.CellFlag.DUG)
-	var meta := DataCatalog.get_seed(&"seed_parsnip")
+	var meta := DataCatalog.get_seed(&"parsnip_seed")
 	assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3)])
-	var player_state := _player_state(Vector2i(2, 2), &"down", &"seed_parsnip", 2, 10)
+	var player_state := _player_state(Vector2i(2, 2), &"down", &"parsnip_seed", 2, 10)
 	var cursor := EffectArea.new()
 	var seed := Seed.new(meta)
 	assert_equal(cursor.begin(player_state, map, seed), OK)
@@ -80,7 +80,7 @@ func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
 	assert_true((cursor.preview[0].interaction_flags & CellState.InteractionFlag.VALID) != 0)
 	assert_true((cursor.preview[1].interaction_flags & CellState.InteractionFlag.VALID) != 0)
 	assert_true((cursor.preview[2].interaction_flags & CellState.InteractionFlag.INVALID) != 0)
-	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"seed_parsnip", 1))
+	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"parsnip_seed", 1))
 	cursor.cancel()
 	cursor.begin(player_state, map, seed)
 	cursor.update(1.0)
@@ -92,7 +92,7 @@ func test_seed_preview_is_limited_by_stack_amount_and_map_cells() -> void:
 
 
 func test_seed_stops_at_four_charge_levels_and_reaches_nine_by_three() -> void:
-	for seed_id: StringName in [&"seed_parsnip", &"seed_pumpkin", &"seed_potato"]:
+	for seed_id: StringName in [&"parsnip_seed", &"pumpkin_seed", &"potato_seed"]:
 		var meta := DataCatalog.get_seed(seed_id)
 		assert_equal(meta.charge_levels, [Vector2i(1, 1), Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3)])
 		var map := _make_map(24, 24, CellState.CellFlag.DROPABLE, CellState.CellFlag.DUG)
@@ -111,8 +111,8 @@ func test_seed_stops_at_four_charge_levels_and_reaches_nine_by_three() -> void:
 func test_player_backpack_reuses_tool_and_seed_objects_until_stack_disappears() -> void:
 	var backpack := PlayerBackpack.new()
 	var player_state := PlayerState.new()
-	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"tool_hoe", 1))
-	player_state.backpack_state.set_slot(&"itembar", 0, BackpackSlot.new(&"itembar_0", &"seed_parsnip", 2))
+	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"hoe", 1))
+	player_state.backpack_state.set_slot(&"itembar", 0, BackpackSlot.new(&"itembar_0", &"parsnip_seed", 2))
 	player_state.active_hand_source = PlayerState.ActiveHandSource.TOOLBAR
 	backpack.sync_from_player_state(player_state)
 	var hoe := backpack.active_item(player_state)
@@ -123,7 +123,7 @@ func test_player_backpack_reuses_tool_and_seed_objects_until_stack_disappears() 
 	assert_true(seed is Seed)
 	assert_true(backpack.active_item(player_state) == seed)
 	assert_equal(backpack.get_child_count(), 2)
-	player_state.backpack_state.remove_item(&"itembar", &"seed_parsnip", 2)
+	player_state.backpack_state.remove_item(&"itembar", &"parsnip_seed", 2)
 	backpack.sync_from_player_state(player_state)
 	assert_true(seed.is_queued_for_deletion())
 	assert_true(not hoe.is_queued_for_deletion())
@@ -137,7 +137,7 @@ func test_preview_uses_transient_cell_state_flags_for_entity_rendering() -> void
 	var meta := ToolMeta.new()
 	meta.tool_kind = ToolMeta.ToolKind.NONE
 	var tool := Tool.new(meta)
-	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_axe", 1, 10)
+	var player_state := _player_state(Vector2i(1, 1), &"right", &"axe", 1, 10)
 	var cursor := EffectArea.new()
 	assert_equal(cursor.begin(player_state, map, tool), OK)
 	assert_equal(cursor.preview.size(), 1)
@@ -160,7 +160,7 @@ func test_invalid_map_cell_remains_in_preview_for_cursor_feedback() -> void:
 	var meta := ToolMeta.new()
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var tool := Tool.new(meta)
-	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_hoe", 1, 10)
+	var player_state := _player_state(Vector2i(1, 1), &"right", &"hoe", 1, 10)
 	var cursor := EffectArea.new()
 	assert_equal(cursor.begin(player_state, map, tool), OK)
 	assert_equal(cursor.preview.size(), 1)
@@ -177,7 +177,7 @@ func test_charge_state_commits_once_and_cancels_on_map_revision_change() -> void
 	meta.tool_kind = ToolMeta.ToolKind.HOE
 	var tool := Tool.new(meta)
 	var cursor := EffectArea.new()
-	var player_state := _player_state(Vector2i(5, 5), &"up", &"tool_hoe", 1, 10)
+	var player_state := _player_state(Vector2i(5, 5), &"up", &"hoe", 1, 10)
 	assert_equal(cursor.begin(player_state, map, tool), OK)
 	assert_true(cursor.is_charging())
 	cursor.update(0.3)
@@ -203,7 +203,7 @@ func test_charge_state_commits_once_and_cancels_on_map_revision_change() -> void
 
 func test_cursor_release_returns_preview_cells_for_player_owned_transactions() -> void:
 	var map := _make_map(4, 4, CellState.CellFlag.DIGGABLE)
-	var player_state := _player_state(Vector2i(1, 1), &"right", &"tool_hoe", 1, 5)
+	var player_state := _player_state(Vector2i(1, 1), &"right", &"hoe", 1, 5)
 	var cursor := EffectArea.new()
 	var hoe := ToolMeta.new()
 	hoe.tool_kind = ToolMeta.ToolKind.HOE
@@ -224,7 +224,7 @@ func test_cursor_release_returns_preview_cells_for_player_owned_transactions() -
 	watering_can.base_stamina_cost = 1
 	var watering_tool := Tool.new(watering_can)
 	player_state.cell = Vector2i(1, 1)
-	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"tool_watering_can", 1))
+	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"watering_can", 1))
 	player_state.set_stamina(3)
 	assert_equal(cursor.begin(player_state, map, watering_tool), OK)
 	target_cells = cursor.preview_cells()

@@ -8,10 +8,15 @@ var _toast_tween: Tween = null
 
 
 func _ready() -> void:
+	add_to_group("presentation_controller")
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast.visible = false
 	if not EventBus.request_invalid_feedback.is_connected(_on_invalid_feedback):
 		EventBus.request_invalid_feedback.connect(_on_invalid_feedback)
+	if not EventBus.save_completed.is_connected(_on_save_completed):
+		EventBus.save_completed.connect(_on_save_completed)
+	if not EventBus.load_completed.is_connected(_on_load_completed):
+		EventBus.load_completed.connect(_on_load_completed)
 
 func show_toast(message: String, invalid: bool = false) -> void:
 	if message.is_empty():
@@ -33,3 +38,11 @@ func _on_invalid_feedback(reason: StringName) -> void:
 	if reason != &"":
 		message = String(reason).replace("_", " ").to_upper()
 	show_toast(message, true)
+
+
+func _on_save_completed(_slot: int) -> void:
+	show_toast("GAME SAVED")
+
+
+func _on_load_completed(_slot: int) -> void:
+	show_toast("GAME LOADED")

@@ -1,4 +1,4 @@
-# T00 工具链与项目骨架
+# T01 工具链与项目骨架
 
 ## 目标
 
@@ -53,4 +53,4 @@ godot --headless --path . --quit
 
 ## 完成记录
 
-在 STATUS 写入 Godot 命令路径/版本、godot-ai session、三条命令结果、run_id 和截图绝对路径，然后将总表 T00 标为 completed。
+在 STATUS 写入 Godot 命令路径/版本、godot-ai session、三条命令结果、run_id 和截图绝对路径，然后将总表 T01 标为 completed。

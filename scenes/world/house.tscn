@@ -2,6 +2,9 @@
 
 [ext_resource type="Script" path="res://scripts/world/house.gd" id="1_tuevy"]
 [ext_resource type="Script" path="res://scripts/world/furniture_interaction.gd" id="4_furniture"]
+[ext_resource type="PackedScene" path="res://scenes/items/interactables/bed.tscn" id="5_bed"]
+[ext_resource type="PackedScene" path="res://scenes/items/interactables/television.tscn" id="6_tv"]
+[ext_resource type="PackedScene" path="res://scenes/items/interactables/fireplace.tscn" id="7_fireplace"]
 [ext_resource type="TileSet" path="res://assets/art/tiles/world_tileset.tres" id="2_oy3ob"]
 [ext_resource type="TileSet" path="res://assets/art/tiles/house_tileset.tres" id="3_house"]
 
@@ -79,25 +82,14 @@ position = Vector2(192, 272)
 color = Color(0.84705883, 0.6431373, 0.35686275, 1)
 polygon = PackedVector2Array(-24, -16, 24, -16, 24, 16, -24, 16)
 
-[node name="Bed" type="Polygon2D" parent="." unique_id=308309023 groups=["interaction_target"]]
-script = ExtResource("4_furniture")
-furniture_kind = 0
-z_index = 0
+[node name="Bed" parent="." instance=ExtResource("5_bed")]
 position = Vector2(72, 88)
-color = Color(0.50980395, 0.65882355, 0.7882353, 1)
-polygon = PackedVector2Array(-32, -48, 32, -48, 32, 48, -32, 48)
-
-[node name="Television" type="Polygon2D" parent="." unique_id=1510084477 groups=["interaction_target"]]
-script = ExtResource("4_furniture")
-furniture_kind = 1
 z_index = 0
+
+[node name="Television" parent="." instance=ExtResource("6_tv")]
 position = Vector2(304, 72)
-color = Color(0.14509805, 0.19215687, 0.22745098, 1)
-polygon = PackedVector2Array(-32, -20, 32, -20, 32, 20, -32, 20)
-
-[node name="Fireplace" type="Polygon2D" parent="." unique_id=1577351461 groups=["interaction_target"]]
-script = ExtResource("4_furniture")
 z_index = 0
+
+[node name="Fireplace" parent="." instance=ExtResource("7_fireplace")]
 position = Vector2(304, 184)
-color = Color(0.72156864, 0.34509805, 0.20784314, 1)
-polygon = PackedVector2Array(-28, -28, 28, -28, 28, 28, -28, 28)
+z_index = 0

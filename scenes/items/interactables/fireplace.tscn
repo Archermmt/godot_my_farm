@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/furniture_interaction.gd" id="1_script"]
+[sub_resource type="RectangleShape2D" id="InteractionShape"]
+size = Vector2(56, 56)
+
+[node name="Fireplace" type="Polygon2D" groups=["interaction_target"]]
+script = ExtResource("1_script")
+polygon = PackedVector2Array(-28, -28, 28, -28, 28, 28, -28, 28)
+color = Color(0.721569, 0.345098, 0.207843, 1)
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("InteractionShape")

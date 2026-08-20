@@ -1,9 +1,9 @@
 class_name DataCatalogService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 var items: Dictionary[StringName, ItemMeta]:
 	get:
 		return config.items
@@ -59,7 +59,7 @@ func initialize_from_definitions(
 	if not _validation_errors.is_empty():
 		_report_errors(report_errors)
 		return false
-	var next_config := config.duplicate() as AutoloadConfig
+	var next_config := config.duplicate() as GameConfig
 	next_config.items = item_definitions.duplicate()
 	next_config.npc_schedules = schedule_definitions.duplicate()
 	config = next_config

@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/effects/rain_weather.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/art/effects/raindrop.svg" id="2_drop"]
 [ext_resource type="Texture2D" path="res://assets/art/effects/ripple.svg" id="3_ripple"]
+[ext_resource type="PackedScene" path="res://scenes/effects/lightning_weather.tscn" id="4_lightning"]
 
 [sub_resource type="Gradient" id="Gradient_rain"]
 offsets = PackedFloat32Array(0, 0.8, 1)
@@ -55,3 +56,5 @@ scale_amount_min = 0.55
 scale_amount_max = 1.0
 scale_amount_curve = SubResource("Curve_ripple_scale")
 color_ramp = SubResource("Gradient_ripple")
+
+[node name="Lightning" parent="." instance=ExtResource("4_lightning")]

@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/furniture_interaction.gd" id="1_script"]
+[sub_resource type="RectangleShape2D" id="InteractionShape"]
+size = Vector2(64, 80)
+
+[node name="Bed" type="Polygon2D" groups=["interaction_target"]]
+script = ExtResource("1_script")
+furniture_kind = 0
+polygon = PackedVector2Array(-32, -48, 32, -48, 32, 48, -32, 48)
+color = Color(0.509804, 0.658824, 0.788235, 1)
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("InteractionShape")

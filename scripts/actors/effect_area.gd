@@ -1,5 +1,5 @@
 class_name EffectArea
-extends Node2D
+extends Area2D
 
 enum InteractionState {
 	IDLE,
@@ -25,6 +25,23 @@ var player_state: PlayerState = null
 var _map: BaseMap = null
 var _item: Item = null
 var _map_revision: int = 0
+
+
+func _ready() -> void:
+	area_entered.connect(_on_interaction_area_entered)
+	area_exited.connect(_on_interaction_area_exited)
+
+
+func _on_interaction_area_entered(area: Area2D) -> void:
+	var target := area.get_parent()
+	if target != null and target.has_method("on_effect_area_entered"):
+		target.call("on_effect_area_entered", self)
+
+
+func _on_interaction_area_exited(area: Area2D) -> void:
+	var target := area.get_parent()
+	if target != null and target.has_method("on_effect_area_exited"):
+		target.call("on_effect_area_exited", self)
 
 
 func begin(next_player_state: PlayerState, map: BaseMap, item: Item) -> Error:

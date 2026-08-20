@@ -58,7 +58,7 @@ func _ready() -> void:
 	status_label.text = "T13  NPC SCHEDULE READY"
 	service_panel.visible = false
 	bootstrap_screen.visible = false
-	print("[T13] NPC schedule ready | map=%s player_count=%d npc_states=%d npc_actors=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
+	print("[T14] NPC schedule ready | map=%s player_count=%d npc_states=%d npc_actors=%d | run=%.1f walk=%.1f | %s | renderer=%s" % [
 		MapManager.current_map_id(),
 		get_tree().get_nodes_in_group("player").size(),
 		GameManager.npcs.size(),
@@ -83,9 +83,9 @@ func _on_map_changed(map_id: StringName) -> void:
 	var farm := MapManager.current_map()
 	if farm == null:
 		return
-	farm.spawn_pickup(&"material_wood", Vector2i(14, 12))
-	farm.spawn_pickup(&"material_stone", Vector2i(15, 12))
-	farm.spawn_pickup(&"material_wood", Vector2i(16, 12))
+	farm.spawn_pickup(&"wood", Vector2i(14, 12))
+	farm.spawn_pickup(&"stone", Vector2i(15, 12))
+	farm.spawn_pickup(&"wood", Vector2i(16, 12))
 	_farm_pickups_spawned = true
 
 

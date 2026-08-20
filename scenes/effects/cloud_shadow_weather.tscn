@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/cloud_shadow_weather.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/art/effects/cloud_shadow.svg" id="2_shadow"]
+
+[node name="CloudShadowWeather" type="Node2D"]
+z_index = 2
+script = ExtResource("1_script")
+shadow_texture = ExtResource("2_shadow")

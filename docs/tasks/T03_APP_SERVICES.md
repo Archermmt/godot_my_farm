@@ -1,4 +1,4 @@
-# T02 Autoload 与应用启动
+# T03 Autoload 与应用启动
 
 ## 目标
 
@@ -18,7 +18,7 @@
 ## 实现要求
 
 1. EventBus 只声明已确认的 typed signals，不持有状态。
-2. `data/autoload_config.tres` 使用类型化 Dictionary 集中配置 ItemMeta、NpcSchedule 和其他 Manager 初始数据；Dictionary 是唯一 ID 查询源，启动时校验 key 与 Resource 内部 ID 一致。Autoload 直接注册脚本，不增加空壳场景、分散的单项 Meta Resource 或同构私有索引。
+2. `data/game_config.tres` 使用类型化 Dictionary 集中配置 ItemMeta、NpcSchedule 和其他 Manager 初始数据；Dictionary 是唯一 ID 查询源，启动时校验 key 与 Resource 内部 ID 一致。Autoload 直接注册脚本，不增加空壳场景、分散的单项 Meta Resource 或同构私有索引。
 3. GameManager 提供 `new_game(seed)`、整体 snapshot/replace/reset；新游戏含 6 个工具、初始种子、生命/体力/金币和 farm/default 室外起点；farm/wake 只用于日结。
 4. GameManager 同时实现 CalendarState、倍率、start/stop 和 reason-based pause；完整换日行为留 T10。
 5. MapManager/AudioManager 提供可调用但未实现内容的安全窄 API；不允许空方法假装成功，应返回明确 Error/Result。
@@ -48,4 +48,4 @@
 
 ## 完成记录
 
-STATUS 记录 Autoload 列表、测试结果、run_id、日志和截图；总表 T02 completed。
+STATUS 记录 Autoload 列表、测试结果、run_id、日志和截图；总表 T03 completed。

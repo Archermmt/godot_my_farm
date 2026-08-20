@@ -75,12 +75,12 @@ func test_generated_and_manual_item_state_survive_snapshot_restore() -> void:
 
 	var pickup := ItemState.new()
 	pickup.instance_id = &"manual_wood"
-	pickup.meta_id = &"material_wood"
+	pickup.meta_id = &"wood"
 	var pickup_cell := _empty_cell(map)
 	assert_equal(map.add_item_state(pickup, pickup_cell), OK)
 	var plant := PlantState.new()
 	plant.instance_id = &"manual_parsnip"
-	plant.meta_id = &"crop_parsnip"
+	plant.meta_id = &"parsnip"
 	plant.health = 1
 	plant.growth_days = 2
 	plant.planted_on_day = 1

@@ -139,9 +139,9 @@ signal load_completed(slot: int)
 
 ### 5.2 DataCatalog
 
-- 脚本型 Autoload 从 `data/autoload_config.tres` 读取 `items: Dictionary[StringName, ItemMeta]` 和 `npc_schedules: Dictionary[StringName, NpcSchedule]`；Config 是唯一配置源，不建立场景副本、运行时目录猜测或同构私有索引。
+- 脚本型 Autoload 从 `data/game_config.tres` 读取 `items: Dictionary[StringName, ItemMeta]` 和 `npc_schedules: Dictionary[StringName, NpcSchedule]`；Config 是唯一配置源，不建立场景副本、运行时目录猜测或同构私有索引。
 - Autoload 通过项目注册的全局名直接访问，不作为参数传递，也不在 Player、BaseMap、ScenePort 等节点中建立重复服务字段。State/DTO 不访问或保存 Autoload；需要 Catalog 的初始化校验由 GameManager、BaseMap 等运行时所有者完成，以避免脚本资源循环。Tool 等 RefCounted 领域对象不访问 EventBus 或 AudioManager，只返回 `ToolOutcome`，由 Player 统一发出工具事实和反馈。
-- Item、NPC 日程、Audio、Effect 和 Season 定义在 `AutoloadConfig` Inspector 中使用类型化 Dictionary 配置，key 分别是 Item ID、日程 ID、音频事件 ID、特效 ID 和季节 ID。Dictionary 同时是校验后的唯一 ID 查询源；ItemMeta、NpcSchedule 和 SeasonMeta 的内部 ID 必须与 key 一致，AudioDefinition 和 EffectDefinition 不重复保存 ID。
+- Item、NPC 日程、Audio、Effect 和 Season 定义在 `GameConfig` Inspector 中使用类型化 Dictionary 配置，key 分别是 Item ID、日程 ID、音频事件 ID、特效 ID 和季节 ID。Dictionary 同时是校验后的唯一 ID 查询源；ItemMeta、NpcSchedule 和 SeasonMeta 的内部 ID 必须与 key 一致，AudioDefinition 和 EffectDefinition 不重复保存 ID。
 - 启动时检查 ID 唯一、场景/贴图引用存在、种子与作物互相匹配、掉落数量合法。
 - 提供 `get_item(id)` 等窄 API，未知 ID 返回 `null` 并记录错误。
 
@@ -149,7 +149,7 @@ signal load_completed(slot: int)
 
 唯一持有：
 
-- `PlayerState` 新游戏模板：内嵌于 `AutoloadConfig.player_state_template`，GameManager 新游戏时深复制为独立状态；模板本身不进入存档。
+- `PlayerState` 新游戏模板：内嵌于 `GameConfig.player_state_template`，GameManager 新游戏时深复制为独立状态；模板本身不进入存档。
 - `PlayerState`：当前位置的地图/出生信息、生命、体力、上限、金币，以及其唯一归属的 `BackpackState`。
 - `PlayerState.active_hand_source`：当前唯一手持来源（NONE/TOOLBAR/ITEMBAR）。
 - `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内 Item 状态。
@@ -226,7 +226,7 @@ CellState -> MapCell                # 场景重建静态能力，保存动态实
 ItemsGenerator                      # 唯一场景组件，配置和行为同属节点
 ```
 
-`ItemsGeneratorCandidate` 虽然是 Resource，但只是 `ItemsGenerator` 为 Inspector 数组使用的结构化值，不属于 Meta；`AutoloadConfig.player_state_template` 虽然可编辑，但只是新游戏 State 模板，也不属于 PlayerMeta。Resource 是 Godot 的存储形式，Meta 是数据职责，两者不得等同判断。
+`ItemsGeneratorCandidate` 虽然是 Resource，但只是 `ItemsGenerator` 为 Inspector 数组使用的结构化值，不属于 Meta；`GameConfig.player_state_template` 虽然可编辑，但只是新游戏 State 模板，也不属于 PlayerMeta。Resource 是 Godot 的存储形式，Meta 是数据职责，两者不得等同判断。
 
 ### 6.2 ItemMeta
 
@@ -257,7 +257,7 @@ drops: Array[HarvestableDrop]
 
 HarvestableMeta 表示具有生命/耐久、可被工具作用并产生掉落的地图 Item。普通 Harvestable 通过 `HarvestableStage.min_health/texture/visual_offset` 配置健康、受损等阶段；受击修改 HarvestableState.health 后由运行时 Item 显式刷新贴图。PlantMeta 继承 HarvestableMeta并提供成长阶段与浇水需求；农田种植与野外生成只由配置和创建来源区分，不再建立 Crop 类型。SeedMeta 继承 ItemMeta，以 `plant_id` 单向引用对应 PlantMeta；PlantMeta 不反向保存种子 ID。Seed 初始化时通过 Catalog 解析并缓存 PlantMeta，use 阶段不得扫描 Catalog。每个 `PlantStage` 配置成长阈值、贴图、视觉偏移、生命、标签和掉落表，并由 `DataCatalogService.validate_definitions()` 校验。普通 Item、Plant 和 Harvestable 分别使用通用场景，BaseMap 根据 State/Meta 子类选择；特殊节点结构由独立 Scene 和运行时工厂负责，Meta 不保存 Scene 引用。贴图、阶段和数值均在 Meta Inspector 中配置。
 
-Plant、Harvestable、Tool、Seed 和普通 Item 的 Meta 统一内嵌在 `data/autoload_config.tres` 的 Item Dictionary。开发者在一个 Inspector 入口编辑 stages、成长天数、生命阈值、贴图和 `Array[HarvestableDrop]`；只有需要跨 Config 直接复用或独立交付的 Resource 才拆文件。State 不保存这些静态定义，只记录当前成长天数、当前生命等运行时值。
+Plant、Harvestable、Tool、Seed 和普通 Item 的 Meta 统一内嵌在 `data/game_config.tres` 的 Item Dictionary。开发者在一个 Inspector 入口编辑 stages、成长天数、生命阈值、贴图和 `Array[HarvestableDrop]`；只有需要跨 Config 直接复用或独立交付的 Resource 才拆文件。State 不保存这些静态定义，只记录当前成长天数、当前生命等运行时值。
 
 ### 6.4 HarvestableDrop
 

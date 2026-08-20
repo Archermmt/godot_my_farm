@@ -1,24 +1,27 @@
 extends ProjectTestCase
 
-func test_autoload_config_catalog_definitions_are_valid() -> void:
+func test_game_config_catalog_definitions_are_valid() -> void:
 	var catalog := DataCatalogService.new()
 	assert_true(catalog != null)
 	assert_equal(DataCatalogService.validate_definitions(catalog.items, catalog.npc_schedules), [])
 	assert_equal(catalog.items.size(), 23)
 	for meta: ItemMeta in catalog.items.values():
-		assert_true(meta.resource_path.begins_with("res://data/autoload_config.tres::"))
+		assert_true(meta.resource_path.begins_with("res://data/game_config.tres::"))
 		assert_true(meta.icon_texture != null, "item %s has no icon" % meta.id)
-	assert_true(catalog.items[&"crop_parsnip"] is PlantMeta)
-	assert_true(catalog.items[&"crop_parsnip"] is HarvestableMeta)
+	assert_true(catalog.items[&"parsnip"] is PlantMeta)
+	assert_true(catalog.items[&"parsnip"] is HarvestableMeta)
 	assert_equal(_count_type(catalog.items, HarvestableMeta), 7)
-	for plant_id: StringName in [&"crop_parsnip", &"crop_pumpkin", &"crop_potato"]:
+	for plant_id: StringName in [&"parsnip", &"pumpkin", &"potato"]:
 		var plant := catalog.items[plant_id] as PlantMeta
 		assert_equal(plant.stages.size(), 4)
 		for stage: PlantStage in plant.stages:
 			assert_true(stage.texture != null, "%s has a stage without texture" % plant_id)
-	assert_equal(catalog.npc_schedules.size(), 2)
-	assert_true(catalog.npc_schedules.has(&"schedule_villager"))
-	assert_true(catalog.npc_schedules.has(&"schedule_fisher"))
+	assert_equal(catalog.npc_schedules.size(), 3)
+	assert_true(catalog.npc_schedules.has(&"villager"))
+	assert_true(catalog.npc_schedules.has(&"fisher"))
+	assert_true(catalog.npc_schedules.has(&"ranger"))
+	for schedule_id: StringName in catalog.npc_schedules:
+		assert_true(not String(schedule_id).begins_with("schedule_"))
 	catalog.free()
 
 

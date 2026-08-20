@@ -71,6 +71,84 @@ func test_cut_chop_mine_and_rain_are_editable_particle_scenes() -> void:
 	rain.free()
 
 
+func test_weather_cloud_shadow_and_lightning_scenes_are_editable() -> void:
+	var cloud := (load("res://scenes/effects/cloud_shadow_weather.tscn") as PackedScene).instantiate() as CloudShadowWeatherEffect
+	var lightning := (load("res://scenes/effects/lightning_weather.tscn") as PackedScene).instantiate() as LightningWeatherEffect
+	assert_true(cloud.shadow_texture != null)
+	assert_true(cloud.cloudy_shadow_count > cloud.clear_shadow_count)
+	assert_true(lightning.get_node("Timer") is Timer)
+	assert_true(lightning.get_node("WeatherFlash/Flash") is ColorRect)
+	assert_true(lightning.get_node("WeatherFlash/Bolt") is TextureRect)
+	cloud.free()
+	lightning.free()
+
+
+func test_clear_and_cloudy_shadows_cover_the_map_above_ground() -> void:
+	var root := (Engine.get_main_loop() as SceneTree).root
+	var map := (load("res://scenes/maps/farm/farm.tscn") as PackedScene).instantiate() as BaseMap
+	var clear := (load("res://scenes/effects/cloud_shadow_weather.tscn") as PackedScene).instantiate() as CloudShadowWeatherEffect
+	var cloudy := (load("res://scenes/effects/cloud_shadow_weather.tscn") as PackedScene).instantiate() as CloudShadowWeatherEffect
+	root.add_child(map)
+	map.get_node("Effects").add_child(clear)
+	map.get_node("Effects").add_child(cloudy)
+	clear.configure(&"clear", map)
+	cloudy.configure(&"cloudy", map)
+	assert_equal(clear.get_child_count(), clear.clear_shadow_count)
+	assert_equal(cloudy.get_child_count(), cloudy.cloudy_shadow_count)
+	assert_true(cloudy.get_child_count() > clear.get_child_count())
+	var clear_shadow := clear.get_child(0) as Sprite2D
+	var cloudy_shadow := cloudy.get_child(0) as Sprite2D
+	assert_true(clear_shadow != null and clear_shadow.texture != null)
+	assert_true(clear.z_index + clear_shadow.z_index >= 2)
+	assert_true(clear_shadow.modulate.a >= 0.3)
+	assert_true(cloudy_shadow.scale.x > clear_shadow.scale.x)
+	assert_true(cloudy_shadow.modulate.a > clear_shadow.modulate.a)
+	map.free()
+
+
+func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
+	var root := (Engine.get_main_loop() as SceneTree).root
+	var controller := DialogueController.new()
+	var player := (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as FarmPlayer
+	var bed := (load("res://scenes/items/interactables/bed.tscn") as PackedScene).instantiate() as FurnitureInteraction
+	var npc := (load("res://scenes/actors/npcs/npc.tscn") as PackedScene).instantiate() as FarmNpc
+	root.add_child(controller)
+	root.add_child(player)
+	root.add_child(bed)
+	root.add_child(npc)
+	player.state = PlayerState.new()
+	bed.global_position = Vector2(160, 120)
+	npc.global_position = Vector2(240, 120)
+	npc.state = NpcState.new()
+	npc.state.npc_id = &"npc_villager"
+
+	bed.on_effect_area_entered(player.effect_area)
+	assert_true(controller._prompt_bubble != null)
+	controller._prompt_bubble._process(0.0)
+	assert_true(controller._prompt_bubble.visible)
+	assert_true(controller._prompt_bubble.position.is_finite())
+	assert_equal(controller.begin_sleep(bed, player), OK)
+	assert_equal(controller.session_state, DialogueController.SessionState.REVEALING_TEXT)
+	assert_equal(controller.current_definition.lines.size(), 1)
+	assert_equal(controller.current_definition.lines[0].text, "Sleep until the next morning?")
+	controller._close_session()
+	bed.on_effect_area_exited(player.effect_area)
+	assert_true(controller._prompt_bubble == null)
+
+	npc.on_effect_area_entered(player.effect_area)
+	assert_true(controller._prompt_bubble != null)
+	controller._prompt_bubble._process(0.0)
+	assert_true(controller._prompt_bubble.visible)
+	assert_true(controller._prompt_bubble.position.is_finite())
+	npc.on_effect_area_exited(player.effect_area)
+	assert_true(controller._prompt_bubble == null)
+
+	npc.free()
+	bed.free()
+	player.free()
+	controller.free()
+
+
 func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	var root := (Engine.get_main_loop() as SceneTree).root
 	var inventory := (load("res://scenes/ui/inventory_interface.tscn") as PackedScene).instantiate() as InventoryUI
@@ -99,11 +177,11 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	status._refresh()
 	assert_equal(
 		(status.get_node("Panel/HandIcon") as TextureRect).texture,
-		DataCatalog.get_item(&"tool_hoe").icon_texture
+		DataCatalog.get_item(&"hoe").icon_texture
 	)
 	assert_equal(
 		(status.get_node("Panel/Hand") as Label).text,
-		DataCatalog.get_item(&"tool_hoe").display_name
+		DataCatalog.get_item(&"hoe").display_name
 	)
 	assert_true(not (status.get_node("Panel/Hand") as Label).text.contains("TOOLS"))
 	assert_true(not (status.get_node("Panel/Hand") as Label).text.contains("ITEMS"))
@@ -115,7 +193,7 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	assert_equal(player.selection_slots.get_child_count(), GameManager.player.backpack_state.capacity(&"toolbar"))
 	var selected_icon := player.selection_slots.get_child(0).get_node("Icon") as TextureRect
 	var unselected_icon := player.selection_slots.get_child(1).get_node("Icon") as TextureRect
-	assert_equal(selected_icon.texture, DataCatalog.get_item(&"tool_hoe").icon_texture)
+	assert_equal(selected_icon.texture, DataCatalog.get_item(&"hoe").icon_texture)
 	assert_equal(selected_icon.scale, Vector2(1.35, 1.35))
 	assert_equal(unselected_icon.scale, Vector2.ONE)
 	GameManager.player.backpack_state.selected_toolbar_index = original_toolbar_index

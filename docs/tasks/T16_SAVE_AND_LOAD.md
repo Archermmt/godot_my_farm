@@ -1,4 +1,4 @@
-# T14 版本化保存与读取
+# T16 版本化保存与读取
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T11、T13、T13A completed。
+- T12、T14、T15 completed。
 
 ## 交付范围
 
@@ -46,4 +46,4 @@
 
 ## 完成记录
 
-STATUS 记录 schema/version、存档绝对用户路径、round-trip 摘要、两个 run_id 和截图；总表 T14 completed。
+已完成 schema v1 单槽 JSON、原子写入与 `.bak` 备份、未来版本/损坏文件拒绝、加载失败原子回滚、quick_save/quick_load 快捷键与提示。GameManager 负责所有文件读写，MapManager 负责按存档中的 map/spawn 重建当前地图，并同步 Player/NPC 实例。自动化测试覆盖 round-trip、未来版本、损坏 JSON 和状态不变性。

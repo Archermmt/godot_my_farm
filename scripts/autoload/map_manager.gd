@@ -8,10 +8,10 @@ const MAP_SCENE_PATHS := {
 }
 const TRANSITION_LOCK := &"scene_transition"
 const DAY_TRANSITION_LOCK := &"day_transition"
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 const NPC_SCENE := preload("res://scenes/actors/npcs/npc.tscn")
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var _map_host: Node2D = null
 var _actor_host: Node2D = null
@@ -89,6 +89,44 @@ func current_map() -> BaseMap:
 func current_map_id() -> StringName:
 	return _current_map.map_id if is_instance_valid(_current_map) else &""
 
+
+func apply_loaded_state() -> Error:
+	if _player == null or GameManager.player == null or not has_registered_hosts():
+		return ERR_UNCONFIGURED
+	var target_id := GameManager.player.map_id
+	var target_map := _current_map
+	var replacing := target_map == null or target_map.map_id != target_id
+	if replacing:
+		target_map = _instantiate_map(target_id)
+		if target_map == null:
+			return ERR_CANT_OPEN
+		_map_host.add_child(target_map)
+	var error: Error
+	if replacing:
+		error = _configure_map(target_map, target_id, GameManager.player.spawn_id)
+	else:
+		error = target_map.configure_state(GameManager.maps.get(target_id, null) as MapState, GameManager.world_seed, false)
+	if error != OK:
+		if replacing and is_instance_valid(target_map):
+			target_map.queue_free()
+		return error
+	var spawn_id := GameManager.player.spawn_id
+	var position := target_map.spawn_position(spawn_id)
+	if not target_map.map_bounds_world().has_point(position):
+		position = target_map.cell_to_world_center(GameManager.player.cell)
+	_player.global_position = position
+	_player.bind_state(GameManager.player)
+	if replacing:
+		var old_map := _current_map
+		_current_map = target_map
+		_set_house_interaction(target_map, true)
+		if old_map != null:
+			_set_house_interaction(old_map, false)
+			old_map.queue_free()
+	_sync_npc_actors()
+	EventBus.map_changed.emit(target_id)
+	return OK
+
 func is_transitioning() -> bool:
 	return _transitioning
 
@@ -106,9 +144,10 @@ func interaction_target_at(cell: Vector2i) -> Node2D:
 		return null
 	var best: Node2D = null
 	var best_distance := INF
+	var cell_position := _current_map.cell_to_world_center(cell)
 	for node: Node in get_tree().get_nodes_in_group("interaction_target"):
 		var target := node as Node2D
-		if target == null or not _current_map.is_ancestor_of(target) or _current_map.world_to_cell(target.global_position) != cell:
+		if target == null or not _current_map.is_ancestor_of(target) or not _target_occupies_cell(target, cell_position):
 			continue
 		var distance := target.global_position.distance_squared_to(_player.global_position)
 		if distance < best_distance:
@@ -122,6 +161,17 @@ func interaction_target_at(cell: Vector2i) -> Node2D:
 			best = actor
 			best_distance = distance
 	return best
+
+
+func _target_occupies_cell(target: Node2D, cell_position: Vector2) -> bool:
+	if _current_map.world_to_cell(target.global_position) == _current_map.world_to_cell(cell_position):
+		return true
+	if target is Polygon2D:
+		var polygon := (target as Polygon2D).polygon
+		if polygon.size() >= 3:
+			return Geometry2D.is_point_in_polygon(target.to_local(cell_position), polygon)
+	var tile_size := Vector2(_current_map.get_tile_size())
+	return target.global_position.distance_to(cell_position) <= tile_size.length() * 0.75
 
 
 func can_run_day_transition() -> bool:

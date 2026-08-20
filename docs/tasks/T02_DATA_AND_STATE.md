@@ -1,4 +1,4 @@
-# T01 定义与运行状态模型
+# T02 定义与运行状态模型
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T00 completed。
+- T01 completed。
 
 ## 交付范围
 
@@ -22,7 +22,7 @@
 3. BackpackState/BackpackSlot 完成命名槽位、堆叠、添加、移除、交换、合并、容量和选择 API；调用失败不改变部分状态。
 4. PlayerState 对生命、体力、金币做范围保护。
 5. PlayerState 通过唯一的 BackpackState 持有背包数据；GameManager 只持有整体 PlayerState，快照将 backpack 嵌套在 `player` 字典内。
-6. PlayerState、BackpackState 和 BackpackSlot 是可由 Inspector 编辑的 Resource；`AutoloadConfig.player_state_template` 作为新游戏模板，GameManager 深复制它，读档不依赖模板。Player 和 Cell 等唯一运行时类型不建立 Meta。
+6. PlayerState、BackpackState 和 BackpackSlot 是可由 Inspector 编辑的 Resource；`GameConfig.player_state_template` 作为新游戏模板，GameManager 深复制它，读档不依赖模板。Player 和 Cell 等唯一运行时类型不建立 Meta。
 7. MapState 只持有 CellState/ItemState DTO，不提供运行时事务；ItemState 子类只保存对应 Meta 类型的专属可变数据，并用 meta_id 连接共享 Meta。BaseMap 校验 Meta/State 子类组合，绑定强类型 State/Meta，创建对应 Item 子类并管理运行时 cells/items。
 8. 所有需存档状态实现纯 Dictionary `to_dict()` 和严格 factory；Vector/ID 按技术规则序列化。
 9. 定义校验函数能发现重复/空 ID、非法 stack、负价格、错误掉落范围、非递增成长阶段和缺交叉引用。
@@ -48,4 +48,4 @@
 
 ## 完成记录
 
-STATUS 记录定义数量、单元测试通过/失败数和 diagnostics 结论；总表 T01 completed。
+STATUS 记录定义数量、单元测试通过/失败数和 diagnostics 结论；总表 T02 completed。

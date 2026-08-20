@@ -4,7 +4,7 @@ extends ProjectTestCase
 func test_cell_and_item_state_deep_json_round_trip() -> void:
 	var crop := PlantState.new()
 	crop.instance_id = &"crop_7_-2"
-	crop.meta_id = &"crop_parsnip"
+	crop.meta_id = &"parsnip"
 	crop.growth_days = 4
 	crop.health = 2
 	crop.planted_on_day = 3
@@ -45,7 +45,7 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	assert_equal(restored_cell.cell, Vector2i(7, -2))
 	assert_equal(typeof(restored_cell.cell), TYPE_VECTOR2I)
 	assert_equal(restored_cell.flags, CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
-	assert_equal(restored_crop.meta_id, &"crop_parsnip")
+	assert_equal(restored_crop.meta_id, &"parsnip")
 	assert_equal(restored_crop.growth_days, 4)
 	assert_equal(restored_crop.health, 2)
 	assert_equal(restored_crop.planted_on_day, 3)

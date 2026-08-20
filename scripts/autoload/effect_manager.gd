@@ -1,9 +1,9 @@
 class_name EffectManagerService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var _weather_effect: Node = null
 var _active_weather_id: StringName = &""
@@ -37,7 +37,7 @@ func configure_definitions(entries: Dictionary[StringName, EffectDefinition]) ->
 	var errors := _validate_definitions(entries)
 	var validated: Dictionary[StringName, EffectDefinition] = {}
 	if errors.is_empty():
-		config = config.duplicate() as AutoloadConfig
+		config = config.duplicate() as GameConfig
 		for effect_id: StringName in entries:
 			var definition := entries[effect_id] as EffectDefinition
 			validated[effect_id] = definition
@@ -52,7 +52,7 @@ func configure_weather_scenes(entries: Dictionary[StringName, PackedScene]) -> A
 	var errors := _validate_weather_scenes(entries)
 	var validated: Dictionary[StringName, PackedScene] = {}
 	if errors.is_empty():
-		config = config.duplicate() as AutoloadConfig
+		config = config.duplicate() as GameConfig
 		validated = entries.duplicate()
 	_weather_scenes_valid = errors.is_empty()
 	if _weather_scenes_valid:

@@ -33,7 +33,7 @@
 |---|---|---|
 | `EventHandler` static events | 跨系统事件 | `EventBus` Autoload typed signals |
 | `Singleton<T>` | 持久服务 | 窄职责 Autoload；全局服务直接访问，业务场景对象显式注册 |
-| `ItemData [Serializable]` | 物品静态定义 | `AutoloadConfig.tres` 内嵌的 `ItemMeta extends Resource` |
+| `ItemData [Serializable]` | 物品静态定义 | `GameConfig.tres` 内嵌的 `ItemMeta extends Resource` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
 | `Tool` | 体力和蓄力 | Tool 运行时类型 + EffectArea |

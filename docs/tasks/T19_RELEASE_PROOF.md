@@ -1,4 +1,4 @@
-# T17 发布检查与运行证明
+# T19 发布检查与运行证明
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 ## 依赖
 
-- T16 completed。
+- T18 completed。
 
 ## 交付范围
 
@@ -57,4 +57,4 @@ godot --headless --path . --export-release "Windows Desktop" build/my_farm.exe
 
 ## 完成记录
 
-STATUS 写 Godot/version、export preset/产物、全测试摘要、最终 run_id、日志、截图/视频绝对路径和残余风险；总表 T17 completed，项目里程碑 M4 达成。
+STATUS 写 Godot/version、export preset/产物、全测试摘要、最终 run_id、日志、截图/视频绝对路径和残余风险；总表 T19 completed，项目里程碑 M4 达成。

@@ -1,9 +1,9 @@
 class_name AudioManagerService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/autoload_config.tres"
+const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 
-var config: AutoloadConfig = load(DEFAULT_CONFIG_PATH) as AutoloadConfig
+var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var _pools: Dictionary[StringName, Array] = {}
 var _player_events: Dictionary[int, StringName] = {}
@@ -40,7 +40,7 @@ func configure_definitions(audio_definitions: Dictionary[StringName, AudioDefini
 	var error := _validate_definitions(audio_definitions)
 	if error != OK:
 		return error
-	config = config.duplicate() as AutoloadConfig
+	config = config.duplicate() as GameConfig
 	config.audio_definitions = audio_definitions.duplicate()
 	return OK
 

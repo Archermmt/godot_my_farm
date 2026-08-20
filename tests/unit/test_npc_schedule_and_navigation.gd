@@ -74,12 +74,27 @@ func test_npc_scene_uses_native_navigation_and_animation_components() -> void:
 	npc.free()
 
 
-func test_game_manager_initializes_two_npcs_and_skips_directly_to_current_events() -> void:
+func test_game_manager_initializes_one_npc_per_starting_map() -> void:
 	var manager := GameManagerService.new()
 	assert_equal(manager.new_game(77), OK)
-	assert_equal(manager.npcs.size(), 2)
+	assert_equal(manager.npcs.size(), 3)
 	assert_equal(manager.get_npc(&"npc_villager").current_event_id, &"fallback")
 	assert_equal(manager.get_npc(&"npc_fisher").current_event_id, &"morning_beach")
+	assert_equal(manager.get_npc(&"npc_ranger").current_event_id, &"day_field")
+	assert_equal(manager.get_npc(&"npc_villager").map_id, &"farm")
+	assert_equal(manager.get_npc(&"npc_ranger").map_id, &"field")
+	assert_equal(manager.get_npc(&"npc_fisher").map_id, &"beach")
+	var field := (load("res://scenes/maps/field/field.tscn") as PackedScene).instantiate() as BaseMap
+	var ranger := (load("res://scenes/actors/npcs/npc.tscn") as PackedScene).instantiate() as FarmNpc
+	var root := (Engine.get_main_loop() as SceneTree).root
+	root.add_child(field)
+	root.add_child(ranger)
+	assert_true(field.contains_cell(manager.get_npc(&"npc_ranger").cell))
+	assert_true(field.is_walkable(manager.get_npc(&"npc_ranger").cell))
+	assert_equal(ranger.bind(manager.get_npc(&"npc_ranger"), field), OK)
+	assert_equal(ranger.state.schedule_id, &"ranger")
+	ranger.free()
+	field.free()
 	manager.calendar.hour = 12
 	manager.calendar.minute = 0
 	manager._refresh_npc_schedules()
@@ -87,10 +102,12 @@ func test_game_manager_initializes_two_npcs_and_skips_directly_to_current_events
 	assert_equal(manager.get_npc(&"npc_villager").current_event_id, &"afternoon_field")
 	assert_equal(manager.get_npc(&"npc_fisher").map_id, &"farm")
 	assert_equal(manager.get_npc(&"npc_fisher").current_event_id, &"afternoon_farm")
+	assert_equal(manager.get_npc(&"npc_ranger").map_id, &"field")
 	manager.calendar.hour = 17
 	manager._refresh_npc_schedules()
 	assert_equal(manager.get_npc(&"npc_villager").map_id, &"farm")
 	assert_equal(manager.get_npc(&"npc_fisher").map_id, &"beach")
+	assert_equal(manager.get_npc(&"npc_ranger").map_id, &"field")
 	manager.free()
 
 

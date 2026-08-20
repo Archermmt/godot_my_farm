@@ -1,4 +1,4 @@
-# T10 时间、天气、状态、睡眠与光照
+# T11 时间、天气、状态、睡眠与光照
 
 ## 目标
 
@@ -6,16 +6,18 @@
 
 ## 依赖
 
-- T08、T09 completed。
+- T09、T10 completed。
 
 ## 交付范围
 
 - 完善 GameManager 内的时间控制与 CalendarState。
-- 脚本型 `CalendarManager` Autoload：从 `AutoloadConfig` 读取配置，负责每日天气选择和全局 CanvasModulate 天光。
+- 脚本型 `CalendarManager` Autoload：从 `GameConfig` 读取配置，负责每日天气选择和全局 CanvasModulate 天光。
 - Inspector 可配置的 `SeasonMeta`：每季一份，记录 season_id、月份集合、天气选择权重和天光色调。
 - 常驻“游戏状态 + 人物状态”显示面板：同一面板显示日期、时间、季节、天气、生命、体力、金币和手持状态，并随运行时状态实时更新。
 - time/weather 单元和集成测试。
 - clear、cloudy、rain、storm、snow 天气图标及状态面板图标显示。
+- clear、cloudy 天气在地图地面显示可配置的云影；cloudy 使用更大的云影数量、尺寸和透明度。
+- rain、storm 天气使用独立可编辑的雷电场景，间歇性显示闪电并对当前视口进行短暂全屏闪白；室内和天气效果停止时不触发。
 
 ## 实现要求
 
@@ -30,7 +32,7 @@
 9. 天气抽取使用 world seed、日期和可配置 salt，保证同一存档日期重复加载得到同一天气；当日天气不复制进 CalendarState。
 10. `weather_changed` 只通知天气事实；地图和 HUD 查询 CalendarManager，禁止各自重复选择天气。CalendarManager 不搜索业务场景树。
 11. 受控推进时间只在 debug feature/test fixture 开启，不作为发行快捷键。
-12. `AutoloadConfig.weather_icons` 使用天气 ID 到 Texture2D 的 Dictionary，覆盖所有 SeasonMeta 候选天气；状态面板通过 CalendarManager 查询当前图标，不以天气文字代替。
+12. `GameConfig.weather_icons` 使用天气 ID 到 Texture2D 的 Dictionary，覆盖所有 SeasonMeta 候选天气；状态面板通过 CalendarManager 查询当前图标，不以天气文字代替。
 13. 换日必须使用以 Player 屏幕位置为圆心的 iris 转场：圆形可见区先收缩至全黑，全黑后才推进 game/map/cell/weather 状态并刷新贴图；Player 返回 farm House 的床边 `wake` 点且室内状态稳定后，再以新位置为圆心展开黑幕。转场期间锁定输入并暂停时间，重复换日请求不能叠加。
 
 ## 自动化验收
@@ -42,6 +44,7 @@
 - pause reason 叠加；加载 18:00 时光照直接正确，不从早晨补间。
 - 四季配置均有候选、12 个月均有唯一季节归属且权重独立；同 seed/日期结果稳定，不会跨季节选中候选。
 - 天气色调参与室外天光；进入 House 后同一时间颜色更接近中性白且雨雪隐藏；HUD 随天气信号更新。
+- 晴天/阴天云影可见且阴天覆盖更大；雨天/暴雨间歇性闪电，闪电时场景短暂变亮，窗口尺寸变化不裁切闪屏。
 - 每个候选天气都有非空图标；天气变化后 HUD WeatherIcon 实时切换且无旧图残留。
 - 换日请求发出后、iris 完全闭合前日期与地块不变；黑屏期间完成状态切换，展开时 Player 已位于床边且时间为 06:00。IrisOverlay 使用独立 ShaderMaterial，不与普通地图淡入淡出共用材质。
 
@@ -56,6 +59,6 @@
 
 ## 完成记录
 
-STATUS 记录时间倍率、季节天气权重、day/weather 事件计数、run_id 和四时段/次日截图；总表 T10 completed。
+STATUS 记录时间倍率、季节天气权重、day/weather 事件计数、run_id 和四时段/次日截图；总表 T11 completed。
 
 任务完成标准包含生成并配置全部候选天气图标，以及状态面板实际渲染图标的自动化和截图证据。
