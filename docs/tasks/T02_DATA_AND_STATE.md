@@ -21,16 +21,16 @@
 2. 所有 ID 为稳定 StringName，显示名独立；交叉引用用 ID 或直接静态 Resource，不用文件名推断。
 3. BackpackState/BackpackSlot 完成命名槽位、堆叠、添加、移除、交换、合并、容量和选择 API；调用失败不改变部分状态。
 4. PlayerState 对生命、体力、金币做范围保护。
-5. PlayerState 通过唯一的 BackpackState 持有背包数据；GameManager 只持有整体 PlayerState，快照将 backpack 嵌套在 `player` 字典内。
-6. PlayerState、BackpackState 和 BackpackSlot 是可由 Inspector 编辑的 Resource；`GameConfig.player_state_template` 作为新游戏模板，GameManager 深复制它，读档不依赖模板。Player 和 Cell 等唯一运行时类型不建立 Meta。
-7. MapState 只持有 CellState/ItemState DTO，不提供运行时事务；ItemState 子类只保存对应 Meta 类型的专属可变数据，并用 meta_id 连接共享 Meta。BaseMap 校验 Meta/State 子类组合，绑定强类型 State/Meta，创建对应 Item 子类并管理运行时 cells/items。
+5. PlayerState 只保存人物自身状态；BackpackState 由 GameManager 独立持有，快照使用顶层 `backpack` 字段。
+6. PlayerState、BackpackState 和 BackpackSlot 是运行时数据 Resource，字段不使用 `@export`；`GameConfig` 不导出完整 State，而是在 `Player`、`Backpack` 分类下暴露出生信息、行为参数、容量和初始槽位。GameManager 根据这些参数创建新游戏 State，读档只恢复快照数据。Player 和 Cell 等唯一运行时类型不建立 Meta。
+7. MapState 只持有 CellState/ItemState DTO，不提供运行时事务；ItemState 子类只保存对应 Meta 类型的专属可变数据，并用 meta_id 连接共享 Meta。所有 ItemState 保存当前 health，ItemMeta 保存 health 上限。BaseMap 校验 Meta/State 子类组合，创建对应 Item 子类；Item 基类提供统一的 State/Meta 访问和耗尽判断，子类只负责强类型 downcast。
 8. 所有需存档状态实现纯 Dictionary `to_dict()` 和严格 factory；Vector/ID 按技术规则序列化。
-9. 定义校验函数能发现重复/空 ID、非法 stack、负价格、错误掉落范围、非递增成长阶段和缺交叉引用。
+9. 定义校验函数能发现重复/空 ID、非法 slot、负价格、错误掉落范围、非递增成长阶段和缺交叉引用。
 10. 不在状态对象中保存 Node、Texture、PackedScene instance 或 Callable。
 
 ## 自动化验收
 
-- 测试 BackpackSlot 添加到 stack limit、溢出到空格、满包退回、移除不足、跨容器交换和选择。
+- 测试 BackpackSlot 添加到 slot limit、溢出到空格、满包退回、移除不足、跨容器交换和选择。
 - 测试 PlayerState 上下限。
 - 测试 Farm/Plant/MapState 深度 round-trip，并断言恢复后的 Vector2i/StringName/数值类型。
 - 测试每一种无效定义，确认校验失败且消息包含 ID/字段。

@@ -4,10 +4,10 @@ extends Item
 var plant_meta: PlantMeta = null
 
 
-func _init(next_meta: SeedMeta = null) -> void:
-	meta = next_meta
-	if next_meta != null and next_meta.plant_id != &"":
-		plant_meta = DataCatalog.get_plant(next_meta.plant_id)
+func _init(item_state: ItemState = null) -> void:
+	super._init(item_state)
+	if meta is SeedMeta and (meta as SeedMeta).plant_id != &"":
+		plant_meta = DataCatalog.get_plant((meta as SeedMeta).plant_id)
 
 
 func use(map: BaseMap, target_cells: Array[Vector2i], planted_on_day: int, available_count: int) -> SeedOutcome:

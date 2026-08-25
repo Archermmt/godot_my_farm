@@ -47,37 +47,71 @@ func _refresh() -> void:
 	var player: PlayerState = GameManager.player
 	if calendar == null or player == null:
 		return
-	var active_stack := player.active_stack()
+	var player_node := MapManager.registered_player()
+	var active_slot: BackpackSlot = player_node.backpack.active_slot() if player_node != null else null
 	var weather_id := CalendarManager.current_weather_id() if is_instance_valid(CalendarManager) else &""
-	var snapshot := "%d/%d/%d/%d/%d/%d/%s|%d/%d/%d/%d/%d|%d/%s/%d" % [
-		calendar.year, calendar.month, calendar.day, calendar.weekday, calendar.hour, calendar.minute,
-		weather_id,
-		player.health, player.max_health, player.stamina, player.max_stamina, player.gold,
-		player.active_hand_source, active_stack.item_id if active_stack != null else &"", active_stack.amount if active_stack != null else 0,
-	]
+	var snapshot := (
+		"%d/%d/%d/%d/%d/%d/%s|%d/%d/%d/%d/%d|%d/%s/%d"
+		% [
+			calendar.year,
+			calendar.month,
+			calendar.day,
+			calendar.weekday,
+			calendar.hour,
+			calendar.minute,
+			weather_id,
+			player.health,
+			player.max_health,
+			player.energy,
+			player.max_energy,
+			player.gold,
+			(
+				GameManager.backpack_state.active_hand_source
+				if GameManager.backpack_state != null
+				else BackpackState.ActiveHandSource.NONE
+			),
+			active_slot.item_id if active_slot != null else &"",
+			active_slot.amount if active_slot != null else 0,
+		]
+	)
 	if snapshot == _last_snapshot:
 		return
 	_last_snapshot = snapshot
-	calendar_label.text = "Y%d M%d D%d W%d %02d:%02d\n%s" % [
-		calendar.year, calendar.month, calendar.day, calendar.weekday, calendar.hour, calendar.minute,
-		String(calendar.season()).left(3).to_upper(),
-	]
+	calendar_label.text = (
+		"Y%d M%d D%d W%d %02d:%02d\n%s"
+		% [
+			calendar.year,
+			calendar.month,
+			calendar.day,
+			calendar.weekday,
+			calendar.hour,
+			calendar.minute,
+			String(calendar.season()).left(3).to_upper(),
+		]
+	)
 	weather_icon.texture = CalendarManager.weather_icon(weather_id) if is_instance_valid(CalendarManager) else null
 	weather_icon.visible = weather_icon.texture != null
 	weather_icon.tooltip_text = String(weather_id).capitalize()
-	player_label.text = "HP %d/%d  EN %d/%d  G %d" % [
-		player.health, player.max_health, player.stamina, player.max_stamina, player.gold,
-	]
-	if active_stack == null or active_stack.is_empty():
+	player_label.text = (
+		"HP %d/%d  EN %d/%d  G %d"
+		% [
+			player.health,
+			player.max_health,
+			player.energy,
+			player.max_energy,
+			player.gold,
+		]
+	)
+	if active_slot == null or active_slot.is_empty():
 		hand_label.text = "Empty"
 		hand_icon.texture = null
 		hand_icon.visible = false
 		hand_icon.tooltip_text = ""
 		hand_amount.text = ""
 	else:
-		var meta := DataCatalog.get_item(active_stack.item_id)
-		hand_label.text = meta.display_name if meta != null else String(active_stack.item_id)
+		var meta := DataCatalog.get_item(active_slot.item_id)
+		hand_label.text = meta.display_name if meta != null else String(active_slot.item_id)
 		hand_icon.texture = meta.icon_texture if meta != null else null
 		hand_icon.visible = hand_icon.texture != null
-		hand_icon.tooltip_text = meta.display_name if meta != null else String(active_stack.item_id)
-		hand_amount.text = "x%d" % active_stack.amount if active_stack.amount > 1 else ""
+		hand_icon.tooltip_text = meta.display_name if meta != null else String(active_slot.item_id)
+		hand_amount.text = "x%d" % active_slot.amount if active_slot.amount > 1 else ""

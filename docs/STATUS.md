@@ -31,7 +31,7 @@
 - T07 已实现运行时 `Tool` 与结构化 `ToolOutcome`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
 - T09 已接通 Sickle/Basket/Pickaxe/Axe 到 Harvestable：工具验证、伤害、固定单次体力消耗、成熟 Plant 收获、确定 RNG 掉落、Tree -> Stump -> 清除和旧 instance ID 防重复结算均由结构化结果与 BaseMap 事务完成。
 - T11 环境生成实现已完成：farm/field 各自挂载可在 Inspector 配置的 ItemsGenerator 子节点，以 world seed/map/epoch/salt 确定生成 tree/rock/grass，避开静态否决格和 SpawnPoints/Ports 安全区，并通过 BaseMap 事务写入普通 ItemState。MapState 保存 generation_epoch/initialized，地图恢复不重复生成。
-- 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；BaseMap 只按 Player 的 `pickup_radius` 返回候选，Player 负责吸附、Itembar 优先入包并在成功后请求 Map 删除。拾取参数直接由 Player Inspector 配置，不建立 PickupRange 或 Area2D；可拾取 Item 保留 CellState 引用但不阻塞播种/放置，`drop_held` 先创建世界 Item 再扣 Itembar。
+- 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；BaseMap 按 Player 的 `pickup_radius` 返回候选，Item 必须在场景中预置 PickupArea，Area2D 信号和 Item 内部 trace Timer 共同控制追踪，Player 负责吸附、接触拾取、Itembar 优先入包并在成功后请求 Map 删除。Player 场景统一配置 trace_delay（drop=1 秒、harvestable=0.5 秒、generate=0）和指数 pickup_speed_curve。可拾取 Item 保留 CellState 引用但不阻塞播种/放置，`drop_held` 先创建世界 Item 再扣 Itembar。
 - EffectManager 已作为脚本型全局服务注册，效果定义在 `data/game_config.tres` 中通过 Inspector 配置；调用方传入动态 host，动作反馈、碎屑、雨雪等效果不再依赖 Main 场景中的固定 EffectHost。
 - 新游戏 farm 的 MapState 固定包含草、石、树和成熟欧洲防风草各一份，供 T09 键盘验收；运行节点统一挂入 BaseMap 的分类 Item host。
 

@@ -26,7 +26,10 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.get_node("InteractionOrigin") is Marker2D)
 	assert_equal(player.pickup_radius, 72.0)
 	assert_equal(player.pickup_collect_distance, 10.0)
-	assert_equal(player.pickup_attraction_speed, 180.0)
+	assert_equal(player.pickup_delay_for(&"drop"), 1.0)
+	assert_equal(player.pickup_delay_for(&"harvestable"), 0.5)
+	assert_equal(player.pickup_delay_for(&"generate"), 0.0)
+	assert_true(player.pickup_speed_curve != null)
 	assert_true(not player.has_node("PickupRange"))
 	assert_true(not player.has_node("CollectArea"))
 	var effect_area := player.get_node("EffectArea") as EffectArea
@@ -79,13 +82,15 @@ func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
 	var player_state := PlayerState.new()
 	player_state.cell = Vector2i.ZERO
 	player_state.facing = &"down"
-	player_state.set_stamina(10)
-	player_state.backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"axe", 1))
-	player_state.active_hand_source = PlayerState.ActiveHandSource.TOOLBAR
-	assert_equal(player.bind_state(player_state), OK)
+	player_state.energy = 10
+	var backpack_state := BackpackState.new()
+	backpack_state.set_slot(&"toolbar", 0, BackpackSlot.new(&"toolbar_0", &"axe", 1))
+	backpack_state.active_hand_source = BackpackState.ActiveHandSource.TOOLBAR
+	assert_equal(player.setup(player_state), OK)
+	assert_equal(player.backpack.setup(backpack_state), OK)
 	var tool_meta := DataCatalog.get_item(&"axe") as ToolMeta
 	var tool := Tool.new(tool_meta)
-	assert_equal(player.effect_area.begin(player_state, map, tool), OK)
+	assert_equal(player.effect_area.begin(player_state, backpack_state, map, tool), OK)
 	player._refresh_charge_bar()
 	assert_true(player.charge_bar.visible)
 	assert_equal(player.charge_bar.max_value, 1.0)

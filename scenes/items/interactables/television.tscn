@@ -1,12 +1,11 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/items/interactable.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/items/interactable/television.gd" id="1_script"]
 [sub_resource type="RectangleShape2D" id="InteractionShape"]
 size = Vector2(64, 40)
 
 [node name="Television" type="Polygon2D" groups=["interaction_target"]]
 script = ExtResource("1_script")
-kind = 1
 dialogue_id = &"television_report"
 polygon = PackedVector2Array(-32, -20, 32, -20, 32, 20, -32, 20)
 color = Color(0.145098, 0.192157, 0.227451, 1)

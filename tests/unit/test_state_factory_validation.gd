@@ -2,23 +2,27 @@ extends ProjectTestCase
 
 
 func test_backpack_slot_rejects_invalid_amount_and_missing_id() -> void:
-	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "wood", "amount": "3"}) == null)
-	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "", "amount": 3}) == null)
-	assert_true(BackpackSlot.from_dict({"slot_id": "inventory_0", "item_id": "wood", "amount": -1}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "main_space_0", "item_id": "wood", "amount": "3"}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "main_space_0", "item_id": "", "amount": 3}) == null)
+	assert_true(BackpackSlot.from_dict({"slot_id": "main_space_0", "item_id": "wood", "amount": -1}) == null)
 
 
 func test_backpack_rejects_invalid_nested_slot() -> void:
 	assert_true(BackpackState.from_dict({
-		"slots": {"inventory_0": "bad"},
+		"slots": {"main_space_0": "bad"},
 		"toolbar": [],
 		"itembar": [],
-		"inventory_capacity": 1,
+		"main_space": ["main_space_0"],
+		"selected_ids": {"toolbar": "", "itembar": ""},
+		"active_hand_source": BackpackState.ActiveHandSource.NONE,
 	}) == null)
 	assert_true(BackpackState.from_dict({
-		"slots": {"inventory_0": {"slot_id": "inventory_0", "item_id": "wood", "amount": -1}},
+		"slots": {"main_space_0": {"slot_id": "main_space_0", "item_id": "wood", "amount": -1}},
 		"toolbar": [],
 		"itembar": [],
-		"inventory_capacity": 1,
+		"main_space": ["main_space_0"],
+		"selected_ids": {"toolbar": "", "itembar": ""},
+		"active_hand_source": BackpackState.ActiveHandSource.NONE,
 	}) == null)
 
 
@@ -28,8 +32,7 @@ func test_player_and_calendar_reject_out_of_range_state() -> void:
 	assert_true(PlayerState.from_dict({
 		"map_id": "farm", "spawn_id": "default", "facing": "down",
 		"cell": {"x": 0, "y": 0}, "max_health": 100, "health": 100,
-		"max_stamina": 100, "stamina": 100, "gold": 0, "active_hand_source": 99,
-		"backpack": BackpackState.new().to_dict(),
+		"max_energy": 100, "energy": 100, "gold": 0,
 	}) == null)
 	assert_true(CalendarState.from_dict({"month": 13}) == null)
 	assert_true(CalendarState.from_dict({"minute": 60}) == null)

@@ -40,7 +40,6 @@ func test_map_manager_requires_explicit_hosts() -> void:
 	assert_true(router.has_registered_hosts())
 	assert_true(not router.can_run_day_transition())
 	assert_equal(router.request_map_change(&"farm", &"default"), ERR_UNCONFIGURED)
-	assert_equal(router.registered_map_ids(), [&"beach", &"farm", &"field"])
 	router.unregister_hosts(map_host)
 	assert_true(not router.has_registered_hosts())
 	day_overlay.free()

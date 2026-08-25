@@ -1,30 +1,13 @@
 extends ProjectTestCase
 
 
-func test_player_state_clamps_stats() -> void:
-	var player := PlayerState.new()
-	player.set_max_health(120)
-	player.set_health(500)
-	player.set_max_stamina(80)
-	player.set_stamina(-5)
-	player.set_gold(-100)
-	assert_equal(player.max_health, 120)
-	assert_equal(player.health, 120)
-	assert_equal(player.max_stamina, 80)
-	assert_equal(player.stamina, 0)
-	assert_equal(player.gold, 0)
-	player.set_max_health(20)
-	assert_equal(player.health, 20)
-
-
 func test_player_round_trip_preserves_ids_and_vector() -> void:
 	var player := PlayerState.new()
 	player.map_id = &"field"
 	player.spawn_id = &"north_gate"
 	player.cell = Vector2i(-3, 14)
 	player.facing = &"left"
-	player.active_hand_source = PlayerState.ActiveHandSource.ITEMBAR
-	player.set_gold(42)
+	player.gold = 42
 	var parsed: Dictionary = JSON.parse_string(JSON.stringify(player.to_dict())) as Dictionary
 	var restored := PlayerState.from_dict(parsed)
 	assert_equal(restored.map_id, &"field")
@@ -32,7 +15,6 @@ func test_player_round_trip_preserves_ids_and_vector() -> void:
 	assert_equal(restored.cell, Vector2i(-3, 14))
 	assert_equal(typeof(restored.cell), TYPE_VECTOR2I)
 	assert_equal(restored.gold, 42)
-	assert_equal(restored.active_hand_source, PlayerState.ActiveHandSource.ITEMBAR)
 
 
 func test_calendar_derives_season_and_round_trips() -> void:

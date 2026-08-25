@@ -48,27 +48,6 @@ func initialize(report_errors: bool = true) -> bool:
 	return true
 
 
-func initialize_from_definitions(
-	item_definitions: Dictionary[StringName, ItemMeta],
-	schedule_definitions: Dictionary[StringName, NpcSchedule] = {},
-	report_errors: bool = true
-) -> bool:
-	_validation_errors.clear()
-	_ready_for_game = false
-	_validation_errors = validate_definitions(item_definitions, schedule_definitions)
-	if not _validation_errors.is_empty():
-		_report_errors(report_errors)
-		return false
-	var next_config := config.duplicate() as GameConfig
-	next_config.items = item_definitions.duplicate()
-	next_config.npc_schedules = schedule_definitions.duplicate()
-	config = next_config
-	_ready_for_game = true
-	if report_errors:
-		print("[DataCatalog] ready | %s" % summary())
-	return true
-
-
 func is_ready_for_game() -> bool:
 	return _ready_for_game
 
@@ -114,18 +93,6 @@ func get_harvestable(id: StringName) -> HarvestableMeta:
 	return meta
 
 
-func get_season(id: StringName) -> SeasonMeta:
-	return season_metas.get(id, null) as SeasonMeta
-
-
-func get_audio_definition(id: StringName) -> AudioDefinition:
-	return audio_definitions.get(id, null) as AudioDefinition
-
-
-func get_effect_definition(id: StringName) -> EffectDefinition:
-	return effect_definitions.get(id, null) as EffectDefinition
-
-
 func get_npc_schedule(id: StringName) -> NpcSchedule:
 	var definition: NpcSchedule = npc_schedules.get(id) as NpcSchedule
 	if definition == null:
@@ -139,16 +106,6 @@ func get_dialogue(id: StringName) -> Resource:
 
 func has_item(id: StringName) -> bool:
 	return items.has(id)
-
-
-func item_ids() -> Array[StringName]:
-	var ids: Array[StringName] = []
-	ids.assign(items.keys())
-	return ids
-
-
-func has_plant(id: StringName) -> bool:
-	return items.get(id) is PlantMeta
 
 
 func item_count() -> int:
@@ -331,8 +288,8 @@ static func _validate_tool(tool: ToolMeta, errors: Array[String]) -> void:
 
 
 static func _validate_harvestable(harvestable: HarvestableMeta, item_ids: Dictionary, errors: Array[String]) -> void:
-	if harvestable.max_health <= 0:
-		errors.append("harvestable %s max_health must be positive" % harvestable.id)
+	if harvestable.health <= 0:
+		errors.append("harvestable %s health must be positive" % harvestable.id)
 	_validate_drops(harvestable.drops, "harvestable %s" % harvestable.id, item_ids, errors)
 	if harvestable.depleted_replacement_id != &"":
 		var replacement := item_ids.get(harvestable.depleted_replacement_id, null) as ItemMeta
@@ -347,7 +304,7 @@ static func _validate_harvestable(harvestable: HarvestableMeta, item_ids: Dictio
 			if stage == null:
 				errors.append("harvestable %s visual_stages[%d] is null" % [harvestable.id, index])
 				continue
-			if stage.min_health > harvestable.max_health or thresholds.has(stage.min_health):
+			if stage.min_health > harvestable.health or thresholds.has(stage.min_health):
 				errors.append("harvestable %s visual_stages[%d].min_health invalid" % [harvestable.id, index])
 			thresholds[stage.min_health] = true
 			if stage.texture == null:

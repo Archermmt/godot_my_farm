@@ -1,0 +1,30 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "GDScript: Lint",
+			"type": "shell",
+			"command": "/Users/tongmeng/.local/bin/gdlint",
+			"args": ["."],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "GDScript: Format All",
+			"type": "shell",
+			"command": "/Users/tongmeng/.local/bin/gdformat",
+			"args": ["."],
+			"problemMatcher": []
+		},
+		{
+			"label": "GDScript: Check Formatting",
+			"type": "shell",
+			"command": "/Users/tongmeng/.local/bin/gdformat",
+			"args": ["--check", "."],
+			"problemMatcher": []
+		}
+	]
+}

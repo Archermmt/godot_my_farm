@@ -21,6 +21,7 @@ var charge_level: int = 0
 var charge_elapsed: float = 0.0
 var preview: Array[CellState] = []
 var player_state: PlayerState = null
+var backpack: PlayerBackpack = null
 
 var _map: BaseMap = null
 var _item: Item = null
@@ -34,6 +35,9 @@ func _ready() -> void:
 
 func _on_interaction_area_entered(area: Area2D) -> void:
 	var target := area.get_parent()
+	var player := get_parent() as FarmPlayer
+	if target != null and player != null and target.has_method("interact"):
+		InteractManager.register_target(target, player)
 	if target != null and target.has_method("on_effect_area_entered"):
 		target.call("on_effect_area_entered", self)
 
@@ -42,16 +46,24 @@ func _on_interaction_area_exited(area: Area2D) -> void:
 	var target := area.get_parent()
 	if target != null and target.has_method("on_effect_area_exited"):
 		target.call("on_effect_area_exited", self)
+	if target != null:
+		InteractManager.unregister_target(target)
 
 
-func begin(next_player_state: PlayerState, map: BaseMap, item: Item) -> Error:
+func begin(
+	next_player_state: PlayerState,
+	next_backpack: PlayerBackpack,
+	map: BaseMap,
+	item: Item
+) -> Error:
 	if state == InteractionState.CHARGING:
 		return ERR_BUSY
-	if next_player_state == null or map == null or item == null or item.meta == null:
+	if next_player_state == null or next_backpack == null or map == null or item == null or item.meta == null:
 		return ERR_INVALID_PARAMETER
 	if not item is Tool and not item is Seed:
 		return ERR_UNAVAILABLE
 	player_state = next_player_state
+	backpack = next_backpack
 	_map = map
 	_item = item
 	_map_revision = map.interaction_revision
@@ -150,8 +162,8 @@ func _build_preview() -> Array[CellState]:
 	var result: Array[CellState] = []
 	if player_state == null or _map == null or _item == null or _item.meta == null:
 		return result
-	var stack := player_state.active_stack()
-	if stack == null or stack.is_empty() or player_state.stamina <= 0:
+	var slot := backpack.active_slot() if backpack != null else null
+	if slot == null or slot.is_empty() or player_state.energy <= 0:
 		return result
 	var dimensions := _dimensions(charge_level)
 	var target_cells := _target_cells(player_state.cell, player_state.facing, dimensions.x, dimensions.y)
@@ -165,8 +177,12 @@ func _build_preview() -> Array[CellState]:
 		preview_state.cell = source_state.cell
 		preview_state.flags = source_state.flags
 		preview_state.item_ids = source_state.item_ids.duplicate()
-		var has_seed := not _item is Seed or index < stack.amount
-		preview_state.interaction_flags = CellState.InteractionFlag.VALID if has_seed and _cell_accepts(map_cell) else CellState.InteractionFlag.INVALID
+		var has_seed := not _item is Seed or index < slot.amount
+		preview_state.interaction_flags = (
+			CellState.InteractionFlag.VALID
+			if has_seed and _cell_accepts(map_cell)
+			else CellState.InteractionFlag.INVALID
+		)
 		if not source_state.item_ids.is_empty():
 			preview_state.interaction_flags |= CellState.InteractionFlag.ENTITY
 		result.append(preview_state)
@@ -178,11 +194,7 @@ func _level_for_elapsed() -> int:
 	for index: int in range(CHARGE_THRESHOLDS.size()):
 		if charge_elapsed >= CHARGE_THRESHOLDS[index]:
 			next_level = index
-	return mini(next_level, _max_charge_level())
-
-
-func _max_charge_level() -> int:
-	return max_charge_level()
+	return mini(next_level, max_charge_level())
 
 
 func _dimensions(level: int) -> Vector2i:
@@ -239,6 +251,8 @@ func _clear_to_idle() -> void:
 	_map = null
 	_item = null
 	queue_redraw()
+
+
 func _draw() -> void:
 	if _map == null:
 		return

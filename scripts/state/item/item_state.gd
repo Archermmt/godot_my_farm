@@ -6,6 +6,7 @@ var meta_id: StringName = &""
 var cell: Vector2i = Vector2i.ZERO
 var random_seed: int = 0
 var flags: Array[StringName] = []
+var health: int = 1
 
 
 func to_dict_impl() -> Dictionary:
@@ -16,6 +17,7 @@ func to_dict_impl() -> Dictionary:
 		"cell": SerializationUtil.vector2i_to_dict(cell),
 		"random_seed": random_seed,
 		"flags": SerializationUtil.string_name_array_to_strings(flags),
+		"health": health,
 	}
 
 
@@ -24,6 +26,8 @@ func from_dict_impl(data: Dictionary) -> bool:
 		if not SerializationUtil.has_valid_string(data, key):
 			return false
 	if not SerializationUtil.has_valid_int(data, "random_seed"):
+		return false
+	if data.has("health") and (not SerializationUtil.has_valid_int(data, "health") or int(data.get("health", 1)) < 0):
 		return false
 	if not SerializationUtil.has_valid_vector2i(data, "cell") or not SerializationUtil.has_valid_array(data, "flags"):
 		return false
@@ -36,4 +40,5 @@ func from_dict_impl(data: Dictionary) -> bool:
 	cell = SerializationUtil.vector2i_from_dict(data.get("cell", {}) as Dictionary)
 	random_seed = int(data.get("random_seed", 0))
 	flags = SerializationUtil.string_array_to_string_names(data.get("flags", []) as Array)
+	health = maxi(0, int(data.get("health", 1)))
 	return true

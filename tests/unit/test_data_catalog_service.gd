@@ -13,14 +13,10 @@ func test_service_loads_explicit_catalog_and_indexes_ids() -> void:
 	service.free()
 
 
-func test_bad_catalog_blocks_readiness_with_locatable_error() -> void:
+func test_catalog_validation_reports_locatable_error() -> void:
 	var item_a := ItemMeta.new()
 	item_a.id = &"duplicate"
-	var service := DataCatalogService.new()
 	var items: Dictionary[StringName, ItemMeta] = {&"wrong_key": item_a}
-	assert_true(not service.initialize_from_definitions(items, {}, false))
-	assert_true(not service.is_ready_for_game())
-	var errors: Array[String] = service.validation_errors()
+	var errors: Array[String] = DataCatalogService.validate_definitions(items, {})
 	assert_true(not errors.is_empty())
 	assert_true("items[wrong_key].id must match dictionary key" in errors[0])
-	service.free()

@@ -1,0 +1,5 @@
+Bed: Sleep until the next morning?
+- Yes | [sleep="yes"]
+	[end_timeline]
+- No | [sleep="no"]
+	[end_timeline]

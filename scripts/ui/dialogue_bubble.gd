@@ -5,14 +5,6 @@ extends PanelContainer
 @onready var text_label: Label = $Margin/VBox/Text
 @onready var prompt_label: Label = $Margin/VBox/Prompt
 var world_target: Node2D = null
-
-
-func set_content(speaker: String, text: String, complete: bool, confirmation: bool = false) -> void:
-	speaker_label.text = speaker
-	text_label.text = text
-	prompt_label.text = "Enter: Sleep    Esc: Cancel" if confirmation else ("Enter: Continue" if complete else "Enter: Skip")
-
-
 func set_prompt(speaker: String, text: String = "") -> void:
 	speaker_label.text = speaker
 	text_label.text = text

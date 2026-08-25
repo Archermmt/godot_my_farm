@@ -21,16 +21,22 @@
 [ext_resource type="Script" uid="uid://bra514fui8hn5" path="res://scripts/data/item/tool_meta.gd" id="19_hnic0"]
 [ext_resource type="Script" uid="uid://d2gup7eehin25" path="res://scripts/data/npc_schedule.gd" id="20_25ukt"]
 [ext_resource type="Script" uid="uid://bw6rpo8qu0jsu" path="res://scripts/data/npc_schedule_event.gd" id="21_u0law"]
-[ext_resource type="Script" path="res://scripts/data/dialogue_line.gd" id="29_dialogue_line"]
-[ext_resource type="Script" path="res://scripts/data/dialogue_definition.gd" id="30_dialogue_definition"]
 [ext_resource type="Script" uid="uid://ckdo74vx1vey0" path="res://scripts/state/inventory/backpack_state.gd" id="22_ljkmd"]
 [ext_resource type="Script" uid="uid://clbw1pl4b3h7c" path="res://scripts/state/inventory/backpack_slot.gd" id="23_wd3wu"]
 [ext_resource type="Script" uid="uid://mjlcon3icyhd" path="res://scripts/state/player_state.gd" id="24_omn50"]
 [ext_resource type="Script" uid="uid://bb8g22807yfxu" path="res://scripts/data/game_config.gd" id="25_vkq73"]
 [ext_resource type="Script" uid="uid://bbn8cfhx6j7kh" path="res://scripts/data/season_meta.gd" id="26_pa6h3"]
 [ext_resource type="PackedScene" path="res://scenes/effects/rain_weather.tscn" id="27_6vsky"]
-[ext_resource type="PackedScene" path="res://scenes/effects/cloud_shadow_weather.tscn" id="31_cloud_shadow"]
 [ext_resource type="Texture2D" uid="uid://dw66wkhlntx8i" path="res://assets/art/ui/weather_icons.svg" id="28_weather_icons"]
+[ext_resource type="Script" uid="uid://b84yq2u3bnlgw" path="res://scripts/data/dialogue_line.gd" id="29_dialogue_line"]
+[ext_resource type="Script" uid="uid://ctobhvpda8dec" path="res://scripts/data/dialogue_definition.gd" id="30_dialogue_definition"]
+[ext_resource type="PackedScene" path="res://scenes/effects/cloud_shadow_weather.tscn" id="31_cloud_shadow"]
+
+[sub_resource type="Curve" id="Curve_player_pickup_speed"]
+min_value = 0.0
+max_value = 600.0
+_data = [Vector2(0, 20), 0.0, 58.0, 0, 0, Vector2(0.5, 85), 245.0, 245.0, 0, 0, Vector2(1, 360), 1040.0, 0.0, 0, 0]
+point_count = 3
 
 [sub_resource type="Resource" id="Resource_xsjy0"]
 script = ExtResource("1_bgp3f")
@@ -155,6 +161,74 @@ placeholder_duration = 0.06
 script = ExtResource("1_bgp3f")
 placeholder_frequency = 620.0
 
+[sub_resource type="Resource" id="Resource_dialogue_tao_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_fisher"
+speaker_name = "Tao"
+text = "The coast is calm. I saw silver fish near the rocks this morning."
+
+[sub_resource type="Resource" id="Resource_dialogue_tao_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_fisher"
+speaker_name = "Tao"
+text = "Keep an eye on the weather when you travel between maps."
+
+[sub_resource type="Resource" id="Resource_dialogue_tao"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_fisher_default"
+lines = Array[Resource]([SubResource("Resource_dialogue_tao_line_0"), SubResource("Resource_dialogue_tao_line_1")])
+
+[sub_resource type="Resource" id="Resource_dialogue_rowan_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_ranger"
+speaker_name = "Rowan"
+text = "The trail bends around the hills. Watch your footing near the narrow paths."
+
+[sub_resource type="Resource" id="Resource_dialogue_rowan_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_ranger"
+speaker_name = "Rowan"
+text = "I patrol the field each day, so I may know what has changed out here."
+
+[sub_resource type="Resource" id="Resource_dialogue_rowan"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_ranger_default"
+lines = Array[Resource]([SubResource("Resource_dialogue_rowan_line_0"), SubResource("Resource_dialogue_rowan_line_1")])
+
+[sub_resource type="Resource" id="Resource_dialogue_mina_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_villager"
+speaker_name = "Mina"
+text = "The paths are quiet today. It is a good time to explore."
+
+[sub_resource type="Resource" id="Resource_dialogue_mina_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"npc_villager"
+speaker_name = "Mina"
+text = "I will be back here later if you need me."
+
+[sub_resource type="Resource" id="Resource_dialogue_mina"]
+script = ExtResource("30_dialogue_definition")
+id = &"npc_villager_default"
+lines = Array[Resource]([SubResource("Resource_dialogue_mina_line_0"), SubResource("Resource_dialogue_mina_line_1")])
+
+[sub_resource type="Resource" id="Resource_dialogue_tv_line_0"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"television"
+speaker_name = "Television"
+text = "The weather report says the day is looking good for farm work."
+
+[sub_resource type="Resource" id="Resource_dialogue_tv_line_1"]
+script = ExtResource("29_dialogue_line")
+speaker_id = &"television"
+speaker_name = "Television"
+text = "Remember to check your crops before the evening light fades."
+
+[sub_resource type="Resource" id="Resource_dialogue_tv"]
+script = ExtResource("30_dialogue_definition")
+id = &"television_report"
+lines = Array[Resource]([SubResource("Resource_dialogue_tv_line_0"), SubResource("Resource_dialogue_tv_line_1")])
+
 [sub_resource type="Resource" id="Resource_qsg5w"]
 script = ExtResource("2_wx4dx")
 scene = ExtResource("3_qxirn")
@@ -182,6 +256,109 @@ scene = ExtResource("5_lrfhq")
 [sub_resource type="Resource" id="Resource_k1l6q"]
 script = ExtResource("2_wx4dx")
 scene = ExtResource("5_lrfhq")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0hwil"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_runr0"]
+script = ExtResource("19_hnic0")
+tool_kind = 6
+base_energy_cost = 2
+charge_levels = Array[Vector2i]([Vector2i(1, 1)])
+damage_multipliers = Array[int]([1, 2, 3])
+id = &"axe"
+display_name = "Axe"
+description = "Chops trees and stumps."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_0hwil")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_husm6"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_w6qbl"]
+script = ExtResource("19_hnic0")
+tool_kind = 4
+id = &"basket"
+display_name = "Harvest Basket"
+description = "Harvests ripe produce."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_husm6")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ri6w1"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(480, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_rskct"]
+script = ExtResource("7_7qpun")
+id = &"bread"
+display_name = "Bread"
+description = "Restores a little energy."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_ri6w1")
+stack_limit = 20
+buy_price = 80
+sell_price = 30
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rgsg0"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(448, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_8rm52"]
+script = ExtResource("7_7qpun")
+id = &"fiber"
+display_name = "Fiber"
+description = "Plant fiber cut from grass."
+icon_texture = SubResource("AtlasTexture_rgsg0")
+stack_limit = 99
+sell_price = 1
+
+[sub_resource type="Resource" id="Resource_kl8hb"]
+script = ExtResource("8_1055k")
+item_id = &"fiber"
+max_amount = 2
+chance = 0.8
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_grass_icon"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(608, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lkgk"]
+atlas = ExtResource("17_onu5g")
+region = Rect2(384, 0, 48, 64)
+
+[sub_resource type="Resource" id="Resource_uk3mu"]
+script = ExtResource("12_ecfw3")
+texture = SubResource("AtlasTexture_5lkgk")
+visual_offset = Vector2(0, -32)
+
+[sub_resource type="Resource" id="Resource_8rmlr"]
+script = ExtResource("16_u2ehg")
+required_tool = 3
+drops = Array[ExtResource("8_1055k")]([SubResource("Resource_kl8hb")])
+blocks_movement = false
+state_tags = Array[StringName]([&"plant"])
+visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_uk3mu")])
+id = &"grass"
+display_name = "Grass"
+item_type = 5
+can_pickup = false
+icon_texture = SubResource("AtlasTexture_grass_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aqy8c"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_brrha"]
+script = ExtResource("19_hnic0")
+tool_kind = 1
+base_energy_cost = 2
+id = &"hoe"
+display_name = "Hoe"
+description = "Tills farmable soil."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_aqy8c")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_parsnip_icon"]
 atlas = ExtResource("15_rjflr")
@@ -238,7 +415,7 @@ drops = Array[ExtResource("8_1055k")]([SubResource("Resource_7gbno")])
 script = ExtResource("9_80w7n")
 stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_elrlm"), SubResource("Resource_s1m1o"), SubResource("Resource_4l4l4"), SubResource("Resource_mhc3m")])
 required_tool = 4
-max_health = 2
+health = 2
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
 id = &"parsnip"
@@ -247,6 +424,51 @@ description = "A growing parsnip plant."
 item_type = 5
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_parsnip_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tifj8"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(288, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_04mp4"]
+script = ExtResource("7_7qpun")
+id = &"parsnip_harvest"
+display_name = "Parsnip"
+description = "A crisp spring root."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_tifj8")
+stack_limit = 99
+sell_price = 35
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sr1rq"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_4x1xf"]
+script = ExtResource("18_qwfmb")
+plant_id = &"parsnip"
+id = &"parsnip_seed"
+display_name = "Parsnip Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_sr1rq")
+stack_limit = 99
+buy_price = 20
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mh7pf"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_sp25w"]
+script = ExtResource("19_hnic0")
+tool_kind = 5
+base_energy_cost = 2
+charge_levels = Array[Vector2i]([Vector2i(1, 1)])
+damage_multipliers = Array[int]([1, 2, 3])
+id = &"pickaxe"
+display_name = "Pickaxe"
+description = "Breaks stone."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_mh7pf")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_potato_icon"]
 atlas = ExtResource("15_rjflr")
@@ -304,7 +526,7 @@ drops = Array[ExtResource("8_1055k")]([SubResource("Resource_grriv")])
 script = ExtResource("9_80w7n")
 stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_yccwn"), SubResource("Resource_411pp"), SubResource("Resource_ooklc"), SubResource("Resource_kukna")])
 required_tool = 4
-max_health = 2
+health = 2
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
 id = &"potato"
@@ -313,6 +535,35 @@ description = "A growing potato plant."
 item_type = 5
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_potato_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fnqkp"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(352, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_limxd"]
+script = ExtResource("7_7qpun")
+id = &"potato_harvest"
+display_name = "Potato"
+description = "A dependable root crop."
+item_type = 2
+icon_texture = SubResource("AtlasTexture_fnqkp")
+stack_limit = 99
+sell_price = 45
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j2q4m"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(256, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_e67s4"]
+script = ExtResource("18_qwfmb")
+plant_id = &"potato"
+id = &"potato_seed"
+display_name = "Potato Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_j2q4m")
+stack_limit = 99
+buy_price = 30
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_pumpkin_icon"]
 atlas = ExtResource("15_rjflr")
@@ -369,7 +620,7 @@ drops = Array[ExtResource("8_1055k")]([SubResource("Resource_prm5a")])
 script = ExtResource("9_80w7n")
 stages = Array[ExtResource("10_0kamg")]([SubResource("Resource_37e7e"), SubResource("Resource_3p6bd"), SubResource("Resource_ct1vg"), SubResource("Resource_m4v5p")])
 required_tool = 4
-max_health = 3
+health = 3
 blocks_movement = false
 state_tags = Array[StringName]([&"plant"])
 id = &"pumpkin"
@@ -378,120 +629,6 @@ description = "A growing pumpkin plant."
 item_type = 5
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_pumpkin_icon")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ri6w1"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(480, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_rskct"]
-script = ExtResource("7_7qpun")
-id = &"bread"
-display_name = "Bread"
-description = "Restores a little stamina."
-item_type = 2
-icon_texture = SubResource("AtlasTexture_ri6w1")
-stack_limit = 20
-buy_price = 80
-sell_price = 30
-
-[sub_resource type="Resource" id="Resource_kl8hb"]
-script = ExtResource("8_1055k")
-item_id = &"fiber"
-max_amount = 2
-chance = 0.8
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_grass_icon"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(608, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_5lkgk"]
-atlas = ExtResource("17_onu5g")
-region = Rect2(384, 0, 48, 64)
-
-[sub_resource type="Resource" id="Resource_uk3mu"]
-script = ExtResource("12_ecfw3")
-texture = SubResource("AtlasTexture_5lkgk")
-visual_offset = Vector2(0, -32)
-
-[sub_resource type="Resource" id="Resource_8rmlr"]
-script = ExtResource("16_u2ehg")
-required_tool = 3
-drops = Array[ExtResource("8_1055k")]([SubResource("Resource_kl8hb")])
-blocks_movement = false
-state_tags = Array[StringName]([&"plant"])
-visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_uk3mu")])
-id = &"grass"
-display_name = "Grass"
-item_type = 5
-can_pickup = false
-icon_texture = SubResource("AtlasTexture_grass_icon")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_rgsg0"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(448, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_8rm52"]
-script = ExtResource("7_7qpun")
-id = &"fiber"
-display_name = "Fiber"
-description = "Plant fiber cut from grass."
-icon_texture = SubResource("AtlasTexture_rgsg0")
-stack_limit = 99
-sell_price = 1
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_k6ul2"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(416, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_mhoxg"]
-script = ExtResource("7_7qpun")
-id = &"stone"
-display_name = "Stone"
-description = "A sturdy piece of stone."
-icon_texture = SubResource("AtlasTexture_k6ul2")
-stack_limit = 99
-sell_price = 2
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_d6crp"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(384, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_phlge"]
-script = ExtResource("7_7qpun")
-id = &"wood"
-display_name = "Wood"
-description = "Useful building material."
-icon_texture = SubResource("AtlasTexture_d6crp")
-stack_limit = 99
-sell_price = 2
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_tifj8"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(288, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_04mp4"]
-script = ExtResource("7_7qpun")
-id = &"parsnip_harvest"
-display_name = "Parsnip"
-description = "A crisp spring root."
-item_type = 2
-icon_texture = SubResource("AtlasTexture_tifj8")
-stack_limit = 99
-sell_price = 35
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_fnqkp"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(352, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_limxd"]
-script = ExtResource("7_7qpun")
-id = &"potato_harvest"
-display_name = "Potato"
-description = "A dependable root crop."
-item_type = 2
-icon_texture = SubResource("AtlasTexture_fnqkp")
-stack_limit = 99
-sell_price = 45
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_efoil"]
 atlas = ExtResource("15_rjflr")
@@ -506,6 +643,21 @@ item_type = 2
 icon_texture = SubResource("AtlasTexture_efoil")
 stack_limit = 99
 sell_price = 60
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pbovx"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_2e15u"]
+script = ExtResource("18_qwfmb")
+plant_id = &"pumpkin"
+id = &"pumpkin_seed"
+display_name = "Pumpkin Seeds"
+description = "Plant in tilled soil."
+item_type = 1
+icon_texture = SubResource("AtlasTexture_pbovx")
+stack_limit = 99
+buy_price = 40
 
 [sub_resource type="Resource" id="Resource_jainb"]
 script = ExtResource("8_1055k")
@@ -548,7 +700,7 @@ visual_offset = Vector2(0, -32)
 [sub_resource type="Resource" id="Resource_46n8c"]
 script = ExtResource("16_u2ehg")
 required_tool = 5
-max_health = 3
+health = 3
 drops = Array[ExtResource("8_1055k")]([SubResource("Resource_jainb")])
 state_tags = Array[StringName]([&"rock"])
 visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_id2u5"), SubResource("Resource_51c0t"), SubResource("Resource_cddht")])
@@ -558,50 +710,32 @@ item_type = 4
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_rock_icon")
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_sr1rq"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_7bhck"]
 atlas = ExtResource("15_rjflr")
-region = Rect2(192, 0, 32, 32)
+region = Rect2(64, 0, 32, 32)
 
-[sub_resource type="Resource" id="Resource_4x1xf"]
-script = ExtResource("18_qwfmb")
-plant_id = &"parsnip"
-id = &"parsnip_seed"
-display_name = "Parsnip Seeds"
-description = "Plant in tilled soil."
-item_type = 1
-icon_texture = SubResource("AtlasTexture_sr1rq")
-stack_limit = 99
-buy_price = 20
+[sub_resource type="Resource" id="Resource_g3agm"]
+script = ExtResource("19_hnic0")
+tool_kind = 3
+base_energy_cost = 1
+id = &"sickle"
+display_name = "Sickle"
+description = "Cuts grass and light plants."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_7bhck")
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_j2q4m"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6ul2"]
 atlas = ExtResource("15_rjflr")
-region = Rect2(256, 0, 32, 32)
+region = Rect2(416, 0, 32, 32)
 
-[sub_resource type="Resource" id="Resource_e67s4"]
-script = ExtResource("18_qwfmb")
-plant_id = &"potato"
-id = &"potato_seed"
-display_name = "Potato Seeds"
-description = "Plant in tilled soil."
-item_type = 1
-icon_texture = SubResource("AtlasTexture_j2q4m")
+[sub_resource type="Resource" id="Resource_mhoxg"]
+script = ExtResource("7_7qpun")
+id = &"stone"
+display_name = "Stone"
+description = "A sturdy piece of stone."
+icon_texture = SubResource("AtlasTexture_k6ul2")
 stack_limit = 99
-buy_price = 30
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_pbovx"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(224, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_2e15u"]
-script = ExtResource("18_qwfmb")
-plant_id = &"pumpkin"
-id = &"pumpkin_seed"
-display_name = "Pumpkin Seeds"
-description = "Plant in tilled soil."
-item_type = 1
-icon_texture = SubResource("AtlasTexture_pbovx")
-stack_limit = 99
-buy_price = 40
+sell_price = 2
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_stump_icon"]
 atlas = ExtResource("15_rjflr")
@@ -629,7 +763,7 @@ visual_offset = Vector2(0, -32)
 [sub_resource type="Resource" id="Resource_af2gn"]
 script = ExtResource("16_u2ehg")
 required_tool = 6
-max_health = 2
+health = 2
 state_tags = Array[StringName]([&"stump"])
 visual_stages = Array[ExtResource("12_ecfw3")]([SubResource("Resource_lqv5b"), SubResource("Resource_44k8c")])
 id = &"stump"
@@ -637,93 +771,6 @@ display_name = "Stump"
 item_type = 4
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_stump_icon")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_0hwil"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(160, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_runr0"]
-script = ExtResource("19_hnic0")
-tool_kind = 6
-base_stamina_cost = 2
-charge_levels = Array[Vector2i]([Vector2i(1, 1)])
-damage_multipliers = Array[int]([1, 2, 3])
-id = &"axe"
-display_name = "Axe"
-description = "Chops trees and stumps."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_0hwil")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_husm6"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(96, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_w6qbl"]
-script = ExtResource("19_hnic0")
-tool_kind = 4
-id = &"basket"
-display_name = "Harvest Basket"
-description = "Harvests ripe produce."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_husm6")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_aqy8c"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_brrha"]
-script = ExtResource("19_hnic0")
-tool_kind = 1
-base_stamina_cost = 2
-id = &"hoe"
-display_name = "Hoe"
-description = "Tills farmable soil."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_aqy8c")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_mh7pf"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(128, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_sp25w"]
-script = ExtResource("19_hnic0")
-tool_kind = 5
-base_stamina_cost = 2
-charge_levels = Array[Vector2i]([Vector2i(1, 1)])
-damage_multipliers = Array[int]([1, 2, 3])
-id = &"pickaxe"
-display_name = "Pickaxe"
-description = "Breaks stone."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_mh7pf")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_7bhck"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(64, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_g3agm"]
-script = ExtResource("19_hnic0")
-tool_kind = 3
-base_stamina_cost = 1
-id = &"sickle"
-display_name = "Sickle"
-description = "Cuts grass and light plants."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_7bhck")
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_26b08"]
-atlas = ExtResource("15_rjflr")
-region = Rect2(32, 0, 32, 32)
-
-[sub_resource type="Resource" id="Resource_8x1m5"]
-script = ExtResource("19_hnic0")
-tool_kind = 2
-base_stamina_cost = 1
-id = &"watering_can"
-display_name = "Watering Can"
-description = "Waters tilled soil."
-item_type = 0
-icon_texture = SubResource("AtlasTexture_26b08")
 
 [sub_resource type="Resource" id="Resource_45sfg"]
 script = ExtResource("8_1055k")
@@ -767,7 +814,7 @@ visual_offset = Vector2(0, -32)
 [sub_resource type="Resource" id="Resource_a8bqh"]
 script = ExtResource("16_u2ehg")
 required_tool = 6
-max_health = 5
+health = 5
 drops = Array[ExtResource("8_1055k")]([SubResource("Resource_45sfg")])
 depleted_replacement_id = &"stump"
 state_tags = Array[StringName]([&"tree"])
@@ -777,6 +824,98 @@ display_name = "Tree"
 item_type = 4
 can_pickup = false
 icon_texture = SubResource("AtlasTexture_tree_icon")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_26b08"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_8x1m5"]
+script = ExtResource("19_hnic0")
+tool_kind = 2
+base_energy_cost = 1
+id = &"watering_can"
+display_name = "Watering Can"
+description = "Waters tilled soil."
+item_type = 0
+icon_texture = SubResource("AtlasTexture_26b08")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d6crp"]
+atlas = ExtResource("15_rjflr")
+region = Rect2(384, 0, 32, 32)
+
+[sub_resource type="Resource" id="Resource_phlge"]
+script = ExtResource("7_7qpun")
+id = &"wood"
+display_name = "Wood"
+description = "Useful building material."
+icon_texture = SubResource("AtlasTexture_d6crp")
+stack_limit = 99
+sell_price = 2
+
+[sub_resource type="Resource" id="Resource_fisher_morning"]
+script = ExtResource("21_u0law")
+id = &"morning_beach"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+duration_minutes = 360
+map_id = &"beach"
+target_cell = Vector2i(20, 10)
+behavior_id = &"fish"
+
+[sub_resource type="Resource" id="Resource_fisher_farm"]
+script = ExtResource("21_u0law")
+id = &"afternoon_farm"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 720
+duration_minutes = 300
+target_cell = Vector2i(22, 20)
+behavior_id = &"visit"
+
+[sub_resource type="Resource" id="Resource_fisher_evening"]
+script = ExtResource("21_u0law")
+id = &"evening_beach"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+start_minute = 1020
+duration_minutes = 300
+map_id = &"beach"
+target_cell = Vector2i(18, 8)
+
+[sub_resource type="Resource" id="Resource_fisher_schedule"]
+script = ExtResource("20_25ukt")
+id = &"fisher"
+npc_id = &"npc_fisher"
+display_name = "Tao"
+body_color = Color(0.38, 0.64, 0.56, 1)
+accent_color = Color(0.88, 0.32, 0.25, 1)
+move_speed = 40.0
+fallback_map_id = &"beach"
+fallback_cell = Vector2i(18, 8)
+events = Array[ExtResource("21_u0law")]([SubResource("Resource_fisher_morning"), SubResource("Resource_fisher_farm"), SubResource("Resource_fisher_evening")])
+
+[sub_resource type="Resource" id="Resource_ranger_field"]
+script = ExtResource("21_u0law")
+id = &"day_field"
+seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
+weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
+duration_minutes = 960
+map_id = &"field"
+target_cell = Vector2i(10, 18)
+behavior_id = &"patrol"
+
+[sub_resource type="Resource" id="Resource_ranger_schedule"]
+script = ExtResource("20_25ukt")
+id = &"ranger"
+npc_id = &"npc_ranger"
+display_name = "Rowan"
+body_color = Color(0.58, 0.72, 0.38, 1)
+accent_color = Color(0.9, 0.58, 0.2, 1)
+move_speed = 46.0
+fallback_map_id = &"field"
+fallback_cell = Vector2i(10, 18)
+fallback_behavior_id = &"patrol"
+events = Array[ExtResource("21_u0law")]([SubResource("Resource_ranger_field")])
 
 [sub_resource type="Resource" id="Resource_rlaoo"]
 script = ExtResource("21_u0law")
@@ -807,7 +946,6 @@ weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
 start_minute = 1020
 duration_minutes = 300
 target_cell = Vector2i(12, 12)
-behavior_id = &"idle"
 
 [sub_resource type="Resource" id="Resource_lsgvn"]
 script = ExtResource("20_25ukt")
@@ -820,154 +958,85 @@ move_speed = 44.0
 fallback_cell = Vector2i(12, 12)
 events = Array[ExtResource("21_u0law")]([SubResource("Resource_rlaoo"), SubResource("Resource_villager_field"), SubResource("Resource_villager_home")])
 
-[sub_resource type="Resource" id="Resource_fisher_morning"]
-script = ExtResource("21_u0law")
-id = &"morning_beach"
-seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
-weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
-start_minute = 360
-duration_minutes = 360
-map_id = &"beach"
-target_cell = Vector2i(20, 10)
-behavior_id = &"fish"
-
-[sub_resource type="Resource" id="Resource_fisher_farm"]
-script = ExtResource("21_u0law")
-id = &"afternoon_farm"
-seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
-weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
-start_minute = 720
-duration_minutes = 300
-target_cell = Vector2i(22, 20)
-behavior_id = &"visit"
-
-[sub_resource type="Resource" id="Resource_fisher_evening"]
-script = ExtResource("21_u0law")
-id = &"evening_beach"
-seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
-weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
-start_minute = 1020
-duration_minutes = 300
-map_id = &"beach"
-target_cell = Vector2i(18, 8)
-behavior_id = &"idle"
-
-[sub_resource type="Resource" id="Resource_fisher_schedule"]
-script = ExtResource("20_25ukt")
-id = &"fisher"
-npc_id = &"npc_fisher"
-display_name = "Tao"
-body_color = Color(0.38, 0.64, 0.56, 1)
-accent_color = Color(0.88, 0.32, 0.25, 1)
-move_speed = 40.0
-fallback_map_id = &"beach"
-fallback_cell = Vector2i(18, 8)
-fallback_behavior_id = &"idle"
-events = Array[ExtResource("21_u0law")]([SubResource("Resource_fisher_morning"), SubResource("Resource_fisher_farm"), SubResource("Resource_fisher_evening")])
-
-[sub_resource type="Resource" id="Resource_ranger_field"]
-script = ExtResource("21_u0law")
-id = &"day_field"
-seasons = Array[StringName]([&"spring", &"summer", &"autumn", &"winter"])
-weekdays = Array[int]([1, 2, 3, 4, 5, 6, 7])
-start_minute = 360
-duration_minutes = 960
-map_id = &"field"
-target_cell = Vector2i(10, 18)
-behavior_id = &"patrol"
-
-[sub_resource type="Resource" id="Resource_ranger_schedule"]
-script = ExtResource("20_25ukt")
-id = &"ranger"
-npc_id = &"npc_ranger"
-display_name = "Rowan"
-body_color = Color(0.58, 0.72, 0.38, 1)
-accent_color = Color(0.9, 0.58, 0.2, 1)
-move_speed = 46.0
-fallback_map_id = &"field"
-fallback_cell = Vector2i(10, 18)
-fallback_behavior_id = &"patrol"
-events = Array[ExtResource("21_u0law")]([SubResource("Resource_ranger_field")])
-
 [sub_resource type="Resource" id="Resource_ifkvh"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_0"
+slot_id = &"main_space_0"
 
 [sub_resource type="Resource" id="Resource_xivbu"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_1"
+slot_id = &"main_space_1"
 
 [sub_resource type="Resource" id="Resource_pcpe6"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_10"
+slot_id = &"main_space_10"
 
 [sub_resource type="Resource" id="Resource_rqr7j"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_11"
+slot_id = &"main_space_11"
 
 [sub_resource type="Resource" id="Resource_3yaic"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_12"
+slot_id = &"main_space_12"
 
 [sub_resource type="Resource" id="Resource_240ur"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_13"
+slot_id = &"main_space_13"
 
 [sub_resource type="Resource" id="Resource_cx5bn"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_14"
+slot_id = &"main_space_14"
 
 [sub_resource type="Resource" id="Resource_expdb"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_15"
+slot_id = &"main_space_15"
 
 [sub_resource type="Resource" id="Resource_e1em5"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_16"
+slot_id = &"main_space_16"
 
 [sub_resource type="Resource" id="Resource_ao2sm"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_17"
+slot_id = &"main_space_17"
 
 [sub_resource type="Resource" id="Resource_068rm"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_18"
+slot_id = &"main_space_18"
 
 [sub_resource type="Resource" id="Resource_ylf3k"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_19"
+slot_id = &"main_space_19"
 
 [sub_resource type="Resource" id="Resource_lxe7g"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_2"
+slot_id = &"main_space_2"
 
 [sub_resource type="Resource" id="Resource_14k0b"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_3"
+slot_id = &"main_space_3"
 
 [sub_resource type="Resource" id="Resource_qpii1"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_4"
+slot_id = &"main_space_4"
 
 [sub_resource type="Resource" id="Resource_b6wtu"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_5"
+slot_id = &"main_space_5"
 
 [sub_resource type="Resource" id="Resource_45lg3"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_6"
+slot_id = &"main_space_6"
 
 [sub_resource type="Resource" id="Resource_kqkhh"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_7"
+slot_id = &"main_space_7"
 
 [sub_resource type="Resource" id="Resource_k10wl"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_8"
+slot_id = &"main_space_8"
 
 [sub_resource type="Resource" id="Resource_5it0o"]
 script = ExtResource("23_wd3wu")
-slot_id = &"inventory_9"
+slot_id = &"main_space_9"
 
 [sub_resource type="Resource" id="Resource_tsiuo"]
 script = ExtResource("23_wd3wu")
@@ -1054,26 +1123,26 @@ amount = 1
 [sub_resource type="Resource" id="Resource_hge5j"]
 script = ExtResource("22_ljkmd")
 slots = Dictionary[StringName, ExtResource("23_wd3wu")]({
-&"inventory_0": SubResource("Resource_ifkvh"),
-&"inventory_1": SubResource("Resource_xivbu"),
-&"inventory_10": SubResource("Resource_pcpe6"),
-&"inventory_11": SubResource("Resource_rqr7j"),
-&"inventory_12": SubResource("Resource_3yaic"),
-&"inventory_13": SubResource("Resource_240ur"),
-&"inventory_14": SubResource("Resource_cx5bn"),
-&"inventory_15": SubResource("Resource_expdb"),
-&"inventory_16": SubResource("Resource_e1em5"),
-&"inventory_17": SubResource("Resource_ao2sm"),
-&"inventory_18": SubResource("Resource_068rm"),
-&"inventory_19": SubResource("Resource_ylf3k"),
-&"inventory_2": SubResource("Resource_lxe7g"),
-&"inventory_3": SubResource("Resource_14k0b"),
-&"inventory_4": SubResource("Resource_qpii1"),
-&"inventory_5": SubResource("Resource_b6wtu"),
-&"inventory_6": SubResource("Resource_45lg3"),
-&"inventory_7": SubResource("Resource_kqkhh"),
-&"inventory_8": SubResource("Resource_k10wl"),
-&"inventory_9": SubResource("Resource_5it0o"),
+&"main_space_0": SubResource("Resource_ifkvh"),
+&"main_space_1": SubResource("Resource_xivbu"),
+&"main_space_10": SubResource("Resource_pcpe6"),
+&"main_space_11": SubResource("Resource_rqr7j"),
+&"main_space_12": SubResource("Resource_3yaic"),
+&"main_space_13": SubResource("Resource_240ur"),
+&"main_space_14": SubResource("Resource_cx5bn"),
+&"main_space_15": SubResource("Resource_expdb"),
+&"main_space_16": SubResource("Resource_e1em5"),
+&"main_space_17": SubResource("Resource_ao2sm"),
+&"main_space_18": SubResource("Resource_068rm"),
+&"main_space_19": SubResource("Resource_ylf3k"),
+&"main_space_2": SubResource("Resource_lxe7g"),
+&"main_space_3": SubResource("Resource_14k0b"),
+&"main_space_4": SubResource("Resource_qpii1"),
+&"main_space_5": SubResource("Resource_b6wtu"),
+&"main_space_6": SubResource("Resource_45lg3"),
+&"main_space_7": SubResource("Resource_kqkhh"),
+&"main_space_8": SubResource("Resource_k10wl"),
+&"main_space_9": SubResource("Resource_5it0o"),
 &"itembar_0": SubResource("Resource_tsiuo"),
 &"itembar_1": SubResource("Resource_r6l7i"),
 &"itembar_2": SubResource("Resource_i12bl"),
@@ -1093,10 +1162,23 @@ slots = Dictionary[StringName, ExtResource("23_wd3wu")]({
 })
 toolbar = Array[StringName]([&"toolbar_0", &"toolbar_1", &"toolbar_2", &"toolbar_3", &"toolbar_4", &"toolbar_5"])
 itembar = Array[StringName]([&"itembar_0", &"itembar_1", &"itembar_2", &"itembar_3", &"itembar_4", &"itembar_5", &"itembar_6", &"itembar_7", &"itembar_8", &"itembar_9"])
+main_space = Array[StringName]([&"main_space_0", &"main_space_1", &"main_space_2", &"main_space_3", &"main_space_4", &"main_space_5", &"main_space_6", &"main_space_7", &"main_space_8", &"main_space_9", &"main_space_10", &"main_space_11", &"main_space_12", &"main_space_13", &"main_space_14", &"main_space_15", &"main_space_16", &"main_space_17", &"main_space_18", &"main_space_19"])
+selected_ids = Dictionary[StringName, StringName]({&"toolbar": &"toolbar_0", &"itembar": &"itembar_0"})
 
 [sub_resource type="Resource" id="Resource_st4jl"]
 script = ExtResource("24_omn50")
-backpack_state = SubResource("Resource_hge5j")
+run_speed = 96.0
+walk_speed = 48.0
+pickup_radius = 72.0
+pickup_collect_distance = 10.0
+trace_delay = Dictionary[StringName, float]({
+&"drop": 1.0,
+&"harvestable": 0.5,
+&"generate": 0.0
+})
+pickup_speed_curve = SubResource("Curve_player_pickup_speed")
+indoor_camera_zoom = Vector2(1.5, 1.5)
+camera_zoom_duration = 0.3
 
 [sub_resource type="Resource" id="Resource_do4cu"]
 script = ExtResource("26_pa6h3")
@@ -1183,115 +1265,106 @@ region = Rect2(128, 0, 32, 32)
 atlas = ExtResource("28_weather_icons")
 region = Rect2(96, 0, 32, 32)
 
-[sub_resource type="Resource" id="Resource_dialogue_tv_line_0"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"television"
-speaker_name = "Television"
-text = "The weather report says the day is looking good for farm work."
-
-[sub_resource type="Resource" id="Resource_dialogue_tv_line_1"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"television"
-speaker_name = "Television"
-text = "Remember to check your crops before the evening light fades."
-
-[sub_resource type="Resource" id="Resource_dialogue_tv"]
-script = ExtResource("30_dialogue_definition")
-id = &"television_report"
-lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_tv_line_0"), SubResource("Resource_dialogue_tv_line_1")])
-
-[sub_resource type="Resource" id="Resource_dialogue_mina_line_0"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_villager"
-speaker_name = "Mina"
-text = "The paths are quiet today. It is a good time to explore."
-
-[sub_resource type="Resource" id="Resource_dialogue_mina_line_1"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_villager"
-speaker_name = "Mina"
-text = "I will be back here later if you need me."
-
-[sub_resource type="Resource" id="Resource_dialogue_mina"]
-script = ExtResource("30_dialogue_definition")
-id = &"npc_villager_default"
-lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_mina_line_0"), SubResource("Resource_dialogue_mina_line_1")])
-
-[sub_resource type="Resource" id="Resource_dialogue_tao_line_0"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_fisher"
-speaker_name = "Tao"
-text = "The coast is calm. I saw silver fish near the rocks this morning."
-
-[sub_resource type="Resource" id="Resource_dialogue_tao_line_1"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_fisher"
-speaker_name = "Tao"
-text = "Keep an eye on the weather when you travel between maps."
-
-[sub_resource type="Resource" id="Resource_dialogue_tao"]
-script = ExtResource("30_dialogue_definition")
-id = &"npc_fisher_default"
-lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_tao_line_0"), SubResource("Resource_dialogue_tao_line_1")])
-
-[sub_resource type="Resource" id="Resource_dialogue_rowan_line_0"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_ranger"
-speaker_name = "Rowan"
-text = "The trail bends around the hills. Watch your footing near the narrow paths."
-
-[sub_resource type="Resource" id="Resource_dialogue_rowan_line_1"]
-script = ExtResource("29_dialogue_line")
-speaker_id = &"npc_ranger"
-speaker_name = "Rowan"
-text = "I patrol the field each day, so I may know what has changed out here."
-
-[sub_resource type="Resource" id="Resource_dialogue_rowan"]
-script = ExtResource("30_dialogue_definition")
-id = &"npc_ranger_default"
-lines = Array[ExtResource("29_dialogue_line")]([SubResource("Resource_dialogue_rowan_line_0"), SubResource("Resource_dialogue_rowan_line_1")])
-
 [resource]
 script = ExtResource("25_vkq73")
 items = Dictionary[StringName, ExtResource("7_7qpun")]({
-&"parsnip": SubResource("Resource_bjumj"),
-&"potato": SubResource("Resource_8id26"),
-&"pumpkin": SubResource("Resource_futy8"),
-&"bread": SubResource("Resource_rskct"),
-&"grass": SubResource("Resource_8rmlr"),
-&"fiber": SubResource("Resource_8rm52"),
-&"stone": SubResource("Resource_mhoxg"),
-&"wood": SubResource("Resource_phlge"),
-&"parsnip_harvest": SubResource("Resource_04mp4"),
-&"potato_harvest": SubResource("Resource_limxd"),
-&"pumpkin_harvest": SubResource("Resource_822xh"),
-&"rock": SubResource("Resource_46n8c"),
-&"parsnip_seed": SubResource("Resource_4x1xf"),
-&"potato_seed": SubResource("Resource_e67s4"),
-&"pumpkin_seed": SubResource("Resource_2e15u"),
-&"stump": SubResource("Resource_af2gn"),
 &"axe": SubResource("Resource_runr0"),
 &"basket": SubResource("Resource_w6qbl"),
+&"bread": SubResource("Resource_rskct"),
+&"fiber": SubResource("Resource_8rm52"),
+&"grass": SubResource("Resource_8rmlr"),
 &"hoe": SubResource("Resource_brrha"),
+&"parsnip": SubResource("Resource_bjumj"),
+&"parsnip_harvest": SubResource("Resource_04mp4"),
+&"parsnip_seed": SubResource("Resource_4x1xf"),
 &"pickaxe": SubResource("Resource_sp25w"),
+&"potato": SubResource("Resource_8id26"),
+&"potato_harvest": SubResource("Resource_limxd"),
+&"potato_seed": SubResource("Resource_e67s4"),
+&"pumpkin": SubResource("Resource_futy8"),
+&"pumpkin_harvest": SubResource("Resource_822xh"),
+&"pumpkin_seed": SubResource("Resource_2e15u"),
+&"rock": SubResource("Resource_46n8c"),
 &"sickle": SubResource("Resource_g3agm"),
+&"stone": SubResource("Resource_mhoxg"),
+&"stump": SubResource("Resource_af2gn"),
+&"tree": SubResource("Resource_a8bqh"),
 &"watering_can": SubResource("Resource_8x1m5"),
-&"tree": SubResource("Resource_a8bqh")
+&"wood": SubResource("Resource_phlge")
 })
 npc_schedules = Dictionary[StringName, ExtResource("20_25ukt")]({
 &"fisher": SubResource("Resource_fisher_schedule"),
 &"ranger": SubResource("Resource_ranger_schedule"),
 &"villager": SubResource("Resource_lsgvn")
 })
-dialogue_definitions = Dictionary[StringName, ExtResource("30_dialogue_definition")]({
+dialogue_definitions = Dictionary[StringName, Resource]({
 &"npc_fisher_default": SubResource("Resource_dialogue_tao"),
 &"npc_ranger_default": SubResource("Resource_dialogue_rowan"),
 &"npc_villager_default": SubResource("Resource_dialogue_mina"),
 &"television_report": SubResource("Resource_dialogue_tv")
 })
-player_state_template = SubResource("Resource_st4jl")
-day_transition_duration = 0.55
-indoor_camera_zoom = Vector2(1.5, 1.5)
+player_map_id = &"farm"
+player_spawn_id = &"default"
+player_cell = Vector2i(5, 4)
+player_facing = "down"
+player_max_health = 100
+player_initial_health = 100
+player_max_energy = 100
+player_initial_energy = 100
+player_initial_gold = 500
+player_run_speed = 96.0
+player_walk_speed = 48.0
+player_pickup_radius = 72.0
+player_pickup_collect_distance = 10.0
+player_trace_delay = Dictionary[StringName, float]({
+&"drop": 1.0,
+&"harvestable": 0.5,
+&"generate": 0.0
+})
+player_pickup_speed_curve = SubResource("Curve_player_pickup_speed")
+player_indoor_camera_zoom = Vector2(1.5, 1.5)
+player_camera_zoom_duration = 0.3
+backpack_main_space_capacity = 20
+backpack_toolbar_capacity = 6
+backpack_itembar_capacity = 10
+backpack_initial_slots = Dictionary[StringName, ExtResource("23_wd3wu")]({
+&"main_space_0": SubResource("Resource_ifkvh"),
+&"main_space_1": SubResource("Resource_xivbu"),
+&"main_space_2": SubResource("Resource_lxe7g"),
+&"main_space_3": SubResource("Resource_14k0b"),
+&"main_space_4": SubResource("Resource_qpii1"),
+&"main_space_5": SubResource("Resource_b6wtu"),
+&"main_space_6": SubResource("Resource_45lg3"),
+&"main_space_7": SubResource("Resource_kqkhh"),
+&"main_space_8": SubResource("Resource_k10wl"),
+&"main_space_9": SubResource("Resource_5it0o"),
+&"main_space_10": SubResource("Resource_pcpe6"),
+&"main_space_11": SubResource("Resource_rqr7j"),
+&"main_space_12": SubResource("Resource_3yaic"),
+&"main_space_13": SubResource("Resource_240ur"),
+&"main_space_14": SubResource("Resource_cx5bn"),
+&"main_space_15": SubResource("Resource_expdb"),
+&"main_space_16": SubResource("Resource_e1em5"),
+&"main_space_17": SubResource("Resource_ao2sm"),
+&"main_space_18": SubResource("Resource_068rm"),
+&"main_space_19": SubResource("Resource_ylf3k"),
+&"itembar_0": SubResource("Resource_tsiuo"),
+&"itembar_1": SubResource("Resource_r6l7i"),
+&"itembar_2": SubResource("Resource_i12bl"),
+&"itembar_3": SubResource("Resource_kpiqu"),
+&"itembar_4": SubResource("Resource_jctu5"),
+&"itembar_5": SubResource("Resource_2ehrt"),
+&"itembar_6": SubResource("Resource_juaxs"),
+&"itembar_7": SubResource("Resource_gu643"),
+&"itembar_8": SubResource("Resource_j3d75"),
+&"itembar_9": SubResource("Resource_eyxof"),
+&"toolbar_0": SubResource("Resource_nicuf"),
+&"toolbar_1": SubResource("Resource_vi06p"),
+&"toolbar_2": SubResource("Resource_akdo2"),
+&"toolbar_3": SubResource("Resource_xli7v"),
+&"toolbar_4": SubResource("Resource_xhpq1"),
+&"toolbar_5": SubResource("Resource_sinle")
+})
 season_metas = Dictionary[StringName, ExtResource("26_pa6h3")]({
 &"autumn": SubResource("Resource_do4cu"),
 &"spring": SubResource("Resource_yrknm"),

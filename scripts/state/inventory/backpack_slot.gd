@@ -3,14 +3,10 @@ extends Resource
 
 @export var slot_id: StringName = &""
 @export var item_id: StringName = &""
-@export_range(0, 999, 1) var amount: int = 0
+@export_range(0, 99, 1) var amount: int = 0
 
 
-func _init(
-	p_slot_id: StringName = &"",
-	p_item_id: StringName = &"",
-	p_amount: int = 0
-) -> void:
+func _init(p_slot_id: StringName = &"", p_item_id: StringName = &"", p_amount: int = 0) -> void:
 	slot_id = p_slot_id
 	item_id = p_item_id
 	amount = max(0, p_amount)
@@ -54,8 +50,4 @@ static func from_dict(data: Dictionary) -> BackpackSlot:
 	var raw_item_id := StringName(str(data.get("item_id", "")))
 	if raw_amount < 0 or (raw_amount > 0 and raw_item_id == &""):
 		return null
-	return BackpackSlot.new(
-		StringName(str(data.get("slot_id", ""))),
-		raw_item_id,
-		raw_amount
-	)
+	return BackpackSlot.new(StringName(str(data.get("slot_id", ""))), raw_item_id, raw_amount)

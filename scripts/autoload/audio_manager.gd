@@ -85,15 +85,6 @@ func stop_all() -> void:
 	_music_event = &""
 
 
-func pool_size(channel: StringName = &"") -> int:
-	if channel != &"":
-		return (_pools.get(channel, []) as Array).size()
-	var total := 0
-	for pool: Array in _pools.values():
-		total += pool.size()
-	return total
-
-
 func active_event_count(event_id: StringName) -> int:
 	var count := 0
 	for pool: Array in _pools.values():
@@ -105,14 +96,6 @@ func active_event_count(event_id: StringName) -> int:
 
 func definition_count() -> int:
 	return config.audio_definitions.size()
-
-
-func current_loop_event(channel: StringName) -> StringName:
-	if channel == &"Ambient":
-		return _ambient_event
-	if channel == &"Music":
-		return _music_event
-	return &""
 
 
 func _available_player(bus_name: StringName) -> AudioStreamPlayer:

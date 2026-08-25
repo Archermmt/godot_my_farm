@@ -63,12 +63,12 @@
 
 - Node 负责生命周期、输入、场景表现和 Godot 对象交互。
 - Resource 负责静态 Meta 数据，例如物品、作物阶段、掉落表、NPC 日程和音频配置。
-- Resource 或 RefCounted 状态对象负责单个实例的可变数据，例如物品堆、地块状态和存档 DTO；需要作为 Inspector 模板编辑时使用 Resource。
+- Resource 或 RefCounted 状态对象负责单个实例的可变数据，例如物品堆、地块状态和存档 DTO；运行时 State 不作为 Inspector 配置入口，所有新游戏参数统一由 GameConfig 暴露。
 - `ItemMeta` 及其 `ToolMeta`、`HarvestableMeta`、`PlantMeta` 子类统一放在 `scripts/data/item/`；`DataCatalog.items: Dictionary[StringName, ItemMeta]` 是唯一 Item Meta 配置集合和 ID 命名空间，字典 key 必须与 `ItemMeta.id` 一致。PlantMeta 继承 HarvestableMeta：所有 Plant 都可收获，但石头等 Harvestable 不属于 Plant。
 - `SeedMeta` 继承 ItemMeta，并通过唯一的 `plant_id` 单向引用 PlantMeta；PlantMeta 不保存反向 seed ID。Seed 构造时从 DataCatalog 解析并缓存 PlantMeta，执行 use 时不得遍历 Catalog 查找关联。
 - 物品使用、工具作用、播种、采集和放置逻辑由对应 Item/Tool 运行时类型实现；不得为这些类别再建立只做转发或 action_id 标记的 UseAction/GridToolAction/SeedAction 等空策略层。
 - Meta 只用于一份类型定义被多个 State/运行时实例共享的场景，例如同种 Item 的贴图、价格、成长阶段和掉落规则。唯一 Runtime Object 不得仅因含有静态初始值就增加 Meta；不得把运行时可变数据写回 Meta，也不得把 Meta 字段复制进存档 State。
-- Player 使用 `PlayerState -> FarmPlayer`，不建立 PlayerMeta。`GameConfig.player_state_template` 是 Inspector 可编辑的新游戏 State 模板，直接包含出生信息、初始属性以及 BackpackState 的容量、命名槽位和 BackpackSlot；新游戏从模板深复制，读档完全从快照恢复，不依赖当前模板。
+- Player 使用 `PlayerState -> FarmPlayer`，不建立 PlayerMeta。`GameConfig` 在 `Player` 分类下直接导出出生信息、初始属性以及移动、拾取、镜头参数，GameManager 用这些参数创建新的 PlayerState。`Backpack` 分类直接导出容量和初始槽位字典，GameManager 据此创建 BackpackState；State Resource 本身不作为 GameConfig 的完整配置入口，避免把运行时快照字段整体暴露到 Inspector。
 - Cell 使用 `CellState -> MapCell`，不建立 CellMeta。地图 TileMapLayer 可重建的 BASE/DIGGABLE 等静态 flag 直接保存在当前 MapCell.static_flags；只有 DUG/WATERED、item_ids 等动态数据进入 CellState 和存档。
 - State 只保存每个实例的可变数据。`ItemState.meta_id` 是 ItemState 到 `ItemMeta.id` 的唯一连接；不得再保存静态类别或其他可从 Meta 获得的字段。序列化中的 `state_type` 只用于恢复具体 State 子类，不得代替 meta_id 或承载业务类别判断。
 - Resource 之间使用稳定 ID 关联，避免整个运行时状态通过循环 Resource 引用序列化。
@@ -86,7 +86,7 @@
 3. 对象需要生命周期、行为、场景表现、输入、碰撞或 Godot API 交互时建立 Runtime Object。业务判断和运行时操作放在 Runtime Object；它读取绑定的 State，并在需要共享类型定义时通过 ID 解析 Meta。
 4. 某个配置只属于场景中的唯一 Runtime Object，且不被多个实例共享时，不建立 Meta。配置直接使用该 Node 的导出属性保存在场景中，例如每张地图唯一的 `ItemsGenerator`。
 5. 为了在 Inspector 中编辑嵌套数组而使用的 Resource 只是结构化值对象，不自动成为 Meta。例如 `ItemsGeneratorCandidate` 的所有权属于 `ItemsGenerator.candidates`，没有 Catalog ID、独立 State 或独立运行时生命周期。
-6. 新游戏默认值可以使用 State Resource 模板，但模板不等于 Meta。模板只用于深复制出新的 State；读档不得依赖当前模板内容。
+6. 新游戏默认值由 GameConfig 分类参数提供，GameManager 据此创建 State；State 不作为 Inspector 模板，读档不得依赖运行时 State 以外的对象。
 
 允许的组合只有实际职责需要的层：
 
@@ -100,7 +100,7 @@
 当前项目示例：
 
 - `ItemMeta -> ItemState -> Item`：同一种 Item 定义被许多世界实例共享，实例状态需要保存，Item 节点负责运行行为。
-- `PlayerState -> FarmPlayer`：只有一个玩家实例，不需要 PlayerMeta；默认值来自 State 模板。
+- `PlayerState -> FarmPlayer`：只有一个玩家实例，不需要 PlayerMeta；默认值来自 GameConfig 的 Player 分类参数。
 - `CellState -> MapCell`：Cell 静态能力可从 TileMapLayer 重建，不需要 CellMeta；动态地块信息需要保存。
 - `ItemsGenerator`：每张地图只有一个场景组件，配置直接保存在节点上；只有初始化标记和 epoch 进入 MapState。
 
@@ -127,6 +127,7 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 - RefCounted 领域行为对象原则上不访问 EventBus、MapManager 或 AudioManager，应返回结构化结果，由 Player、BaseMap 等运行时 Node 提交状态并发出事实信号和反馈。只读 Catalog 关联可以在对象创建时通过全局 Catalog 解析。
 - Autoload 默认直接注册 `.gd` 脚本。没有固定子节点结构的 Manager 不得为 Inspector 配置增加空壳 `.tscn`；只有确实需要持久节点层级、预建子节点或编辑器空间布局时才使用场景型 Autoload。
 - `data/game_config.tres` 是所有 Autoload 初始配置的唯一 Inspector 入口；Manager 直接持有同一 `GameConfig`，不得把配置字段复制到节点导出属性。存档或玩家设置会改变的值必须使用独立运行时字段，例如 `initial_time_scale` 只初始化 `GameManager.time_scale`，由 `CalendarManager` 推进时间，读档只覆盖运行时值。
+- 配置按所有权分层：`GameConfig` 保存跨场景、跨实例且由 Autoload 使用的全局规则、Catalog，以及 Player/Backpack 的新游戏参数；PlayerState、BackpackState 等运行时 State 不导出配置字段。BaseMap、ItemsGenerator 等唯一 Runtime Object 的局部行为参数直接保存在各自场景节点的导出属性中。`main.gd`/`main.tscn` 只作为 Composition Root 装配 Host、Player、UI 和启动遮罩，不保存、复制或转发业务数值，也不得注入测试物品或任务专用状态。
 - `GameConfig` 中“稳定 ID -> 控制对象/Resource”集合优先使用类型化 `Dictionary`；key 必须直接说明该项控制的对象。只有顺序本身有业务意义，或元素没有稳定 key 时才使用 `Array`。
 - Config Dictionary 是配置和 ID 查询的唯一数据源，不得再建立与它完全同构的 `_definitions`、`_items` 等私有副本。允许保留不同查询维度的派生索引、对象池、冷却记录和其他运行时状态，例如 CalendarManager 的 month -> SeasonMeta 索引。
 - Dictionary key 已能完整表达身份，且 Resource 不会脱离所属 Manager 单独流转时，Resource 不重复保存 ID，例如 AudioDefinition 和 EffectDefinition。Resource 离开 Manager 后仍需自描述时保留内部 ID，例如 ItemMeta、NpcSchedule 和 SeasonMeta，并在启动时强制校验内部 ID 与 Dictionary key 一致。
@@ -140,6 +141,7 @@ Autoload 不得通过全树搜索抓取当前 Player/Farm/UI。需要场景对�
 - 同一模块内部优先直接方法调用；不要把所有调用都绕到 `EventBus`。
 - 需要原子性的行为采用“校验 -> 计算变化 -> 提交 -> 发出事实事件”。体力、种子、地块和产出不能只提交一半。
 - UI 不直接修改领域字典；UI 调用公开命令并根据信号刷新。
+- Item runtime object 统一由 `ItemManager` 创建并绑定 parent；Map、PlayerBackpack 和其他业务类不得直接 `Tool.new`、`Seed.new` 或实例化 Item 场景。
 
 ## 8. 网格与坐标
 
@@ -170,7 +172,7 @@ BaseMap
 ```text
 GameManager
 ├── player: PlayerState
-│   └── backpack_state: BackpackState
+├── backpack: BackpackState
 ├── maps: Dictionary[StringName, MapState]
 │   └── MapState
 │       ├── cells: Dictionary[Vector2i, CellState]
@@ -178,11 +180,11 @@ GameManager
 └── npcs: Dictionary[StringName, NpcState]
 ```
 
-`PlayerState` 只持有一个 `BackpackState`；所有玩家容器快照统一写入 `snapshot["player"]["backpack"]`，由 BackpackState 负责容器状态事务与序列化。
+`PlayerState` 只保存人物自身状态；`BackpackState` 由 GameManager 独立持有并单独保存。PlayerBackpack 将两者绑定到运行时 Player，但不把背包状态嵌入 PlayerState。
 
-`BackpackState` 是玩家背包唯一的统一数据模型：`slots` 使用 `Dictionary[StringName, BackpackSlot]` 保存命名槽位，`toolbar` 和 `itembar` 只保存槽位 ID 数组，容量与选择状态也由它统一记录。`BackpackSlot` 只保存 `slot_id`、`item_id`、`amount` 等数据，不持有运行时 Item/Node；PlayerBackpack 负责把槽位解析为可复用的 Tool/Seed runtime object，并提供 add/remove/switch 业务入口。
+`BackpackState` 是玩家背包唯一的统一数据模型：`slots` 使用 `Dictionary[StringName, BackpackSlot]` 保存命名槽位，`toolbar`、`itembar` 和 `main_space` 保存槽位 ID 数组，`selected_ids` 保存各栏当前选中的槽位 ID。State 只提供底层槽位访问、布局校验、统计和 `to_dict/from_dict`，不判断物品类型、不执行增删交换、不处理栏位选择或耗尽压缩。`BackpackSlot` 只保存 `slot_id`、`item_id`、`amount` 等数据，不持有运行时 Item/Node；PlayerBackpack 负责全部背包业务规则，并把槽位解析为可复用的 Tool/Seed runtime object。
 
-Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩，toolbar 不压缩。Tool 只能进入 toolbar 或 inventory，不得进入 itembar；拾取物优先填充 itembar，放不下的部分再进入 inventory。手动交换槽位只执行用户指定的交换，不触发自动压缩。
+Itembar 和 main_space 中的 slot 耗尽后必须保持稳定顺序向前压缩，toolbar 不压缩。Tool 只能进入 toolbar 或 main_space，不得进入 itembar；拾取物优先填充 itembar，放不下的部分再进入 main_space。手动交换槽位只执行用户指定的交换，不触发自动压缩。
 
 每个 Catalog ItemMeta 必须配置非空 `icon_texture`。Inventory/Toolbar/Itembar Slot 和状态面板手持物直接显示该 Texture2D，只允许额外显示数量角标，不得用名称或字母缩写代替物品图标；空 Slot/空手必须清除旧 Texture。
 
@@ -193,11 +195,16 @@ Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩
 - `MapCell.static_flags` 保存 BASE、DIGGABLE、DROPABLE、ROAD、BLOCKED、RESOURCE、INTERIOR 等由地图层重建的能力；`CellState` 是无业务方法的 DTO，只保存 cell、DUG/WATERED 动态 flags 与 item_ids。MapCell 绑定同坐标 CellState 并组合两类 flag 完成运行时判断，static_flags 不写入存档。
 - `ItemState` 是 State 基类，保存 instance_id、meta_id、cell、random_seed、flags 等所有地图 Item 共有的可变字段。CellState.item_ids 同时保存格子归属，用于一致性校验和按格查询；BaseMap 移动 Item 时必须同步更新两者。
 - `Item` 是运行时 Node2D 基类，并同时绑定 ItemState 和通过 meta_id 解析出的 ItemMeta。Harvestable 下转为 HarvestableState/HarvestableMeta，Plant 继承 Harvestable 并进一步下转为 PlantState/PlantMeta；专属逻辑只访问对应的强类型组合。instance_id 在整张 MapState 内唯一，ItemState.cell 与 CellState.item_ids 必须保持一致。
-- Item 子类不得为同一对象重复缓存 `harvestable_state/harvestable_meta/plant_state/plant_meta/tool_meta` 等字段；权威引用只有 Item.state 和 Item.meta，子类通过无状态的强类型访问方法下转。Seed.plant_meta 是由 SeedMeta.plant_id 解析出的另一个关联对象，不属于重复引用，可以在初始化时缓存。
+- Item 基类提供 `get_state()`、`get_item_meta()` 和 `is_depleted()`；Harvestable、Plant 等子类只 override 前两个方法并做具体类型 downcast。所有 ItemMeta 都提供 `health` 上限，所有 ItemState 都保存当前 `health`，耗尽判断统一由基类完成。
+- Harvestable 不单独提供 `tool_rejection_reason()`；`apply_tool()` 统一完成工具校验和伤害提交，并返回 `ItemMeta.ItemFlag`（`AVAILABLE`、`DEPLETED`、`NOT_MATURE`、`WRONG_TOOL` 或 `INVALID`）。预览判定调用 `apply_tool(tool_kind, 0, false)`，不得修改 State 或播放反馈。
+- Item 创建必须以 `ItemState` 为入口：`ItemManager.create_item(item_state)` 通过 `item_state.meta_id` 解析 ItemMeta，并在构造/场景实例化流程中注入 State；不提供 `bind_state`，也不得先创建空 Item 再由业务层绑定 State。Tool、Seed 等脚本类直接使用 `Tool.new(item_state)`/`Seed.new(item_state)`，Plant/Harvestable 场景由 ItemManager 在加入场景前注入同一 State。
+- Item 子类不得为同一对象重复缓存状态或元信息字段；权威引用只有 Item.state 和 Item.meta。所有 Item 统一通过 `get_state()`、`get_meta()` 访问，子类只 override 这两个方法并将结果 downcast 为具体类型。Seed.plant_meta 是由 SeedMeta.plant_id 解析出的另一个关联对象，不属于重复引用，可以在初始化时缓存。
 - `Item` 不得持有 BaseMap 或直接修改地图。可拾取 Item 只负责向玩家移动并标记已拾取；BaseMap 在明确的读取/结算入口中统一负责 cell 同步、MapState/CellState 更新和删除已拾取节点。
-- 拾取范围归 Player 所有：圆形查询半径、命中距离和吸附速度直接定义为 Player 的 Inspector 属性，不建立 PickupRange、Area2D 或物理 monitoring 子节点。Player 根据 `pickup_radius` 调用 `BaseMap.pickup_items_in_radius()`；Map 只返回范围内的普通可拾取 Item，不调用 Player 或 Item 的拾取行为。
-- 地图掉落使用普通 `ItemState -> Item`，是否可拾取只由 `ItemMeta.can_pickup` 定义，不建立 Pickup 专用运行时类或 State。每个地图掉落实例只代表一个物品，稳定 instance ID 与所在 cell 仍写入 ItemState/CellState 以保证 MapState 完整恢复；可拾取 Item 不算作播种或放置时的格子占用者。吸附移动、距离加速、Itembar 优先入包和命中判断全部由 Player 执行；成功入包后 Player 调用 `BaseMap.remove_item()`，由 Map 统一删除运行时节点、MapState.items 与 CellState.item_ids 引用。
-- 采集规则由 ToolMeta.damage、HarvestableMeta.required_tool/max_health/drops/depleted_replacement_id、HarvestableStage 和 PlantStage.drops 配置；掉落项统一使用 `HarvestableDrop`。Tool 只产出 ToolOutcome，Player 根据结果扣体力并发反馈。HarvestableStage 以 min_health 选择受损阶段贴图，apply_tool 修改 health 后由 Harvestable 显式刷新 StageVisual，不在纯 DTO State 上绑定信号。普通受击使用短白闪；对象耗尽后先变白，再通过本地 ShaderMaterial 逐渐分解，动画完成后释放。对象耗尽和替换由 BaseMap 以单次事务处理，树通过 depleted_replacement_id 转为树桩，重复提交旧 instance ID 不得再次掉落。
+- Player 的 `pickup_radius` 是候选查询的粗范围，Item 必须在场景中预置 `PickupArea` 和 `CollisionShape2D` 才可被吸附；拾取区域的 layer、mask、监测选项和形状完全由节点配置，Item 不得运行时创建或覆盖。只有 Player 在该区域内且 Item 的来源延迟归零时才开始吸附；离开区域不会重置当前延迟。接触距离内的可拾取 Item 不受延迟阻挡，直接由 Player 收入背包。
+- 地图掉落使用普通 `ItemState -> Item`，是否可拾取只由 `ItemMeta.can_pickup` 定义，不建立 Pickup 专用运行时类或 State。拾取配置只属于 Player 场景，不得在 GameConfig 或 BaseMap 重复保存：`trace_delay` 以 `drop`、`harvestable`、`generate` 等来源 key 配置允许 Item 开始追踪 Player 的延迟；`generate` 固定为 0。Item 使用自身的单次 Timer 管理 trace delay，Player 进入/离开 Item 的 PickupArea 由 Area2D 信号启停追踪，追踪开启且 Timer 归零后才向 Player 移动。Player 将具体延迟值传入 BaseMap，BaseMap 不反向依赖 Player。`pickup_speed_curve` 的横轴表示接近 Player 的归一化程度，纵轴是实际移动速度，并以指数曲线保证距离越近加速越明显。每个地图掉落实例只代表一个物品，稳定 instance ID 与所在 cell 仍写入 ItemState/CellState 以保证 MapState 完整恢复；可拾取 Item 不算作播种或放置时的格子占用者。吸附移动、Itembar 优先入包和命中判断全部由 Player 执行；成功入包后 Player 调用 `BaseMap.remove_item()`，由 Map 统一删除运行时节点、MapState.items 与 CellState.item_ids 引用。
+- 采集规则由 ToolMeta.damage、HarvestableMeta.required_tool/max_health/drops/depleted_replacement_id、HarvestableStage 和 PlantStage.drops 配置；掉落项统一使用 `HarvestableDrop`。Tool 只产出 ToolOutcome，Player 根据结果扣体力并发反馈。HarvestableStage 以 min_health 选择受损阶段贴图，apply_tool 修改 health 后由 Harvestable 显式刷新 `Visual`，不在纯 DTO State 上绑定信号。普通受击使用短白闪；对象耗尽后先变白，再通过本地 ShaderMaterial 逐渐分解，动画完成后释放。对象耗尽和替换由 BaseMap 以单次事务处理，树通过 depleted_replacement_id 转为树桩，重复提交旧 instance ID 不得再次掉落。
+- Harvestable 的受击白闪和耗尽分解时序由 `HarvestableMeta` 的 `hit_flash_hold_duration`、`hit_flash_fade_duration`、`depletion_white_duration`、`depletion_dissolve_duration` 配置，运行时 `Harvestable` 不保留同名常数。
+- Item、Harvestable 和 Plant 的 `Visual`、`PickupArea`、`Obstacle` 及其 CollisionShape2D 必须作为场景节点预置并在编辑器中配置；运行时代码不得创建或猜测碰撞 Shape、接触区域或障碍物。Harvestable 找不到 `Obstacle` 节点时不阻碍移动，`blocks_movement` 只负责启用/禁用场景中已有的 Obstacle 碰撞。所有子类统一通过基类 `refresh_visual(texture, position)` 更新 Visual。
 - Item State 代码统一放在 `scripts/state/item/`，BackpackState/BackpackSlot 放在 `scripts/state/inventory/`，运行时 Item 代码放在与 `scripts/world/` 同级的 `scripts/items/`，不得放回 `scripts/world/entity/`。BackpackSlot 使用 item_id 引用 Meta，不把地图 Node 放进背包。
 - `MapState.items` 和 `MapState.cells` 是存档数据所有者；`BaseMap.items` 和 `BaseMap.cells` 是当前地图运行时对象所有者。所有同步和关系校验由 BaseMap 负责。
 - `NpcState` 的唯一所有者是 `GameManager.npcs`，其 `map_id/cell` 表示 NPC 当前所在地图和格子。NPC 是 Actor，不是 Item，不得写入 MapState.items 或通过 Item host 路由。
@@ -234,9 +241,9 @@ Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩
 - 雨或暴风雨开始、雨天载入地图、以及雨天使用 Hoe 新增 DUG 时，BaseMap 必须给对应 DUG cell 添加 WATERED 并重建 WateredLayer；CalendarManager 只选择天气和发出事实信号，不直接修改地图状态。
 - `GameConfig.weather_icons: Dictionary[StringName, Texture2D]` 必须覆盖所有 SeasonMeta 中出现的天气 ID。状态面板通过 CalendarManager 查询当前天气图标并实时切换，不保存第二份天气贴图映射，也不用天气文字代替图标。
 - Hoe/WateringCan 的多格操作由运行时 `Tool` 统一执行：先用 MapCell 查询收集有效格，再整批校验体力，最后原子修改 CellState。Tool/Seed 不提供反复 new/free 的静态 `perform` 入口；Player 通过自身 `PlayerBackpack` 复用当前背包中可用的 Tool/Seed 运行时对象，只有对应 BackpackSlot 消失时才从 Backpack 删除。`SeedOutcome` 与 `ToolOutcome` 是两个独立结果类型，不建立只有少量公共字段的 ItemOutcome；`CellToolOutcome` 和 `ItemToolOutcome` 继承 ToolOutcome，分别承载 cell 投影结果与采集对象结果。所有 Outcome 一类一文件，统一放在 `scripts/items/outcome/`；UI 不从日志推断结果。
-- 一次 Tool 事务只消耗一次 `base_stamina_cost`；蓄力只扩大目标范围，不得将消耗乘以有效格数量，否则最大蓄力范围可能在满体力时也无法使用。
-- MapCell 的工具行为统一通过 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，不得为 Hoe/WateringCan 保留重复的 till/water 方法。Tool 不持有或修改 PlayerState；Player 根据成功的 ToolOutcome.stamina_spent 更新体力，EffectArea 直接读取 PlayerState 但不修改其体力。
-- InteractionContext 不再作为中间快照类型；EffectArea.begin 直接接收 PlayerState、BaseMap 和 PlayerBackpack 提供的 Tool/Seed 运行时对象，并在内部保存 BaseMap interaction_revision 快照。`use_held` release 是 Player 的动作：Player 从 EffectArea 读取 preview cells 后调用 Tool/Seed.use、扣体力/数量并发出反馈；EffectArea 只维护蓄力状态、目标集合和预览绘制。
+- 一次 Tool 事务只消耗一次 `base_energy_cost`；蓄力只扩大目标范围，不得将消耗乘以有效格数量，否则最大蓄力范围可能在满体力时也无法使用。
+- MapCell 的工具行为统一通过 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，不得为 Hoe/WateringCan 保留重复的 till/water 方法。Tool 不持有或修改 PlayerState；Player 根据成功的 ToolOutcome.energy_spent 更新体力，EffectArea 直接读取 PlayerState 但不修改其体力。
+- InteractionContext 不再作为中间快照类型；EffectArea.begin 直接接收 PlayerState、BackpackState、BaseMap 和 PlayerBackpack 提供的 Tool/Seed 运行时对象，并在内部保存 BaseMap interaction_revision 快照。`use_held` release 是 Player 的动作：Player 从 EffectArea 读取 preview cells 后调用 Tool/Seed.use、扣体力/数量并发出反馈；EffectArea 只维护蓄力状态、目标集合和预览绘制。
 - Player 专属交互组件脚本与 player.gd 一并放在 scripts/actors/；不得为 EffectArea 单独保留 scripts/interaction/ 目录。
 - DUG/WATERED 的运行时表现由 BaseMap 从 CellState 重建到地图预置的空 `DugLayer`/`WateredLayer`；表现层不拥有状态，也不把 tile 数据写回 State。
 - 对角移动允许时做归一化；NPC 对角寻路不得穿过两个相邻阻挡格的夹角。
@@ -246,7 +253,7 @@ Itembar 和 inventory 中的 stack 耗尽后必须保持稳定顺序向前压缩
 - 所有玩家输入必须注册到 InputMap；业务脚本只调用 `Input.is_action_*`。
 - 必需 action：`move_left/right/up/down`、`walk_modifier`、`use_held`、`drop`、`drop_held`、`toolbar_previous/toolbar_next`、`itembar_previous/itembar_next`、`inventory_toggle`、`inventory_swap`、`inventory_confirm`、`cancel`、`quick_save`、`quick_load`、`skip_day`。`drop` 是当前丢弃入口，`drop_held` 保留为兼容别名；两者都只允许 `ItemMeta.dropable` 的物品丢到面向的可放置格，每次一个并同步背包 slot。`skip_day` 是开发期换日入口，由 `CalendarManager` 推进 CalendarState 并发出 `day_advanced`。
 - 正式玩法的选择、使用、丢下和背包整理必须可由纯键盘完成；业务逻辑不得读取鼠标位置、鼠标按钮或 drag/drop 事件。方向目标来自 Player facing，UI 导航来自语义化方向 action。
-- Toolbar 只管理工具，Itembar 只管理可选择非工具物品，Inventory 管理普通存储。三者交换必须经过类型校验和原子状态 API；UI 不得直接改数组。
+- Toolbar 只管理工具，Itembar 只管理可选择非工具物品，MainSpace 管理普通存储。三者交换必须经过类型校验和原子状态 API；UI 不得直接改数组。
 - Player 只有一个 `active_hand_source` 和一个 active BackpackSlot。切换 Toolbar 或 Itembar 会替换当前手持来源，不允许工具与物品同时激活、同时显示或同时提交行动。
 - 新游戏初始化时 `active_hand_source` 必须为 `NONE`，Toolbar/Itembar 的库存仍正常装载；玩家主动选择栏位后才开始持有和显示对应 BackpackSlot。
 - UI 打开或场景切换时，通过明确的输入模式锁定世界交互；不能只靠某个节点恰好先消费事件。

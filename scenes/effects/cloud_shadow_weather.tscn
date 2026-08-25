@@ -1,9 +1,28 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/effects/cloud_shadow_weather.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/art/effects/cloud_shadow.svg" id="2_shadow"]
+[ext_resource type="Script" path="res://scripts/data/cloud_group.gd" id="3_cloud_group"]
+
+[sub_resource type="Resource" id="CloudGroup_clear"]
+script = ExtResource("3_cloud_group")
+shadow_count = 12
+shadow_scale = 0.9
+shadow_alpha = 0.34
+shadow_color = Color(0.38, 0.43, 0.48, 1)
+
+[sub_resource type="Resource" id="CloudGroup_cloudy"]
+script = ExtResource("3_cloud_group")
+shadow_count = 24
+shadow_scale = 1.5
+shadow_alpha = 0.72
+shadow_color = Color(0.16, 0.2, 0.25, 1)
 
 [node name="CloudShadowWeather" type="Node2D"]
 z_index = 2
 script = ExtResource("1_script")
 shadow_texture = ExtResource("2_shadow")
+cloud_groups = Dictionary[StringName, ExtResource("3_cloud_group")]({
+&"clear": SubResource("CloudGroup_clear"),
+&"cloudy": SubResource("CloudGroup_cloudy")
+})

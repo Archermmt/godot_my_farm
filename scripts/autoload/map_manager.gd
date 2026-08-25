@@ -50,6 +50,7 @@ func register_hosts(
 		(_transition_overlay as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return OK
 
+
 func unregister_hosts(map_host: Node2D) -> void:
 	if map_host != _map_host:
 		return
@@ -63,8 +64,15 @@ func unregister_hosts(map_host: Node2D) -> void:
 	_clear_npc_actors()
 	_transitioning = false
 
+
 func has_registered_hosts() -> bool:
-	return is_instance_valid(_map_host) and is_instance_valid(_actor_host) and is_instance_valid(_ui_layer) and is_instance_valid(_transition_overlay)
+	return (
+		is_instance_valid(_map_host)
+		and is_instance_valid(_actor_host)
+		and is_instance_valid(_ui_layer)
+		and is_instance_valid(_transition_overlay)
+	)
+
 
 func register_player(player: FarmPlayer) -> Error:
 	if player == null:
@@ -74,17 +82,14 @@ func register_player(player: FarmPlayer) -> Error:
 	_player = player
 	return OK
 
+
 func registered_player() -> FarmPlayer:
 	return _player if is_instance_valid(_player) else null
 
-func registered_map_ids() -> Array[StringName]:
-	var ids: Array[StringName] = []
-	ids.assign(MAP_SCENE_PATHS.keys())
-	ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
-	return ids
 
 func current_map() -> BaseMap:
 	return _current_map if is_instance_valid(_current_map) else null
+
 
 func current_map_id() -> StringName:
 	return _current_map.map_id if is_instance_valid(_current_map) else &""
@@ -105,7 +110,12 @@ func apply_loaded_state() -> Error:
 	if replacing:
 		error = _configure_map(target_map, target_id, GameManager.player.spawn_id)
 	else:
-		error = target_map.configure_state(GameManager.maps.get(target_id, null) as MapState, GameManager.world_seed, false)
+		error = target_map.configure_state(
+			GameManager.maps.get(target_id, null) as MapState,
+			GameManager.world_seed,
+			false,
+			_player.trace_delay_for(&"generate")
+		)
 	if error != OK:
 		if replacing and is_instance_valid(target_map):
 			target_map.queue_free()
@@ -115,7 +125,7 @@ func apply_loaded_state() -> Error:
 	if not target_map.map_bounds_world().has_point(position):
 		position = target_map.cell_to_world_center(GameManager.player.cell)
 	_player.global_position = position
-	_player.bind_state(GameManager.player)
+	_player.setup(GameManager.player)
 	if replacing:
 		var old_map := _current_map
 		_current_map = target_map
@@ -127,51 +137,13 @@ func apply_loaded_state() -> Error:
 	EventBus.map_changed.emit(target_id)
 	return OK
 
+
 func is_transitioning() -> bool:
 	return _transitioning
 
 
 func npc_actor_count() -> int:
 	return _npc_actors.size()
-
-
-func npc_actor(npc_id: StringName) -> FarmNpc:
-	return _npc_actors.get(npc_id, null) as FarmNpc
-
-
-func interaction_target_at(cell: Vector2i) -> Node2D:
-	if not is_instance_valid(_current_map):
-		return null
-	var best: Node2D = null
-	var best_distance := INF
-	var cell_position := _current_map.cell_to_world_center(cell)
-	for node: Node in get_tree().get_nodes_in_group("interaction_target"):
-		var target := node as Node2D
-		if target == null or not _current_map.is_ancestor_of(target) or not _target_occupies_cell(target, cell_position):
-			continue
-		var distance := target.global_position.distance_squared_to(_player.global_position)
-		if distance < best_distance:
-			best = target
-			best_distance = distance
-	for actor: FarmNpc in _npc_actors.values():
-		if not is_instance_valid(actor) or _current_map.world_to_cell(actor.global_position) != cell:
-			continue
-		var distance := actor.global_position.distance_squared_to(_player.global_position)
-		if distance < best_distance:
-			best = actor
-			best_distance = distance
-	return best
-
-
-func _target_occupies_cell(target: Node2D, cell_position: Vector2) -> bool:
-	if _current_map.world_to_cell(target.global_position) == _current_map.world_to_cell(cell_position):
-		return true
-	if target is Polygon2D:
-		var polygon := (target as Polygon2D).polygon
-		if polygon.size() >= 3:
-			return Geometry2D.is_point_in_polygon(target.to_local(cell_position), polygon)
-	var tile_size := Vector2(_current_map.get_tile_size())
-	return target.global_position.distance_to(cell_position) <= tile_size.length() * 0.75
 
 
 func can_run_day_transition() -> bool:
@@ -205,6 +177,7 @@ func place_player_at_spawn(spawn_id: StringName) -> Error:
 	_player.state.cell = _current_map.world_to_cell(spawn)
 	return OK
 
+
 func load_initial_map(map_id: StringName, spawn_id: StringName) -> Error:
 	if not has_registered_hosts() or _current_map != null:
 		return ERR_ALREADY_IN_USE
@@ -223,6 +196,7 @@ func load_initial_map(map_id: StringName, spawn_id: StringName) -> Error:
 	EventBus.map_changed.emit(map_id)
 	return OK
 
+
 func request_map_change(map_id: StringName, spawn_id: StringName) -> Error:
 	if not has_registered_hosts() or _current_map == null or _player == null:
 		return ERR_UNCONFIGURED
@@ -236,6 +210,7 @@ func request_map_change(map_id: StringName, spawn_id: StringName) -> Error:
 	call_deferred("_perform_map_change", map_id, spawn_id)
 	return OK
 
+
 func _instantiate_map(map_id: StringName) -> BaseMap:
 	var path: String = str(MAP_SCENE_PATHS.get(map_id, ""))
 	if path.is_empty() or not ResourceLoader.exists(path):
@@ -244,6 +219,7 @@ func _instantiate_map(map_id: StringName) -> BaseMap:
 	if packed == null:
 		return null
 	return packed.instantiate() as BaseMap
+
 
 func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> Error:
 	if map == null or map.map_id != map_id:
@@ -256,7 +232,7 @@ func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> E
 	var error := map.validate_alignment()
 	if error != OK:
 		return error
-	error = map.configure_state(state, GameManager.world_seed, true)
+	error = map.configure_state(state, GameManager.world_seed, true, _player.trace_delay_for(&"generate"))
 	if error != OK:
 		return error
 	var spawn := map.spawn_position(spawn_id)
@@ -269,6 +245,7 @@ func _configure_map(map: BaseMap, map_id: StringName, spawn_id: StringName) -> E
 	_player.state.spawn_id = spawn_id
 	_player.state.cell = map.world_to_cell(spawn)
 	return OK
+
 
 func _perform_map_change(map_id: StringName, spawn_id: StringName) -> void:
 	var next_map := _instantiate_map(map_id)
@@ -413,6 +390,7 @@ func _finish_day_transition(error: Error) -> void:
 		GameManager.cancel_end_day()
 		push_error("[MapManager] day transition failed: %s" % error_string(error))
 
+
 func _finish_failed(map_id: StringName, error: Error) -> void:
 	GameManager.resume(TRANSITION_LOCK)
 	if _player != null:
@@ -469,6 +447,7 @@ func _on_time_advanced(_unit: int, _before: Dictionary, _delta: int) -> void:
 
 func _on_npc_states_changed() -> void:
 	_sync_npc_actors()
+
 
 func _fade(alpha: float) -> void:
 	if _transition_overlay == null:

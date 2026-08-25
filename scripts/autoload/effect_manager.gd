@@ -48,29 +48,12 @@ func configure_definitions(entries: Dictionary[StringName, EffectDefinition]) ->
 	return errors
 
 
-func configure_weather_scenes(entries: Dictionary[StringName, PackedScene]) -> Array[String]:
-	var errors := _validate_weather_scenes(entries)
-	var validated: Dictionary[StringName, PackedScene] = {}
-	if errors.is_empty():
-		config = config.duplicate() as GameConfig
-		validated = entries.duplicate()
-	_weather_scenes_valid = errors.is_empty()
-	if _weather_scenes_valid:
-		config.weather_effect_scenes = validated
-	_refresh_configuration_validity()
-	return errors
-
-
 func is_configured() -> bool:
 	return _configuration_valid
 
 
 func definition_count() -> int:
 	return config.effect_definitions.size()
-
-
-func weather_scene_count() -> int:
-	return config.weather_effect_scenes.size()
 
 
 func play_action(
@@ -92,7 +75,11 @@ func play_action(
 	effect.set_meta("effect_id", effect_id)
 	target_host.add_child(effect)
 	if effect.has_method("configure"):
-		effect.call("configure", effect_id, cells, map)
+		if effect is BurstParticles:
+			var world_position := map.cell_to_world_center(cells[0]) if map != null else Vector2.ZERO
+			effect.call("configure", effect_id, world_position)
+		else:
+			effect.call("configure", effect_id, cells, map)
 	return effect
 
 

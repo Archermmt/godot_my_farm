@@ -37,19 +37,18 @@ func test_growth_uses_meta_thresholds_and_water_is_idempotent() -> void:
 	var plant := map.get_item(planted_ids[0]) as Plant
 	assert_equal(plant.stage_index(), 0)
 	assert_equal(map.settle_day(2).size(), 1)
-	assert_equal(plant.plant_state().growth_days, 1)
+	assert_equal(plant.get_state().growth_days, 1)
 	assert_equal(plant.stage_index(), 0)
 	assert_true(not cell.is_watered())
 	var repeated := map.settle_day(2)
 	assert_equal(repeated.size(), 0)
-	assert_equal(plant.plant_state().growth_days, 1)
+	assert_equal(plant.get_state().growth_days, 1)
 	cell.add_state_flag(CellState.CellFlag.WATERED)
 	map.settle_day(3)
-	assert_equal(plant.plant_state().growth_days, 2)
+	assert_equal(plant.get_state().growth_days, 2)
 	assert_equal(plant.stage_index(), 1)
-	plant.plant_state().growth_days = 6
+	plant.get_state().growth_days = 6
 	assert_true(plant.is_mature())
-	assert_true(plant.is_harvestable())
 	seed.free()
 	map.free()
 

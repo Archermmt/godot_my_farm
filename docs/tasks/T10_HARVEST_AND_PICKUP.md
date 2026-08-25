@@ -22,10 +22,10 @@
 3. 内嵌 HarvestableDrop 使用可注入 RNG，min <= amount <= max；同一个死亡事务不因重试重复掉落。
 4. 成熟 Plant 用 Basket/指定工具收获，产出进入背包或生成 Pickup；格子占用清理，是否保留 dug 状态按数据规则明确。
 5. Tree 根据 Player 相对 x 确定倒向；成熟树死亡生成 stump，stump 可再次用斧处理。动画期间禁止二次命中结算。
-6. Pickup 使用 Area2D 探测 Player，在追踪半径内以 delta 平滑吸附；距离为 0 时不得除零。
+6. Pickup Item 必须在场景中预置 `PickupArea` 和 `CollisionShape2D`；全部拾取配置集中在 Player 场景：`trace_delay` 配置 `drop`、`harvestable` 和 `generate` 的追踪延迟，其中 `generate=0` 表示地图生成物品立即允许追踪；Item 使用单次 Timer 管理延迟，PickupArea 的进入/离开信号启停追踪，Timer 归零且追踪开启后才向 Player 吸附。`pickup_speed_curve` 的横轴表示接近 Player 的归一化程度、纵轴表示吸附速度，且必须配置为越接近速度增长越快的指数曲线；距离为 0 时不得除零。接触范围内的可拾取 Item 始终可以直接拾取。
 7. 拾取先尝试 BackpackState.add_item；全部成功才移除世界节点，部分/满包时剩余数量保留并停止吞物。
 8. 世界 Item 都有稳定 instance ID，可写入 MapState 并恢复。
-9. 工具成功作用于 Harvestable 时，其 StageVisual 使用 Shader 短暂变为纯白后恢复原色，作为明确的命中反馈；每个实例必须拥有独立 ShaderMaterial，禁止一次命中导致同类 Item 同时闪白。错误工具或被拒绝的目标不得播放闪白。
+9. 工具成功作用于 Harvestable 时，其 `Visual` 使用 Shader 短暂变为纯白后恢复原色，作为明确的命中反馈；每个实例必须拥有独立 ShaderMaterial，禁止一次命中导致同类 Item 同时闪白。错误工具或被拒绝的目标不得播放闪白。Visual、PickupArea 和 Obstacle 必须由场景预置，不运行时生成碰撞形状。
 10. 本任务引入的 Harvestable、掉落材料、Food 和剩余 Tool 必须生成并配置 ItemMeta 图标；可拾取物进入背包后使用同一图标显示。
 11. Player 蓄力时在头顶显示 ProgressBar；颜色随 level 从浅黄渐变到深绿，释放、取消或交互失效后立即隐藏。可用档位由当前 ToolMeta 的范围或伤害配置决定。
 12. Hoe、WateringCan、Sickle、Basket 的蓄力扩大作用范围；Pickaxe、Axe 始终只作用于面前 1x1 格，蓄力改为提高单次伤害，默认三档为基础伤害的 1x/2x/3x。
@@ -36,6 +36,7 @@
 - 对同一死亡结果重复 commit 不产生第二份掉落。
 - 固定 seed 得到稳定掉落；不同 seed 仍在边界内。
 - Pickup 距离为 0、正常吸附、满包、部分堆叠。
+- Drop 的 1 秒 trace delay、Harvestable 掉落的 0.5 秒 trace delay、普通地图生成的 0 trace delay；接触拾取不受追踪延迟影响。
 - Tree -> stump -> 清除完整状态和占用变化。
 - 成熟 Plant 收获后 seed/produce/格子数量守恒。
 - 正确工具命中后 Shader 的闪白参数立即置为 1 并自动回落到 0；错误工具不改变参数，两个 Harvestable 实例不共享命中参数。

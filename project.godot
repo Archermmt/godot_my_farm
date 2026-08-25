@@ -24,12 +24,28 @@ boot_splash/show_image=false
 
 EventBus="*res://scripts/autoload/event_bus.gd"
 DataCatalog="*res://scripts/autoload/data_catalog.gd"
+ItemManager="*res://scripts/autoload/item_manager.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
 MapManager="*res://scripts/autoload/map_manager.gd"
 CalendarManager="*res://scripts/autoload/calendar_manager.gd"
 EffectManager="*res://scripts/autoload/effect_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
+Dialogic="*uid://ds2q0uclmolvu"
+InteractManager="*res://scripts/autoload/interact_manager.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+
+[dialogic]
+
+directories/dch_directory={}
+directories/dtl_directory={
+"bed_sleep_confirmation": "res://data/dialogue/bed_sleep_confirmation.dtl",
+"npc_fisher_default": "res://data/dialogue/npc_fisher_default.dtl",
+"npc_ranger_default": "res://data/dialogue/npc_ranger_default.dtl",
+"npc_villager_default": "res://data/dialogue/npc_villager_default.dtl",
+"television_report": "res://data/dialogue/television_report.dtl"
+}
+layout/style_directory={}
+text/input_action="interact"
 
 [display]
 
@@ -42,7 +58,7 @@ window/stretch/scale_mode="integer"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/dialogic/plugin.cfg")
 
 [input]
 

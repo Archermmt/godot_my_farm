@@ -12,10 +12,7 @@ extends Node
 
 
 func generate(
-	map: BaseMap,
-	map_size: Vector2i,
-	world_seed: int,
-	generation_epoch: int
+	map: BaseMap, map_size: Vector2i, world_seed: int, generation_epoch: int, trace_delay_seconds: float = 0.0
 ) -> Dictionary:
 	var summary := {"requested": 0, "spawned": 0, "attempts": 0, "skipped": 0}
 	if map == null or map_size.x <= 0 or map_size.y <= 0 or generation_epoch < 0:
@@ -50,7 +47,11 @@ func generate(
 		summary["requested"] = int(summary["requested"]) + target_count
 		var spawned_for_candidate := 0
 		var attempts := 0
-		while spawned_for_candidate < target_count and attempts < target_count * max_attempts_per_item and not available.is_empty():
+		while (
+			spawned_for_candidate < target_count
+			and attempts < target_count * max_attempts_per_item
+			and not available.is_empty()
+		):
 			attempts += 1
 			summary["attempts"] = int(summary["attempts"]) + 1
 			var available_index := rng.randi_range(0, available.size() - 1)
@@ -61,11 +62,13 @@ func generate(
 			var state := _create_item_state(item_meta)
 			if state == null:
 				continue
-			state.instance_id = StringName("generated_%s_%d_%s_%03d" % [map.map_id, generation_epoch, meta_id, spawned_for_candidate])
+			state.instance_id = StringName(
+				"generated_%s_%d_%s_%03d" % [map.map_id, generation_epoch, meta_id, spawned_for_candidate]
+			)
 			state.meta_id = meta_id
 			state.random_seed = rng.randi()
 			state.flags = [&"generated"]
-			if map.add_item_state(state, coordinates) != OK:
+			if map.add_item_state(state, coordinates, trace_delay_seconds) != OK:
 				continue
 			occupied.append(coordinates)
 			spawned_for_candidate += 1
@@ -82,7 +85,11 @@ func validation_error() -> Error:
 		var candidate := candidates[meta_id]
 		if candidate == null or meta_id == &"" or candidate.required_flags.is_empty():
 			return ERR_INVALID_DATA
-		if candidate.min_count < 0 or candidate.max_count < 0 or (candidate.max_count > 0 and candidate.max_count < candidate.min_count):
+		if (
+			candidate.min_count < 0
+			or candidate.max_count < 0
+			or (candidate.max_count > 0 and candidate.max_count < candidate.min_count)
+		):
 			return ERR_INVALID_DATA
 		if candidate.max_count == 0 and candidate.density <= 0.0:
 			return ERR_INVALID_DATA
@@ -100,11 +107,11 @@ static func _supports_meta(item_meta: ItemMeta) -> bool:
 static func _create_item_state(item_meta: ItemMeta) -> ItemState:
 	if item_meta is PlantMeta:
 		var plant_state := PlantState.new()
-		plant_state.health = (item_meta as PlantMeta).max_health
+		plant_state.health = (item_meta as PlantMeta).health
 		return plant_state
 	if item_meta is HarvestableMeta:
 		var harvestable_state := HarvestableState.new()
-		harvestable_state.health = (item_meta as HarvestableMeta).max_health
+		harvestable_state.health = (item_meta as HarvestableMeta).health
 		return harvestable_state
 	if item_meta != null and not item_meta is ToolMeta and item_meta.can_pickup:
 		return ItemState.new()
@@ -112,10 +119,7 @@ static func _create_item_state(item_meta: ItemMeta) -> ItemState:
 
 
 func _available_cells(
-	map: BaseMap,
-	map_size: Vector2i,
-	safe_cells: Dictionary[Vector2i, bool],
-	candidate: ItemsGeneratorCandidate
+	map: BaseMap, map_size: Vector2i, safe_cells: Dictionary[Vector2i, bool], candidate: ItemsGeneratorCandidate
 ) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var map_bounds := Rect2i(Vector2i.ZERO, map_size)
@@ -128,7 +132,10 @@ func _available_cells(
 		if not _has_all_flags(cell, candidate.required_flags):
 			continue
 		result.append(coordinates)
-	result.sort_custom(func(left: Vector2i, right: Vector2i) -> bool: return left.y < right.y or (left.y == right.y and left.x < right.x))
+	result.sort_custom(
+		func(left: Vector2i, right: Vector2i) -> bool:
+			return left.y < right.y or (left.y == right.y and left.x < right.x)
+	)
 	return result
 
 

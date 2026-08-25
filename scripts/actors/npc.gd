@@ -1,8 +1,6 @@
 class_name FarmNpc
 extends CharacterBody2D
 
-const InteractionResultClass = preload("res://scripts/interaction/interaction_result.gd")
-
 const DIRECTIONS := [&"down", &"left", &"right", &"up"]
 
 var state: NpcState = null
@@ -12,33 +10,6 @@ var target_cell := Vector2i.ZERO
 var target_position := Vector2.ZERO
 var _warning_key: StringName = &""
 var _animation_state: StringName = &""
-
-
-func on_effect_area_entered(effect_area: EffectArea) -> void:
-	var player := effect_area.get_parent() as FarmPlayer
-	var controller := get_tree().get_first_node_in_group("dialogue_controller")
-	if player != null and state == null:
-		return
-	if player != null and controller != null and controller.has_method("show_prompt"):
-		controller.call("show_prompt", self, player)
-
-
-func on_effect_area_exited(effect_area: EffectArea) -> void:
-	var controller := get_tree().get_first_node_in_group("dialogue_controller")
-	if controller != null and controller.has_method("hide_prompt"):
-		controller.call("hide_prompt", self)
-
-func interaction_rejection_reason(_player_state: PlayerState) -> StringName:
-	return &"" if state != null else &"unavailable"
-
-func interaction_prompt() -> String:
-	return "Talk"
-
-func interact(_player: FarmPlayer):
-	match state.npc_id if state != null else &"":
-		&"npc_fisher": return InteractionResultClass.dialogue(&"npc_fisher_default")
-		&"npc_ranger": return InteractionResultClass.dialogue(&"npc_ranger_default")
-		_: return InteractionResultClass.dialogue(&"npc_villager_default")
 
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
@@ -123,6 +94,32 @@ func _set_animation(moving: bool, facing: StringName) -> void:
 	_animation_state = next_state
 	if animation_player.has_animation(next_state):
 		animation_player.play(next_state)
+
+
+func interaction_prompt() -> String:
+	return "Talk"
+
+
+func interact(player: FarmPlayer) -> void:
+	if state == null:
+		EventBus.request_invalid_feedback.emit(&"unavailable")
+		return
+	match state.npc_id if state != null else &"":
+		&"npc_fisher": InteractManager.begin(&"npc_fisher_default", self, player)
+		&"npc_ranger": InteractManager.begin(&"npc_ranger_default", self, player)
+		_: InteractManager.begin(&"npc_villager_default", self, player)
+
+
+func on_effect_area_entered(effect_area: EffectArea) -> void:
+	var player := effect_area.get_parent() as FarmPlayer
+	if player != null and state == null:
+		return
+	if player != null:
+		InteractManager.show_prompt(self, player)
+
+
+func on_effect_area_exited(_effect_area: EffectArea) -> void:
+	InteractManager.hide_prompt(self)
 
 
 func _warn_unreachable(from_cell: Vector2i, to_cell: Vector2i) -> void:

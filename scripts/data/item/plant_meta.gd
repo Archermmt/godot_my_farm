@@ -21,9 +21,3 @@ static func make_stage(
 	stage.state_tags = state_tags.duplicate()
 	stage.drops = drops.duplicate()
 	return stage
-
-
-func mature_day() -> int:
-	if stages.is_empty():
-		return 0
-	return stages[stages.size() - 1].start_day

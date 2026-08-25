@@ -1,0 +1,2 @@
+Dialogic upstream: https://github.com/dialogic-godot/dialogic
+Commit: fd0fa22c335c72583b89b35699f9fb19dd1b4eae

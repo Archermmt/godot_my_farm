@@ -6,6 +6,7 @@ const MAP_PATHS := {
 	&"beach": "res://scenes/maps/beach/beach.tscn",
 }
 
+
 func test_all_maps_have_aligned_layers_and_spawn_points() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
 	for map_id: StringName in [&"beach", &"farm", &"field"]:
@@ -45,10 +46,12 @@ func test_actor_host_renders_above_cell_state_layers() -> void:
 	assert_equal(actor_host.z_index, 3)
 	main.free()
 
+
 func test_static_tile_cells_are_serialized_in_map_scenes() -> void:
 	for map_id: StringName in [&"beach", &"farm", &"field"]:
 		var source := FileAccess.get_file_as_string(MAP_PATHS[map_id])
 		assert_true(source.contains("tile_map_data = PackedByteArray"), "%s has no authored TileMap cells" % map_id)
+
 
 func test_flag_layers_apply_flags_to_every_authored_cell() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
@@ -60,8 +63,12 @@ func test_flag_layers_apply_flags_to_every_authored_cell() -> void:
 			var flag: CellState.CellFlag = map.cell_flags[layer]
 			assert_true(not layer.get_used_cells().is_empty(), "%s/%s flag layer is empty" % [map_id, layer.name])
 			for coordinates: Vector2i in layer.get_used_cells():
-				assert_true(map.get_cell(coordinates).has_static_flag(flag), "%s/%s did not apply flag at %s" % [map_id, layer.name, coordinates])
+				assert_true(
+					map.get_cell(coordinates).has_static_flag(flag),
+					"%s/%s did not apply flag at %s" % [map_id, layer.name, coordinates]
+				)
 		map.free()
+
 
 func test_farm_coordinate_round_trip_and_cell_flags() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
@@ -94,6 +101,7 @@ func test_farm_diggable_ground_uses_a_distinct_visible_tile() -> void:
 		assert_equal(layer.get_cell_atlas_coords(coordinates), Vector2i(4, 0))
 	assert_equal(layer.get_cell_source_id(Vector2i.ZERO), -1)
 	farm.free()
+
 
 func test_dynamic_cell_state_is_not_tilemap_authority() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
@@ -141,7 +149,7 @@ func test_hoe_immediately_waters_newly_dug_cell_during_rain() -> void:
 	assert_equal(farm.configure_state(map_state), OK)
 	var hoe_meta := ToolMeta.new()
 	hoe_meta.tool_kind = ToolMeta.ToolKind.HOE
-	hoe_meta.base_stamina_cost = 1
+	hoe_meta.base_energy_cost = 1
 	var hoe := Tool.new(hoe_meta)
 	var coordinates := Vector2i(8, 10)
 	var outcome := hoe.use(farm, [coordinates], 10) as CellToolOutcome
@@ -163,15 +171,15 @@ func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
 	map_state.map_id = &"farm"
 	assert_equal(farm.configure_state(map_state), OK)
 	var player_state := PlayerState.new()
-	player_state.set_stamina(10)
+	player_state.energy = 10
 	var coordinates := Vector2i(8, 10)
 	var hoe := Tool.new(DataCatalog.get_item(&"hoe") as ToolMeta)
-	var hoe_result := hoe.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
+	var hoe_result := hoe.use(farm, [coordinates], player_state.energy) as CellToolOutcome
 	assert_true(hoe_result.succeeded())
 	assert_equal(hoe_result.projection_error, OK)
-	player_state.set_stamina(player_state.stamina - hoe_result.stamina_spent)
+	player_state.energy -= hoe_result.energy_spent
 	var watering_can := Tool.new(DataCatalog.get_item(&"watering_can") as ToolMeta)
-	var water_result := watering_can.use(farm, [coordinates], player_state.stamina) as CellToolOutcome
+	var water_result := watering_can.use(farm, [coordinates], player_state.energy) as CellToolOutcome
 	assert_true(water_result.succeeded())
 	assert_equal(water_result.projection_error, OK)
 	assert_true(map_state.cells[coordinates].flags & CellState.CellFlag.DUG)
@@ -191,6 +199,7 @@ func test_tool_transaction_persists_and_rebuilds_farm_cell_projection() -> void:
 	hoe.free()
 	watering_can.free()
 	farm.free()
+
 
 func test_base_map_restores_and_operates_on_state_dtos() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
@@ -213,9 +222,9 @@ func test_base_map_restores_and_operates_on_state_dtos() -> void:
 	assert_true(farm.get_cell(Vector2i(5, 9)).is_dug())
 	assert_true(farm.items[&"crop_5_9"] is Plant)
 	assert_true(farm.items[&"crop_5_9"].state == persisted_item)
-	assert_true((farm.items[&"crop_5_9"] as Plant).plant_state() == persisted_item)
-	assert_true((farm.items[&"crop_5_9"] as Plant).plant_meta() is PlantMeta)
-	assert_true((farm.items[&"crop_5_9"] as Plant).plant_meta() == farm.items[&"crop_5_9"].meta)
+	assert_true((farm.items[&"crop_5_9"] as Plant).get_state() == persisted_item)
+	assert_true((farm.items[&"crop_5_9"] as Plant).get_meta() is PlantMeta)
+	assert_true((farm.items[&"crop_5_9"] as Plant).get_meta() == farm.items[&"crop_5_9"].meta)
 	assert_equal(farm.move_item(persisted_item.instance_id, Vector2i(6, 9)), OK)
 	assert_equal(persisted_item.cell, Vector2i(6, 9))
 	assert_true(not farm.get_cell(Vector2i(5, 9)).has_item(persisted_item.instance_id))
@@ -228,6 +237,7 @@ func test_base_map_restores_and_operates_on_state_dtos() -> void:
 	assert_true(not farm.get_cell(Vector2i(5, 9)).is_dug())
 	assert_true(farm.items.is_empty())
 	farm.free()
+
 
 func test_each_map_owns_a_distinct_tilemap_hierarchy() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
@@ -271,7 +281,7 @@ func test_each_map_owns_a_distinct_tilemap_hierarchy() -> void:
 	var plant := farm.get_item(plant_state.instance_id)
 	assert_true(plant.get_parent() == farm.get_node("MapItems/Plants"))
 	assert_true(plant is Plant)
-	assert_true((plant as Plant).plant_state() == plant_state)
+	assert_true((plant as Plant).get_state() == plant_state)
 	assert_equal(plant.item_id(), plant_state.instance_id)
 	assert_equal(farm.item_count(), 1)
 	farm.free()
@@ -330,13 +340,16 @@ func test_farm_house_has_authored_layers_door_furniture_and_indoor_behavior() ->
 	scene_tree.root.add_child(player)
 	house.set_interaction_enabled(true)
 	house._on_body_entered(player)
-	assert_true(not house.roof_layer.visible)
-	assert_equal(player.camera.zoom, GameManager.config.indoor_camera_zoom)
+	assert_true(house.roof_layer.visible)
+	assert_true(house.roof_layer.modulate.a < 1.0)
+	assert_equal(player.camera.zoom, player.indoor_camera_zoom)
 	house._on_body_exited(player)
 	assert_true(house.roof_layer.visible)
+	assert_equal(house.roof_layer.modulate.a, 1.0)
 	assert_equal(player.camera.zoom, Vector2.ONE)
 	player.free()
 	farm.free()
+
 
 func test_base_map_item_helpers_handle_missing_values() -> void:
 	var base_map := BaseMap.new()
@@ -369,7 +382,7 @@ func test_base_map_rejects_meta_state_mismatch() -> void:
 	assert_equal(field.add_item_state(harvestable, Vector2i(5, 9)), OK)
 	var runtime_item := field.get_item(harvestable.instance_id)
 	assert_true(runtime_item is Harvestable)
-	assert_true((runtime_item as Harvestable).harvestable_state() == harvestable)
-	assert_true((runtime_item as Harvestable).harvestable_meta() is HarvestableMeta)
-	assert_true((runtime_item as Harvestable).harvestable_meta() == runtime_item.meta)
+	assert_true((runtime_item as Harvestable).get_state() == harvestable)
+	assert_true((runtime_item as Harvestable).get_meta() is HarvestableMeta)
+	assert_true((runtime_item as Harvestable).get_meta() == runtime_item.meta)
 	field.free()

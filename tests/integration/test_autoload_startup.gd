@@ -3,6 +3,7 @@ extends ProjectTestCase
 const EXPECTED_AUTOLOAD_ORDER: Array[String] = [
 	"EventBus",
 	"DataCatalog",
+	"ItemManager",
 	"GameManager",
 	"MapManager",
 	"CalendarManager",
@@ -30,9 +31,9 @@ func test_autoload_definitions_and_new_game_are_ready() -> void:
 	assert_true(GameManager.is_initialized())
 	assert_equal(GameManager.player.map_id, &"farm")
 	assert_equal(GameManager.player.spawn_id, &"default")
-	assert_equal(GameManager.player.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
-	assert_equal(GameManager.player.backpack_state.count_item(&"toolbar", &"hoe"), 1)
-	assert_equal(GameManager.used_inventory_slots(), 0)
+	assert_equal(GameManager.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(GameManager.backpack_state.count_item(&"toolbar", &"hoe"), 1)
+	assert_equal(GameManager.backpack_state.used_slot_count(&"main_space"), 0)
 	assert_true(GameManager.can_snapshot())
 
 
@@ -54,4 +55,4 @@ func test_configurable_managers_load_shared_game_config() -> void:
 	assert_equal(AudioManager.config.sfx_pool_limit, 10)
 	assert_true(EffectManager.is_configured())
 	assert_equal(EffectManager.definition_count(), 7)
-	assert_equal(EffectManager.weather_scene_count(), 4)
+	assert_equal(EffectManager.config.weather_effect_scenes.size(), 4)

@@ -61,14 +61,14 @@ func test_default_game_configuration_exposes_season_specific_weights() -> void:
 		assert_true(CalendarManager.weather_icon(weather_id) != null)
 
 
-func test_skip_day_selects_weather_once_for_the_new_date() -> void:
+func test_request_end_day_selects_weather_once_for_the_new_date() -> void:
 	var saved_snapshot := GameManager.build_snapshot()
 	var before_calendar := GameManager.calendar.to_dict()
 	var weather_events: Array[StringName] = []
 	var capture := func(weather_id: StringName, _previous_weather_id: StringName) -> void:
 		weather_events.append(weather_id)
 	EventBus.weather_changed.connect(capture, CONNECT_ONE_SHOT)
-	assert_equal(GameManager.skip_day(), OK)
+	assert_equal(GameManager.request_end_day(), OK)
 	assert_true(GameManager.calendar.to_dict() != before_calendar)
 	assert_equal(weather_events.size(), 1)
 	assert_equal(weather_events[0], CalendarManager.current_weather_id())

@@ -2,14 +2,7 @@ class_name CloudShadowWeatherEffect
 extends Node2D
 
 @export var shadow_texture: Texture2D
-@export_range(1, 64, 1) var clear_shadow_count: int = 12
-@export_range(1, 64, 1) var cloudy_shadow_count: int = 24
-@export_range(0.2, 3.0, 0.05) var clear_shadow_scale: float = 0.9
-@export_range(0.2, 3.0, 0.05) var cloudy_shadow_scale: float = 1.5
-@export_range(0.05, 0.8, 0.01) var clear_shadow_alpha: float = 0.34
-@export_range(0.05, 1.0, 0.01) var cloudy_shadow_alpha: float = 0.72
-@export var clear_shadow_color: Color = Color(0.38, 0.43, 0.48, 1.0)
-@export var cloudy_shadow_color: Color = Color(0.16, 0.20, 0.25, 1.0)
+@export var cloud_groups: Dictionary[StringName, CloudGroup] = {}
 @export_range(0.0, 0.35, 0.01) var shape_variation: float = 0.18
 @export_range(0.0, 30.0, 0.5) var drift_speed: float = 5.0
 
@@ -25,11 +18,14 @@ func configure(weather_id: StringName, map: BaseMap) -> void:
 	_rng.seed = hash([weather_id, map.name])
 	for child: Node in get_children():
 		child.queue_free()
-	var is_cloudy := weather_id == &"cloudy"
-	var count := cloudy_shadow_count if is_cloudy else clear_shadow_count
-	var shadow_scale := cloudy_shadow_scale if is_cloudy else clear_shadow_scale
-	var shadow_alpha := cloudy_shadow_alpha if is_cloudy else clear_shadow_alpha
-	var shadow_color := cloudy_shadow_color if is_cloudy else clear_shadow_color
+	var group := cloud_groups.get(weather_id, null) as CloudGroup
+	if group == null:
+		queue_free()
+		return
+	var count := group.shadow_count
+	var shadow_scale := group.shadow_scale
+	var shadow_alpha := group.shadow_alpha
+	var shadow_color := group.shadow_color
 	var columns := maxi(1, ceili(sqrt(float(count) * _bounds.size.x / maxf(_bounds.size.y, 1.0))))
 	var rows := maxi(1, ceili(float(count) / float(columns)))
 	var spacing := Vector2(_bounds.size.x / float(columns), _bounds.size.y / float(rows))

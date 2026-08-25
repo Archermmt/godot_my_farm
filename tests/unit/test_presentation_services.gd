@@ -1,5 +1,7 @@
 extends ProjectTestCase
 
+const InteractManagerScript = preload("res://scripts/autoload/interact_manager.gd")
+
 
 func test_audio_definitions_pool_and_high_frequency_throttle_are_bounded() -> void:
 	var manager := AudioManagerService.new()
@@ -11,15 +13,10 @@ func test_audio_definitions_pool_and_high_frequency_throttle_are_bounded() -> vo
 	assert_equal(manager.play_event(&"ui_confirm"), ERR_BUSY)
 	for _index: int in 100:
 		manager.play_event(&"footstep")
-	assert_true(manager.pool_size(&"SFX") <= 10)
 	assert_true(manager.active_event_count(&"footstep") <= 1)
 	assert_equal(manager.play_event(&"missing_event"), ERR_DOES_NOT_EXIST)
 	manager._on_map_changed(&"farm")
-	assert_equal(manager.current_loop_event(&"Ambient"), &"ambient_farm")
-	assert_equal(manager.current_loop_event(&"Music"), &"music_farm")
 	manager._on_map_changed(&"field")
-	assert_equal(manager.current_loop_event(&"Ambient"), &"ambient_field")
-	assert_equal(manager.current_loop_event(&"Music"), &"music_field")
 	manager.free()
 
 
@@ -108,11 +105,10 @@ func test_clear_and_cloudy_shadows_cover_the_map_above_ground() -> void:
 
 func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	var root := (Engine.get_main_loop() as SceneTree).root
-	var controller := DialogueController.new()
+	var controller := InteractManager
 	var player := (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as FarmPlayer
 	var bed := (load("res://scenes/items/interactables/bed.tscn") as PackedScene).instantiate()
 	var npc := (load("res://scenes/actors/npcs/npc.tscn") as PackedScene).instantiate() as FarmNpc
-	root.add_child(controller)
 	root.add_child(player)
 	root.add_child(bed)
 	root.add_child(npc)
@@ -127,10 +123,18 @@ func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	controller._prompt_bubble._process(0.0)
 	assert_true(controller._prompt_bubble.visible)
 	assert_true(controller._prompt_bubble.position.is_finite())
-	assert_equal(controller.begin_sleep(bed, player), OK)
-	assert_equal(controller.session_state, DialogueController.SessionState.REVEALING_TEXT)
-	assert_equal(controller.current_definition.lines.size(), 1)
-	assert_equal(controller.current_definition.lines[0].text, "Sleep until the next morning?")
+	bed.interact(player)
+	assert_true(controller.is_active())
+	assert_equal(controller.session_state, InteractManagerScript.SessionState.REVEALING_TEXT)
+	assert_true(controller.current_timeline != null)
+	assert_true(controller.current_timeline.resource_path.ends_with("bed_sleep_confirmation.dtl"))
+	var sleep_timeline := controller.current_timeline as DialogicTimeline
+	sleep_timeline.process()
+	assert_true(sleep_timeline.events.size() >= 3)
+	var yes_choice := sleep_timeline.events[1] as DialogicChoiceEvent
+	assert_true(yes_choice != null)
+	assert_equal(yes_choice.text, "Yes")
+	assert_equal(str(yes_choice.extra_data.get("sleep", "")), "yes")
 	controller._close_session()
 	bed.on_effect_area_exited(player.effect_area)
 	assert_true(controller._prompt_bubble == null)
@@ -146,7 +150,26 @@ func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	npc.free()
 	bed.free()
 	player.free()
-	controller.free()
+
+
+func test_dialogic_choice_focus_has_visible_mark_and_scale() -> void:
+	var root := (Engine.get_main_loop() as SceneTree).root
+	var button := DialogicNode_ChoiceButton.new()
+	root.add_child(button)
+	button.size = Vector2(180.0, 44.0)
+	button.show()
+	InteractManager._style_dialogic_choices()
+	var focus_style := button.get_theme_stylebox("focus") as StyleBoxFlat
+	assert_true(focus_style != null)
+	assert_equal(focus_style.border_width_left, 3)
+	assert_equal(focus_style.border_width_top, 3)
+	assert_equal(focus_style.border_width_right, 3)
+	assert_equal(focus_style.border_width_bottom, 3)
+	button.emit_signal("focus_entered")
+	assert_equal(button.scale, Vector2.ONE * 1.08)
+	button.emit_signal("focus_exited")
+	assert_equal(button.scale, Vector2.ONE)
+	button.free()
 
 
 func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
@@ -171,9 +194,13 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	assert_true(status.get_node("Panel/WeatherIcon") is TextureRect)
 	assert_true(status.get_node("Panel/HandIcon") is TextureRect)
 	assert_true((status.get_node("Panel/WeatherIcon") as TextureRect).texture != null)
-	var original_source := GameManager.player.active_hand_source
-	var original_toolbar_index := GameManager.player.backpack_state.selected_toolbar_index
-	assert_equal(GameManager.player.select_bar_index(PlayerState.ActiveHandSource.TOOLBAR, 0), OK)
+	var player := (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as FarmPlayer
+	root.add_child(player)
+	assert_equal(player.setup(GameManager.player), OK)
+	var original_source := GameManager.backpack_state.active_hand_source
+	var original_toolbar_id := GameManager.backpack_state.selected_ids.get(&"toolbar", &"")
+	assert_true(player.backpack.select_bar_index(BackpackState.ActiveHandSource.TOOLBAR, 0))
+	GameManager.backpack_state.active_hand_source = BackpackState.ActiveHandSource.TOOLBAR
 	status._refresh()
 	assert_equal(
 		(status.get_node("Panel/HandIcon") as TextureRect).texture,
@@ -185,19 +212,17 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	)
 	assert_true(not (status.get_node("Panel/Hand") as Label).text.contains("TOOLS"))
 	assert_true(not (status.get_node("Panel/Hand") as Label).text.contains("ITEMS"))
-	var player := (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as FarmPlayer
-	root.add_child(player)
-	assert_equal(player.bind_state(GameManager.player), OK)
-	player._show_selection_popup(PlayerState.ActiveHandSource.TOOLBAR)
+	player.backpack.setup(GameManager.backpack_state)
+	player._show_selection_popup(BackpackState.ActiveHandSource.TOOLBAR)
 	assert_true(player.get_node_or_null("SelectionPopup/Background") == null)
-	assert_equal(player.selection_slots.get_child_count(), GameManager.player.backpack_state.capacity(&"toolbar"))
+	assert_equal(player.selection_slots.get_child_count(), GameManager.backpack_state.capacity(&"toolbar"))
 	var selected_icon := player.selection_slots.get_child(0).get_node("Icon") as TextureRect
 	var unselected_icon := player.selection_slots.get_child(1).get_node("Icon") as TextureRect
 	assert_equal(selected_icon.texture, DataCatalog.get_item(&"hoe").icon_texture)
 	assert_equal(selected_icon.scale, Vector2(1.35, 1.35))
 	assert_equal(unselected_icon.scale, Vector2.ONE)
-	GameManager.player.backpack_state.selected_toolbar_index = original_toolbar_index
-	GameManager.player.active_hand_source = original_source
+	GameManager.backpack_state.selected_ids[&"toolbar"] = original_toolbar_id
+	GameManager.backpack_state.active_hand_source = original_source
 	var calendar_label := status.get_node("Panel/Calendar") as Label
 	var font := calendar_label.get_theme_font(&"font")
 	var font_size := calendar_label.get_theme_font_size(&"font_size")

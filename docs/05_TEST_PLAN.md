@@ -91,7 +91,7 @@ godot --headless --path . --quit
 |---|---|---|
 | E01 启动 | 从主场景进入小屋 | 非空、Player/HUD/时钟可见、无错误 |
 | E02 移动和碰撞 | 四方向、对角、Shift 慢走、撞墙 | 动画/朝向正确，无抖动/穿墙 |
-| E03 Toolbar/Itembar | 纯键盘切换 6 工具和种子 | Player 头顶对应 bar 高亮唯一、HUD/Hands 匹配、同一时间只有一个 active stack |
+| E03 Toolbar/Itembar | 纯键盘切换 6 工具和种子 | Player 头顶对应 bar 高亮唯一、HUD/Hands 匹配、同一时间只有一个 active slot |
 | E04 农事 | 翻地、播种、浇水 | 三种光标、TileMap 对齐、行动反馈明确 |
 | E05 蓄力 | 按住到多级再释放 | 范围逐级扩大，只提交一次 |
 | E06 采集 | 斧/镐/镰刀作用匹配对象 | 错工具无效，正确工具有受击/掉落/吸附 |

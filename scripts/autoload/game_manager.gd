@@ -9,6 +9,7 @@ const SAVE_FILE_TEMPLATE := SAVE_DIRECTORY + "/slot_%d.json"
 var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
 
 var player: PlayerState = null
+var backpack_state: BackpackState = null
 var maps: Dictionary[StringName, MapState] = {}
 var npcs: Dictionary[StringName, NpcState] = {}
 var world_seed: int = 0
@@ -80,11 +81,14 @@ func new_game(p_seed: int) -> Error:
 	if not DataCatalog.is_ready_for_game():
 		return ERR_UNCONFIGURED
 
-	var next_player := PlayerState.new()
-	var player_error := next_player.initialize(config.player_state_template)
-	if player_error != OK:
-		return player_error
-	if not _validate_player_containers(next_player):
+	var next_player := _create_player_state(true)
+	if next_player == null:
+		return ERR_INVALID_DATA
+	var next_backpack := _create_backpack_state()
+	if next_backpack == null:
+		return ERR_UNCONFIGURED
+	next_backpack.ensure_layout()
+	if not _validate_player_containers(next_backpack):
 		return ERR_INVALID_DATA
 
 	var next_maps: Dictionary[StringName, MapState] = {}
@@ -94,6 +98,7 @@ func new_game(p_seed: int) -> Error:
 		next_maps[map_id] = map_state
 
 	player = next_player
+	backpack_state = next_backpack
 	maps = next_maps
 	npcs = {}
 	world_seed = p_seed
@@ -107,13 +112,68 @@ func new_game(p_seed: int) -> Error:
 	_ending_day = false
 	_initialized = true
 	EventBus.player_state_changed.emit(player)
-	print("[GameManager] new game | seed=%d map=%s inventory=%d/%d" % [
-		world_seed,
-		player.map_id,
-		player.used_slot_count(),
-		player.backpack_state.capacity(&"inventory") + player.backpack_state.capacity(&"toolbar") + player.backpack_state.capacity(&"itembar"),
-	])
+	print(
+		(
+			"[GameManager] new game | seed=%d map=%s inventory=%d/%d"
+			% [
+				world_seed,
+				player.map_id,
+				backpack_state.used_slot_count(&"main_space")
+					+ backpack_state.used_slot_count(&"toolbar")
+					+ backpack_state.used_slot_count(&"itembar"),
+				(
+					backpack_state.capacity(&"main_space")
+					+ backpack_state.capacity(&"toolbar")
+					+ backpack_state.capacity(&"itembar")
+				),
+			]
+		)
+	)
 	return OK
+
+
+func _create_backpack_state(allow_legacy_template: bool = true) -> BackpackState:
+	if config == null:
+		return null
+	if allow_legacy_template and config.backpack_state_template != null:
+		return config.backpack_state_template.duplicate(true) as BackpackState
+	var state := BackpackState.new(
+		config.backpack_main_space_capacity,
+		config.backpack_toolbar_capacity,
+		config.backpack_itembar_capacity
+	)
+	for slot_id: StringName in config.backpack_initial_slots:
+		var slot := config.backpack_initial_slots[slot_id] as BackpackSlot
+		if slot != null:
+			state.slots[slot_id] = slot.duplicate_slot()
+	state.ensure_layout()
+	return state
+
+
+func _create_player_state(allow_legacy_template: bool = true) -> PlayerState:
+	if config == null:
+		return null
+	if allow_legacy_template and config.player_state_template != null:
+		return config.player_state_template.duplicate(true) as PlayerState
+	var state := PlayerState.new()
+	state.map_id = config.player_map_id
+	state.spawn_id = config.player_spawn_id
+	state.cell = config.player_cell
+	state.facing = config.player_facing
+	state.max_health = config.player_max_health
+	state.health = clampi(config.player_initial_health, 0, state.max_health)
+	state.max_energy = config.player_max_energy
+	state.energy = clampi(config.player_initial_energy, 0, state.max_energy)
+	state.gold = maxi(0, config.player_initial_gold)
+	state.run_speed = config.player_run_speed
+	state.walk_speed = config.player_walk_speed
+	state.pickup_radius = config.player_pickup_radius
+	state.pickup_collect_distance = config.player_pickup_collect_distance
+	state.trace_delay = config.player_trace_delay.duplicate(true)
+	state.pickup_speed_curve = config.player_pickup_speed_curve
+	state.indoor_camera_zoom = config.player_indoor_camera_zoom
+	state.camera_zoom_duration = config.player_camera_zoom_duration
+	return state
 
 
 func is_initialized() -> bool:
@@ -122,6 +182,7 @@ func is_initialized() -> bool:
 
 func reset() -> void:
 	player = null
+	backpack_state = null
 	maps.clear()
 	npcs.clear()
 	world_seed = 0
@@ -168,10 +229,6 @@ func is_paused() -> bool:
 
 func can_advance() -> bool:
 	return _running and not is_paused()
-
-
-func skip_day() -> Error:
-	return request_end_day()
 
 
 func advance_minutes(minutes: int) -> Error:
@@ -222,10 +279,6 @@ func cancel_end_day() -> void:
 	_ending_day = false
 
 
-func is_ending_day() -> bool:
-	return _ending_day
-
-
 func _complete_day() -> void:
 	var previous_day := calendar.day
 	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
@@ -267,23 +320,30 @@ func snapshot() -> Dictionary:
 	npc_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
 	for npc_id: StringName in npc_ids:
 		npc_data.append(npcs[npc_id].to_dict())
-	return {
-		"game_version": game_version,
-		"world_seed": world_seed,
-		"current_slot": current_slot,
-		"player": player.to_dict(),
-		"maps": map_data,
-		"npcs": npc_data,
-	}.duplicate(true)
+	return (
+		{
+			"game_version": game_version,
+			"world_seed": world_seed,
+			"current_slot": current_slot,
+			"player": player.to_dict(),
+			"backpack": backpack_state.to_dict(),
+			"maps": map_data,
+			"npcs": npc_data,
+		}
+		. duplicate(true)
+	)
 
 
 func time_snapshot() -> Dictionary:
-	return {
-		"calendar": calendar.to_dict(),
-		"time_scale": time_scale,
-		"running": _running,
-		"pause_reasons": SerializationUtil.string_name_array_to_strings(pause_reasons()),
-	}.duplicate(true)
+	return (
+		{
+			"calendar": calendar.to_dict(),
+			"time_scale": time_scale,
+			"running": _running,
+			"pause_reasons": SerializationUtil.string_name_array_to_strings(pause_reasons()),
+		}
+		. duplicate(true)
+	)
 
 
 func can_snapshot() -> bool:
@@ -293,27 +353,35 @@ func can_snapshot() -> bool:
 func build_snapshot() -> Dictionary:
 	if not can_snapshot():
 		return {}
-	return {
-		"game": snapshot(),
-		"time": time_snapshot(),
-	}.duplicate(true)
+	return (
+		{
+			"game": snapshot(),
+			"time": time_snapshot(),
+		}
+		. duplicate(true)
+	)
 
 
 func save_path(slot: int = 0) -> String:
 	return "%s/slot_%d.json" % [save_directory, maxi(0, slot)]
 
 
-func save_exists(slot: int = 0) -> bool:
-	return FileAccess.file_exists(save_path(slot))
-
-
 func replace_build_snapshot(data: Dictionary) -> Error:
-	if not SerializationUtil.has_valid_dictionary(data, "game") or not SerializationUtil.has_valid_dictionary(data, "time"):
+	if (
+		not SerializationUtil.has_valid_dictionary(data, "game")
+		or not SerializationUtil.has_valid_dictionary(data, "time")
+	):
 		return ERR_INVALID_DATA
 	var time_data := data.get("time", {}) as Dictionary
 	var next_calendar := CalendarState.from_dict(time_data.get("calendar", {}) as Dictionary)
 	var raw_time_scale: Variant = time_data.get("time_scale", config.initial_time_scale)
-	if next_calendar == null or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT) or float(raw_time_scale) <= 0.0 or not SerializationUtil.has_valid_bool(time_data, "running") or not SerializationUtil.has_valid_array(time_data, "pause_reasons"):
+	if (
+		next_calendar == null
+		or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT)
+		or float(raw_time_scale) <= 0.0
+		or not SerializationUtil.has_valid_bool(time_data, "running")
+		or not SerializationUtil.has_valid_array(time_data, "pause_reasons")
+	):
 		return ERR_INVALID_DATA
 	var next_pause_reasons: Dictionary[StringName, bool] = {}
 	for raw_reason: Variant in time_data.get("pause_reasons", []) as Array:
@@ -362,7 +430,11 @@ func load_slot(slot: int = 0) -> Error:
 	if not FileAccess.file_exists(save_path(slot)):
 		_notify_save_error("NO SAVE FOUND")
 		return ERR_FILE_NOT_FOUND
-	if self == GameManager and is_instance_valid(MapManager) and (MapManager.is_transitioning() or _dialogue_is_active()):
+	if (
+		self == GameManager
+		and is_instance_valid(MapManager)
+		and (MapManager.is_transitioning() or _dialogue_is_active())
+	):
 		return ERR_BUSY
 	var file := FileAccess.open(save_path(slot), FileAccess.READ)
 	if file == null:
@@ -401,12 +473,15 @@ func _write_save_file(slot: int) -> Error:
 	var snapshot_data := build_snapshot()
 	if snapshot_data.is_empty():
 		return ERR_UNAVAILABLE
-	var envelope := {
-		"schema_version": SAVE_SCHEMA_VERSION,
-		"saved_at": Time.get_datetime_string_from_system(true),
-		"game_version": game_version,
-		"snapshot": snapshot_data,
-	}.duplicate(true)
+	var envelope := (
+		{
+			"schema_version": SAVE_SCHEMA_VERSION,
+			"saved_at": Time.get_datetime_string_from_system(true),
+			"game_version": game_version,
+			"snapshot": snapshot_data,
+		}
+		. duplicate(true)
+	)
 	var save_directory_path := ProjectSettings.globalize_path(save_directory)
 	var directory_error := DirAccess.make_dir_recursive_absolute(save_directory_path)
 	if directory_error != OK and not DirAccess.dir_exists_absolute(save_directory_path):
@@ -432,7 +507,12 @@ func _write_save_file(slot: int) -> Error:
 
 func _migrate_save(envelope: Dictionary) -> Dictionary:
 	var raw_version: Variant = envelope.get("schema_version", null)
-	if (typeof(raw_version) != TYPE_INT and typeof(raw_version) != TYPE_FLOAT) or int(raw_version) != raw_version or int(raw_version) > SAVE_SCHEMA_VERSION or int(raw_version) < 1:
+	if (
+		(typeof(raw_version) != TYPE_INT and typeof(raw_version) != TYPE_FLOAT)
+		or int(raw_version) != raw_version
+		or int(raw_version) > SAVE_SCHEMA_VERSION
+		or int(raw_version) < 1
+	):
 		return {}
 	var snapshot_data: Variant = envelope.get("snapshot", null)
 	if typeof(snapshot_data) != TYPE_DICTIONARY:
@@ -451,24 +531,30 @@ func _notify_save_error(message: String) -> void:
 func _dialogue_is_active() -> bool:
 	if not is_inside_tree():
 		return false
-	var controller := get_tree().get_first_node_in_group("dialogue_controller")
+	var controller := get_tree().get_first_node_in_group("interact_manager") if is_inside_tree() else null
 	return controller != null and controller.has_method("is_active") and bool(controller.call("is_active"))
 
 
 func replace_snapshot(data: Dictionary) -> Error:
 	if not SerializationUtil.has_valid_string(data, "game_version"):
 		return ERR_INVALID_DATA
-	if not SerializationUtil.has_valid_int(data, "world_seed") or not SerializationUtil.has_valid_int(data, "current_slot"):
+	if (
+		not SerializationUtil.has_valid_int(data, "world_seed")
+		or not SerializationUtil.has_valid_int(data, "current_slot")
+	):
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_dictionary(data, "player"):
+		return ERR_INVALID_DATA
+	if not SerializationUtil.has_valid_dictionary(data, "backpack"):
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_array(data, "maps") or not SerializationUtil.has_valid_array(data, "npcs"):
 		return ERR_INVALID_DATA
 
-	var next_player := PlayerState.from_dict(data.get("player", {}) as Dictionary)
+	var next_player := PlayerState.from_dict(data.get("player", {}) as Dictionary, _create_player_state(false))
 	if next_player == null:
 		return ERR_INVALID_DATA
-	if not _validate_player_containers(next_player):
+	var next_backpack := BackpackState.from_dict(data.get("backpack", {}) as Dictionary)
+	if next_backpack == null or not _validate_player_containers(next_backpack):
 		return ERR_INVALID_DATA
 	var next_maps: Dictionary[StringName, MapState] = {}
 	for raw_map: Variant in data.get("maps", []) as Array:
@@ -490,6 +576,7 @@ func replace_snapshot(data: Dictionary) -> Error:
 		next_npcs[npc_state.npc_id] = npc_state
 
 	player = next_player
+	backpack_state = next_backpack
 	maps = next_maps
 	npcs = next_npcs
 	world_seed = int(data.get("world_seed", 0))
@@ -501,11 +588,17 @@ func replace_snapshot(data: Dictionary) -> Error:
 
 
 func sync_calendar_season() -> void:
-	if self != GameManager or calendar == null or not is_instance_valid(CalendarManager) or not CalendarManager.is_configured():
+	if (
+		self != GameManager
+		or calendar == null
+		or not is_instance_valid(CalendarManager)
+		or not CalendarManager.is_configured()
+	):
 		return
 	var next_season: StringName = CalendarManager.season_id_for_month(calendar.month)
 	if next_season != &"":
 		calendar.set_season(next_season)
+
 
 func set_npc(state: NpcState) -> Error:
 	if state == null or state.npc_id == &"" or state.map_id == &"":
@@ -581,8 +674,20 @@ func npc_assignment(schedule: NpcSchedule) -> Dictionary:
 		return {}
 	var event := npc_active_event(schedule)
 	if event == null:
-		return {"event_id": &"fallback", "map_id": schedule.fallback_map_id, "cell": schedule.fallback_cell, "spawn_id": &"", "behavior_id": schedule.fallback_behavior_id}
-	return {"event_id": event.id, "map_id": event.map_id, "cell": event.target_cell, "spawn_id": event.target_spawn_id, "behavior_id": event.behavior_id}
+		return {
+			"event_id": &"fallback",
+			"map_id": schedule.fallback_map_id,
+			"cell": schedule.fallback_cell,
+			"spawn_id": &"",
+			"behavior_id": schedule.fallback_behavior_id
+		}
+	return {
+		"event_id": event.id,
+		"map_id": event.map_id,
+		"cell": event.target_cell,
+		"spawn_id": event.target_spawn_id,
+		"behavior_id": event.behavior_id
+	}
 
 
 func npc_active_event(schedule: NpcSchedule) -> NpcScheduleEvent:
@@ -597,16 +702,20 @@ func npc_active_event(schedule: NpcSchedule) -> NpcScheduleEvent:
 			matches.append(event)
 			continue
 		var previous := _previous_npc_date()
-		if event.contains_minute(minute, true) and event.matches_date(previous.season_id, previous.month, previous.weekday):
+		if (
+			event.contains_minute(minute, true)
+			and event.matches_date(previous.season_id, previous.month, previous.weekday)
+		):
 			matches.append(event)
 	if matches.is_empty():
 		return null
-	matches.sort_custom(func(left: NpcScheduleEvent, right: NpcScheduleEvent) -> bool:
-		if left.priority != right.priority:
-			return left.priority > right.priority
-		if left.start_minute != right.start_minute:
-			return left.start_minute > right.start_minute
-		return String(left.id) < String(right.id)
+	matches.sort_custom(
+		func(left: NpcScheduleEvent, right: NpcScheduleEvent) -> bool:
+			if left.priority != right.priority:
+				return left.priority > right.priority
+			if left.start_minute != right.start_minute:
+				return left.start_minute > right.start_minute
+			return String(left.id) < String(right.id)
 	)
 	return matches[0]
 
@@ -650,39 +759,31 @@ func _previous_npc_date() -> Dictionary:
 		previous_month = 12 if previous_month == 1 else previous_month - 1
 		previous_day = CalendarState.DAYS_PER_MONTH
 	var season_index := floori(float(previous_month - 1) / 3.0)
-	return {"month": previous_month, "day": previous_day, "weekday": 7 if calendar.weekday == 1 else calendar.weekday - 1, "season_id": CalendarState.SEASONS[season_index]}
+	return {
+		"month": previous_month,
+		"day": previous_day,
+		"weekday": 7 if calendar.weekday == 1 else calendar.weekday - 1,
+		"season_id": CalendarState.SEASONS[season_index]
+	}
 
 
-func startup_summary() -> String:
-	if not _initialized:
-		return "state=not_initialized"
-	return "seed=%d map=%s units=%d slots=%d/%d hp=%d stamina=%d gold=%d" % [
-		world_seed,
-		player.map_id,
-		player.used_slot_count(),
-		player.used_slot_count(),
-		player.backpack_state.capacity(&"inventory") + player.backpack_state.capacity(&"toolbar") + player.backpack_state.capacity(&"itembar"),
-		player.health,
-		player.stamina,
-		player.gold,
-	]
-
-
-func used_inventory_slots() -> int:
-	return player.used_inventory_slots() if player != null else 0
-
-
-func used_slot_count() -> int:
-	return player.used_slot_count() if player != null else 0
-
-
-func _validate_player_containers(next_player: PlayerState) -> bool:
+func _validate_player_containers(next_backpack: BackpackState) -> bool:
 	if not DataCatalog.is_ready_for_game():
 		return false
-	for container_id: StringName in [&"inventory", &"toolbar", &"itembar"]:
-		for index: int in next_player.backpack_state.capacity(container_id):
-			var slot := next_player.backpack_state.get_slot(container_id, index)
+	for container_id: StringName in [&"main_space", &"toolbar", &"itembar"]:
+		for index: int in next_backpack.capacity(container_id):
+			var slot := next_backpack.get_slot(container_id, index)
 			var meta := DataCatalog.get_item(slot.item_id) if slot != null and not slot.is_empty() else null
-			if not next_player.can_container_accept_slot(container_id, slot, meta):
+			if slot != null and not slot.is_empty() and not _container_accepts(container_id, meta):
 				return false
 	return true
+
+
+func _container_accepts(container_id: StringName, meta: ItemMeta) -> bool:
+	if meta == null:
+		return false
+	if container_id == &"toolbar":
+		return meta.is_tool()
+	if container_id == &"itembar":
+		return not meta.is_tool() and not meta is HarvestableMeta
+	return container_id == &"main_space"

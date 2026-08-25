@@ -2,7 +2,7 @@ class_name InventoryUI
 extends Control
 
 const INVENTORY_LOCK := &"inventory"
-const CONTAINER_ORDER: Array[StringName] = [&"toolbar", &"itembar", &"inventory"]
+const CONTAINER_ORDER: Array[StringName] = [&"toolbar", &"itembar", &"main_space"]
 const SLOT_SCENE := preload("res://scenes/ui/inventory_slot.tscn")
 
 var panel_open := false
@@ -87,7 +87,7 @@ func _open_panel() -> void:
 		return
 	panel_open = true
 	focus_container = &"toolbar"
-	focus_index = player.state.backpack_state.selected_toolbar_index
+	focus_index = player.backpack.selected_index(&"toolbar")
 	inventory_panel.visible = true
 	AudioManager.play_event(&"ui_confirm")
 	_refresh_all()
@@ -111,7 +111,11 @@ func _handle_swap() -> void:
 		marked_index = focus_index
 		return
 	var player := MapManager.registered_player()
-	var error := player.exchange_container_slots(marked_container, marked_index, focus_container, focus_index) if player != null else ERR_UNCONFIGURED
+	var error := (
+		player.backpack.exchange_container_slots(marked_container, marked_index, focus_container, focus_index)
+		if player != null and player.backpack != null
+		else ERR_UNCONFIGURED
+	)
 	mode_label.text = "SWAPPED" if error == OK else "INVALID TARGET"
 	if error == OK:
 		AudioManager.play_event(&"ui_confirm")
@@ -123,24 +127,22 @@ func _handle_swap() -> void:
 
 func _confirm_focus() -> void:
 	var player := MapManager.registered_player()
-	if player == null:
+	if player == null or player.backpack == null:
 		return
 	if focus_container == &"toolbar":
-		var error := player.select_bar_index(PlayerState.ActiveHandSource.TOOLBAR, focus_index)
-		if error != OK:
+		if not player.backpack.select_bar_index(BackpackState.ActiveHandSource.TOOLBAR, focus_index):
 			AudioManager.play_event(&"invalid")
 	elif focus_container == &"itembar":
-		var error := player.select_bar_index(PlayerState.ActiveHandSource.ITEMBAR, focus_index)
-		if error != OK:
+		if not player.backpack.select_bar_index(BackpackState.ActiveHandSource.ITEMBAR, focus_index):
 			AudioManager.play_event(&"invalid")
 
 
 func _move_horizontal(direction: int) -> void:
 	var player := MapManager.registered_player()
-	var backpack_state := player.state.backpack_state if player != null else null
+	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
 	if backpack_state == null:
 		return
-	if focus_container == &"inventory":
+	if focus_container == &"main_space":
 		var row_start := floori(float(focus_index) / 10.0) * 10
 		focus_index = row_start + wrapi((focus_index - row_start) + direction, 0, 10)
 	else:
@@ -152,18 +154,18 @@ func _move_vertical(direction: int) -> void:
 	if player == null or player.state == null:
 		return
 	if focus_container == &"toolbar":
-		focus_container = &"inventory" if direction < 0 else &"itembar"
-		focus_index = mini(focus_index, player.state.backpack_state.capacity(focus_container) - 1)
+		focus_container = &"main_space" if direction < 0 else &"itembar"
+		focus_index = mini(focus_index, player.backpack.backpack_state.capacity(focus_container) - 1)
 	elif focus_container == &"itembar":
-		focus_container = &"toolbar" if direction < 0 else &"inventory"
-		focus_index = mini(focus_index, player.state.backpack_state.capacity(focus_container) - 1)
+		focus_container = &"toolbar" if direction < 0 else &"main_space"
+		focus_index = mini(focus_index, player.backpack.backpack_state.capacity(focus_container) - 1)
 	else:
 		var next_index := focus_index + direction * 10
-		if next_index >= 0 and next_index < player.state.backpack_state.capacity(&"inventory"):
+		if next_index >= 0 and next_index < player.backpack.backpack_state.capacity(&"main_space"):
 			focus_index = next_index
 		else:
 			focus_container = &"itembar" if direction < 0 else &"toolbar"
-			focus_index = mini(focus_index % 10, player.state.backpack_state.capacity(focus_container) - 1)
+			focus_index = mini(focus_index % 10, player.backpack.backpack_state.capacity(focus_container) - 1)
 
 
 func _clear_mark(reset_mode: bool = true) -> void:
@@ -185,9 +187,9 @@ func _build_slots(container_id: StringName, parent: Container, count: int) -> vo
 func _ensure_slots(player: FarmPlayer) -> void:
 	if player == null or player.state == null:
 		return
-	_ensure_container_slots(&"toolbar", toolbar_slots, player.state.backpack_state.capacity(&"toolbar"))
-	_ensure_container_slots(&"itembar", itembar_slots, player.state.backpack_state.capacity(&"itembar"))
-	_ensure_container_slots(&"inventory", inventory_slots, player.state.backpack_state.capacity(&"inventory"))
+	_ensure_container_slots(&"toolbar", toolbar_slots, player.backpack.backpack_state.capacity(&"toolbar"))
+	_ensure_container_slots(&"itembar", itembar_slots, player.backpack.backpack_state.capacity(&"itembar"))
+	_ensure_container_slots(&"main_space", inventory_slots, player.backpack.backpack_state.capacity(&"main_space"))
 
 
 func _ensure_container_slots(container_id: StringName, parent: Container, count: int) -> void:
@@ -210,7 +212,7 @@ func _refresh_all() -> void:
 
 func _refresh_container(container_id: StringName) -> void:
 	var player := MapManager.registered_player()
-	var backpack_state := player.state.backpack_state if player != null else null
+	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
 	var nodes: Array = _slot_nodes.get(container_id, []) as Array
 	if backpack_state == null:
 		return
@@ -218,33 +220,53 @@ func _refresh_container(container_id: StringName) -> void:
 		var slot := nodes[index] as ColorRect
 		var icon := slot.get_node("Icon") as TextureRect
 		var amount_label := slot.get_node("Amount") as Label
-		var stack := backpack_state.get_slot(container_id, index)
+		var backpack_slot := backpack_state.get_slot(container_id, index)
 		var is_focus := panel_open and focus_container == container_id and focus_index == index
 		var is_marked := marked_container == container_id and marked_index == index
-		var selected_index := backpack_state.selected_toolbar_index if container_id == &"toolbar" else backpack_state.selected_itembar_index
-		var is_active := (container_id == &"toolbar" and player.state.active_hand_source == PlayerState.ActiveHandSource.TOOLBAR and selected_index == index) or (container_id == &"itembar" and player.state.active_hand_source == PlayerState.ActiveHandSource.ITEMBAR and selected_index == index)
-		slot.color = Color("d75c52") if is_marked else Color("76c7bd") if is_focus else Color("e5b94f") if is_active else Color("244543")
-		amount_label.add_theme_color_override("font_color", Color("102827") if is_focus or is_active else Color("eaf0df"))
-		var meta := DataCatalog.get_item(stack.item_id) if stack != null and not stack.is_empty() else null
+		var selected_index := player.backpack.selected_index(container_id)
+		var is_active := (
+			(
+				container_id == &"toolbar"
+				and backpack_state.active_hand_source == BackpackState.ActiveHandSource.TOOLBAR
+				and selected_index == index
+			)
+			or (
+				container_id == &"itembar"
+				and backpack_state.active_hand_source == BackpackState.ActiveHandSource.ITEMBAR
+				and selected_index == index
+			)
+		)
+		slot.color = (
+			Color("d75c52")
+			if is_marked
+			else Color("76c7bd") if is_focus else Color("e5b94f") if is_active else Color("244543")
+		)
+		amount_label.add_theme_color_override(
+			"font_color", Color("102827") if is_focus or is_active else Color("eaf0df")
+		)
+		var meta := DataCatalog.get_item(backpack_slot.item_id) if backpack_slot != null and not backpack_slot.is_empty() else null
 		icon.texture = meta.icon_texture if meta != null else null
 		icon.visible = icon.texture != null
-		amount_label.text = str(stack.amount) if stack != null and stack.amount > 1 else ""
+		amount_label.text = str(backpack_slot.amount) if backpack_slot != null and backpack_slot.amount > 1 else ""
 
 
 func _refresh_details() -> void:
 	if not panel_open:
 		return
 	var player := MapManager.registered_player()
-	var backpack_state := player.state.backpack_state if player != null else null
-	var stack := backpack_state.get_slot(focus_container, focus_index) if backpack_state != null else null
-	if stack == null or stack.is_empty():
+	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
+	var slot := backpack_state.get_slot(focus_container, focus_index) if backpack_state != null else null
+	if slot == null or slot.is_empty():
 		detail_label.text = "%s %02d  |  Empty slot" % [String(focus_container).to_upper(), focus_index + 1]
 		return
-	var meta := DataCatalog.get_item(stack.item_id)
+	var meta := DataCatalog.get_item(slot.item_id)
 	if meta == null:
-		detail_label.text = String(stack.item_id)
+		detail_label.text = String(slot.item_id)
 		return
-	detail_label.text = "%s x%d  |  %s  |  Buy %d / Sell %d" % [meta.display_name, stack.amount, meta.description, meta.buy_price, meta.sell_price]
+	detail_label.text = (
+		"%s x%d  |  %s  |  Buy %d / Sell %d"
+		% [meta.display_name, slot.amount, meta.description, meta.buy_price, meta.sell_price]
+	)
 
 
 func _on_container_changed(_container_id: StringName) -> void:
