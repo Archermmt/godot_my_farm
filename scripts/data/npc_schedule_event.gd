@@ -2,7 +2,7 @@ class_name NpcScheduleEvent
 extends Resource
 
 @export var id: StringName = &""
-@export var seasons: Array[StringName] = []
+@export var seasons: Array[SeasonMeta.SeasonType] = []
 @export var months: Array[int] = []
 @export var weekdays: Array[int] = []
 @export_range(0, 99, 1) var priority: int = 0
@@ -14,9 +14,9 @@ extends Resource
 @export var behavior_id: StringName = &"idle"
 
 
-func matches_date(season_id: StringName, month: int, weekday: int) -> bool:
+func matches_date(season: SeasonMeta.SeasonType, month: int, weekday: int) -> bool:
 	return (
-		(seasons.is_empty() or season_id in seasons)
+		(seasons.is_empty() or season in seasons)
 		and (months.is_empty() or month in months)
 		and (weekdays.is_empty() or weekday in weekdays)
 	)

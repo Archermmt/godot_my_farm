@@ -32,7 +32,7 @@ func _on_state_changed(_value = null, _before = {}, _delta = 0) -> void:
 	_refresh()
 
 
-func _on_day_advanced(_previous_day: int, _current_day: int) -> void:
+func _on_day_advanced() -> void:
 	_refresh()
 
 
@@ -43,13 +43,17 @@ func _on_weather_changed(_weather_id: StringName, _previous_weather_id: StringNa
 func _refresh() -> void:
 	if not is_instance_valid(GameManager) or not GameManager.is_initialized():
 		return
-	var calendar: CalendarState = GameManager.calendar
-	var player: PlayerState = GameManager.player
+	var calendar: CalendarManagerService = GameManager.calendar
+	var player: PlayerState = GameManager.player_state()
 	if calendar == null or player == null:
 		return
-	var player_node := MapManager.registered_player()
-	var active_slot: BackpackSlot = player_node.backpack.active_slot() if player_node != null else null
-	var weather_id := CalendarManager.current_weather_id() if is_instance_valid(CalendarManager) else &""
+	var player_node := GameManager.player
+	var active_slot: BackpackSlot = (
+		player_node.backpack.active_slot()
+		if player_node != null and player_node.backpack != null
+		else null
+	)
+	var weather_id := CalendarManager.current_weather if is_instance_valid(CalendarManager) else &""
 	var snapshot := (
 		"%d/%d/%d/%d/%d/%d/%s|%d/%d/%d/%d/%d|%d/%s/%d"
 		% [
@@ -66,8 +70,8 @@ func _refresh() -> void:
 			player.max_energy,
 			player.gold,
 			(
-				GameManager.backpack_state.active_hand_source
-				if GameManager.backpack_state != null
+				player_node.backpack.backpack_state.active_hand_source
+				if player_node != null and player_node.backpack != null and player_node.backpack.backpack_state != null
 				else BackpackState.ActiveHandSource.NONE
 			),
 			active_slot.item_id if active_slot != null else &"",
@@ -86,7 +90,7 @@ func _refresh() -> void:
 			calendar.weekday,
 			calendar.hour,
 			calendar.minute,
-			String(calendar.season()).left(3).to_upper(),
+			str(SeasonMeta.SeasonType.keys()[calendar.season()]).left(3),
 		]
 	)
 	weather_icon.texture = CalendarManager.weather_icon(weather_id) if is_instance_valid(CalendarManager) else null

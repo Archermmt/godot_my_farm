@@ -57,9 +57,9 @@ func test_snapshot_restore_does_not_depend_on_current_player_template() -> void:
 	game_manager.config.backpack_state_template = BackpackState.new(1, 1, 1)
 
 	assert_equal(game_manager.replace_snapshot(snapshot), OK)
-	assert_equal(game_manager.backpack_state.capacity(&"main_space"), 20)
+	assert_equal(game_manager.backpack_state.capacity(&"main_space"), 18)
 	assert_equal(game_manager.backpack_state.capacity(&"toolbar"), 6)
-	assert_equal(game_manager.backpack_state.capacity(&"itembar"), 10)
+	assert_equal(game_manager.backpack_state.capacity(&"itembar"), 6)
 	game_manager.free()
 
 
@@ -68,9 +68,9 @@ func test_new_game_is_deterministic_and_does_not_accumulate_inventory() -> void:
 	var connections_before: int = EventBus.inventory_changed.get_connections().size()
 	assert_equal(game_manager.new_game(4242), OK)
 	var first: Dictionary = game_manager.snapshot()
-	assert_equal(game_manager.backpack_state.capacity(&"main_space"), 20)
+	assert_equal(game_manager.backpack_state.capacity(&"main_space"), 18)
 	assert_equal(game_manager.backpack_state.capacity(&"toolbar"), 6)
-	assert_equal(game_manager.backpack_state.capacity(&"itembar"), 10)
+	assert_equal(game_manager.backpack_state.capacity(&"itembar"), 6)
 	assert_equal(game_manager.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
 	assert_equal(game_manager.backpack_state.count_item(&"main_space", &"parsnip_seed"), 0)
 	for tool_id: StringName in [&"hoe", &"watering_can", &"sickle", &"basket", &"pickaxe", &"axe"]:
@@ -175,7 +175,7 @@ func test_replace_snapshot_rejects_invalid_or_duplicate_global_npcs_atomically()
 
 func test_reset_and_global_catalog_initialization_are_explicit() -> void:
 	var game_manager := GameManagerService.new()
-	assert_true(DataCatalog.is_ready_for_game())
+	assert_true(DataCatalog.validate().is_empty())
 	assert_equal(game_manager.new_game(1), OK)
 	game_manager.reset()
 	assert_true(not game_manager.is_initialized())

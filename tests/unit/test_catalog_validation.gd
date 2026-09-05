@@ -3,7 +3,7 @@ extends ProjectTestCase
 func test_game_config_catalog_definitions_are_valid() -> void:
 	var catalog := DataCatalogService.new()
 	assert_true(catalog != null)
-	assert_equal(DataCatalogService.validate_definitions(catalog.items, catalog.npc_schedules), [])
+	assert_true(catalog.validate().is_empty())
 	assert_equal(catalog.items.size(), 23)
 	for meta: ItemMeta in catalog.items.values():
 		assert_true(meta.resource_path.begins_with("res://data/game_config.tres::"))
@@ -14,7 +14,7 @@ func test_game_config_catalog_definitions_are_valid() -> void:
 	for plant_id: StringName in [&"parsnip", &"pumpkin", &"potato"]:
 		var plant := catalog.items[plant_id] as PlantMeta
 		assert_equal(plant.stages.size(), 4)
-		for stage: PlantStage in plant.stages:
+		for stage: HarvestableStage in plant.stages:
 			assert_true(stage.texture != null, "%s has a stage without texture" % plant_id)
 	assert_equal(catalog.npc_schedules.size(), 3)
 	assert_true(catalog.npc_schedules.has(&"villager"))
@@ -31,14 +31,14 @@ func test_empty_and_mismatched_item_keys_are_reported() -> void:
 	var schedules: Dictionary[StringName, NpcSchedule] = definitions["npc_schedules"]
 	items[&""] = items[&"material_test"]
 	items.erase(&"material_test")
-	var errors := DataCatalogService.validate_definitions(items, schedules)
+	var errors := DataCatalogService.new().validate()
 	assert_true(_contains(errors, "empty key"))
 	definitions = _valid_minimal_definitions()
 	items = definitions["items"]
 	schedules = definitions["npc_schedules"]
 	items[&"wrong_key"] = items[&"material_test"]
 	items.erase(&"material_test")
-	errors = DataCatalogService.validate_definitions(items, schedules)
+	errors = DataCatalogService.new().validate()
 	assert_true(_contains(errors, "items[wrong_key].id must match dictionary key"))
 
 
@@ -50,7 +50,7 @@ func test_invalid_stack_and_prices_are_reported() -> void:
 	item.stack_limit = 0
 	item.buy_price = -1
 	item.sell_price = -2
-	var errors := DataCatalogService.validate_definitions(items, schedules)
+	var errors := DataCatalogService.new().validate()
 	assert_true(_contains(errors, "material_test stack_limit"))
 	assert_true(_contains(errors, "material_test buy_price"))
 	assert_true(_contains(errors, "material_test sell_price"))
@@ -65,7 +65,7 @@ func test_invalid_drop_range_and_reference_are_reported() -> void:
 	entry.min_amount = 4
 	entry.max_amount = 2
 	entry.chance = 2.0
-	var errors := DataCatalogService.validate_definitions(items, schedules)
+	var errors := DataCatalogService.new().validate()
 	assert_true(_contains(errors, "harvestable harvest_test drops[0].item_id"))
 	assert_true(_contains(errors, "harvestable harvest_test drops[0] amount range"))
 	assert_true(_contains(errors, "harvestable harvest_test drops[0].chance"))
@@ -76,12 +76,12 @@ func test_plant_stage_order_and_cross_references_are_reported() -> void:
 	var items: Dictionary[StringName, ItemMeta] = definitions["items"]
 	var schedules: Dictionary[StringName, NpcSchedule] = definitions["npc_schedules"]
 	var plant := items[&"plant_test"] as PlantMeta
-	plant.stages[1].start_day = 0
+	plant.stages[1].min_health = 0
 	var invalid_drop := HarvestableDrop.new()
 	invalid_drop.item_id = &"missing_item"
 	plant.stages[1].drops = [invalid_drop]
-	var errors := DataCatalogService.validate_definitions(items, schedules)
-	assert_true(_contains(errors, "plant_test stages[1].start_day"))
+	var errors := DataCatalogService.new().validate()
+	assert_true(_contains(errors, "plant_test stages[1].min_health"))
 	assert_true(_contains(errors, "plant plant_test stages[1] drops[0].item_id"))
 
 
@@ -91,7 +91,7 @@ func test_seed_plant_reference_must_point_to_plant_meta() -> void:
 	var schedules: Dictionary[StringName, NpcSchedule] = definitions["npc_schedules"]
 	var seed := items[&"material_test"] as SeedMeta
 	seed.plant_id = &"material_test"
-	var errors := DataCatalogService.validate_definitions(items, schedules)
+	var errors := DataCatalogService.new().validate()
 	assert_true(_contains(errors, "seed material_test plant_id must reference PlantMeta"))
 
 
@@ -100,12 +100,12 @@ func test_harvestable_and_schedule_references_are_reported() -> void:
 	var items: Dictionary[StringName, ItemMeta] = definitions["items"]
 	var schedules: Dictionary[StringName, NpcSchedule] = definitions["npc_schedules"]
 	var harvestable := items[&"harvest_test"] as HarvestableMeta
-	harvestable.max_health = 0
+	harvestable.health = 0
 	harvestable.depleted_replacement_id = &"material_test"
 	schedules[&"schedule_test"].npc_id = &""
 	schedules[&"schedule_test"].events[0].map_id = &""
-	var errors := DataCatalogService.validate_definitions(items, schedules)
-	assert_true(_contains(errors, "harvest_test max_health"))
+	var errors := DataCatalogService.new().validate()
+	assert_true(_contains(errors, "harvest_test health"))
 	assert_true(_contains(errors, "harvest_test depleted_replacement_id"))
 	assert_true(_contains(errors, "schedule_test npc_id"))
 	assert_true(_contains(errors, "event_test map_id"))
@@ -121,8 +121,10 @@ func _valid_minimal_definitions() -> Dictionary:
 	var entry := HarvestableDrop.new()
 	entry.item_id = item.id
 
-	var stage_a := PlantMeta.make_stage(0)
-	var stage_b := PlantMeta.make_stage(1)
+	var stage_a := HarvestableStage.new()
+	stage_a.min_health = 1
+	var stage_b := HarvestableStage.new()
+	stage_b.min_health = 2
 	var plant := PlantMeta.new()
 	plant.id = &"plant_test"
 	plant.stages = [stage_a, stage_b]
@@ -130,10 +132,10 @@ func _valid_minimal_definitions() -> Dictionary:
 
 	var harvestable := HarvestableMeta.new()
 	harvestable.id = &"harvest_test"
-	harvestable.drops = [entry]
 	var harvest_stage := HarvestableStage.new()
 	harvest_stage.texture = ImageTexture.new()
-	harvestable.visual_stages = [harvest_stage]
+	harvest_stage.drops = [entry]
+	harvestable.stages = [harvest_stage]
 
 	var event := NpcScheduleEvent.new()
 	event.id = &"event_test"

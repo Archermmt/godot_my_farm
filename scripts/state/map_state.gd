@@ -44,9 +44,9 @@ static func from_dict(data: Dictionary) -> MapState:
 		if typeof(raw_item) != TYPE_DICTIONARY:
 			return null
 		var item := ItemCodec.from_dict(raw_item as Dictionary)
-		if item == null or restored.items.has(item.instance_id):
+		if item == null or restored.items.has(item.unique_id):
 			return null
-		restored.items[item.instance_id] = item
+		restored.items[item.unique_id] = item
 	for raw_cell: Variant in data.get("cells", []) as Array:
 		if typeof(raw_cell) != TYPE_DICTIONARY:
 			return null

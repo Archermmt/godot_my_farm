@@ -5,6 +5,14 @@ var _items: Dictionary[StringName, Item] = {}
 var backpack_state: BackpackState = null
 
 
+func setup(next_state: BackpackState) -> Error:
+	if next_state == null:
+		return ERR_INVALID_PARAMETER
+	backpack_state = next_state
+	sync_runtime_items()
+	return OK
+
+
 func get_slot(container_id: StringName, index: int) -> BackpackSlot:
 	return backpack_state.get_slot(container_id, index) if backpack_state != null else null
 
@@ -40,14 +48,19 @@ func accepts(container_id: StringName, meta: ItemMeta) -> bool:
 	if meta == null:
 		return false
 	if container_id == &"toolbar":
-		return meta.is_tool()
+		return meta is ToolMeta
 	if container_id == &"itembar":
-		return not meta.is_tool() and not meta is HarvestableMeta
+		return not meta is ToolMeta and not meta is HarvestableMeta
 	return container_id == &"main_space"
 
 
 func remove_item(container_id: StringName, item_id: StringName, amount: int) -> bool:
-	if backpack_state == null or item_id == &"" or amount <= 0 or backpack_state.count_item(container_id, item_id) < amount:
+	if (
+		backpack_state == null
+		or item_id == &""
+		or amount <= 0
+		or backpack_state.count_item(container_id, item_id) < amount
+	):
 		return false
 	var remaining := amount
 	for index: int in backpack_state.capacity(container_id):
@@ -175,9 +188,14 @@ func select_bar_relative(source: BackpackState.ActiveHandSource, offset: int) ->
 	var current := selected_index(container_id)
 	if current < 0:
 		current = 0
-	if not select_bar_index(source, wrapi(current + offset, 0, ids.size())):
-		return ERR_INVALID_PARAMETER
-	return OK
+	for _step: int in ids.size():
+		current = wrapi(current + offset, 0, ids.size())
+		var slot := get_slot(container_id, current)
+		if slot == null or slot.is_empty():
+			continue
+		if select_bar_index(source, current):
+			return OK
+	return ERR_DOES_NOT_EXIST
 
 
 func _emit_selection_changed() -> void:
@@ -210,21 +228,13 @@ func item_for_slot(slot: BackpackSlot) -> Item:
 	if cached != null and is_instance_valid(cached):
 		return cached
 	var item_state := ItemState.new()
-	item_state.instance_id = meta.id
+	item_state.unique_id = meta.id
 	item_state.meta_id = meta.id
-	var item := ItemManager.create_item(item_state, self)
+	var item := ItemManager.create_from_state(item_state, self)
 	if item == null:
 		return null
 	_items[meta.id] = item
 	return item
-
-
-func setup(next_state: BackpackState) -> Error:
-	if next_state == null:
-		return ERR_INVALID_PARAMETER
-	backpack_state = next_state
-	sync_runtime_items()
-	return OK
 
 
 func sync_runtime_items() -> void:
@@ -253,8 +263,7 @@ func _container_id_for_source(source: BackpackState.ActiveHandSource) -> StringN
 
 func _container_ids(container_id: StringName) -> Array[StringName]:
 	if backpack_state == null:
-		var empty: Array[StringName] = []
-		return empty
+		return []
 	match container_id:
 		&"main_space":
 			return backpack_state.main_space
@@ -262,8 +271,7 @@ func _container_ids(container_id: StringName) -> Array[StringName]:
 			return backpack_state.toolbar
 		&"itembar":
 			return backpack_state.itembar
-	var empty: Array[StringName] = []
-	return empty
+	return []
 
 
 func _free_space_for(container_id: StringName, item_id: StringName, stack_limit: int) -> int:

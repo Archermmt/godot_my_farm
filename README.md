@@ -34,7 +34,7 @@
 - 6 格 Toolbar、10 格 Itembar 和 20 格 Inventory；支持 Q/E、Z/C 循环选择、方向焦点、X 两段式交换/合并及非法交换回滚，全流程不依赖鼠标。
 - Player 同一时间只持有一个工具或物品，并以单个 HeldVisual、头顶选择提示和 HUD 同步呈现当前选择。
 - 单一 `player.gd` 根控制器：InputMap、跑步/慢走、对角归一化、碰撞、四向朝向、输入锁和 Camera2D limits；动画由 `AnimationPlayer` + `AnimationLibrary` 管理。
-- `farm`、`field`、`cabin` 三张原创 TileMapLayer 地图；TileMapLayer 直接由各自地图根节点管理，通用逻辑集中在 `BaseMap`，`MapItems` 作为当前地图 Item 容器，通用 Item 代码位于与 world 同级的 `scripts/items/`。
+- `farm`、`field`、`cabin` 三张原创 TileMapLayer 地图；TileMapLayer 直接由各自地图根节点管理，通用逻辑集中在 `BaseMap`，`MapItems` 作为当前地图 Item 容器，通用 Item 代码位于与 world 同级的 `scripts/item/`。
 - 静态地图 cell 直接保存在各地图 `.tscn` 中，可使用 Godot TileMap 编辑器查看和修改；运行时只重建 Dug/Watered 等动态投影。
 - 原生 GDScript 测试运行器、碰撞 fixture、godot-ai 输入序列和运行截图验收链路。
 

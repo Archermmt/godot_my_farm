@@ -1,44 +1,60 @@
 class_name ItemState
 extends RefCounted
 
-var instance_id: StringName = &""
+var unique_id: StringName = &""
 var meta_id: StringName = &""
-var cell: Vector2i = Vector2i.ZERO
-var random_seed: int = 0
-var flags: Array[StringName] = []
+var position: Vector2 = Vector2.ZERO
+var flags: Array[ItemMeta.ItemFlag] = [ItemMeta.ItemFlag.AVAILABLE]
 var health: int = 1
+
+
+func add_flag(flag: ItemMeta.ItemFlag) -> void:
+	if not has_flag(flag):
+		flags.append(flag)
+
+
+func remove_flag(flag: ItemMeta.ItemFlag) -> void:
+	flags.erase(flag)
+
+
+func has_flag(flag: ItemMeta.ItemFlag) -> bool:
+	return flag in flags
 
 
 func to_dict_impl() -> Dictionary:
 	return {
 		"state_type": "item",
-		"instance_id": String(instance_id),
+		"unique_id": String(unique_id),
 		"meta_id": String(meta_id),
-		"cell": SerializationUtil.vector2i_to_dict(cell),
-		"random_seed": random_seed,
-		"flags": SerializationUtil.string_name_array_to_strings(flags),
+		"position": SerializationUtil.vector2_to_dict(position),
+		"flags": flags,
 		"health": health,
 	}
 
 
 func from_dict_impl(data: Dictionary) -> bool:
-	for key: String in ["instance_id", "meta_id"]:
+	for key: String in ["unique_id", "meta_id"]:
 		if not SerializationUtil.has_valid_string(data, key):
 			return false
-	if not SerializationUtil.has_valid_int(data, "random_seed"):
-		return false
 	if data.has("health") and (not SerializationUtil.has_valid_int(data, "health") or int(data.get("health", 1)) < 0):
 		return false
-	if not SerializationUtil.has_valid_vector2i(data, "cell") or not SerializationUtil.has_valid_array(data, "flags"):
+	if not SerializationUtil.has_valid_vector2(data, "position") or not SerializationUtil.has_valid_array(data, "flags"):
 		return false
-	if not SerializationUtil.is_string_array(data.get("flags", []) as Array):
+	var restored_flags: Array[ItemMeta.ItemFlag] = []
+	for value: Variant in data.get("flags", []) as Array:
+		if (
+			not SerializationUtil.has_valid_int({"value": value}, "value")
+			or int(value) < ItemMeta.ItemFlag.AVAILABLE
+			or int(value) > ItemMeta.ItemFlag.GENERATED
+			or int(value) in restored_flags
+		):
+			return false
+		restored_flags.append(int(value) as ItemMeta.ItemFlag)
+	if StringName(str(data.get("unique_id", ""))) == &"" or StringName(str(data.get("meta_id", ""))) == &"":
 		return false
-	if StringName(str(data.get("instance_id", ""))) == &"" or StringName(str(data.get("meta_id", ""))) == &"":
-		return false
-	instance_id = StringName(str(data.get("instance_id", "")))
+	unique_id = StringName(str(data.get("unique_id", "")))
 	meta_id = StringName(str(data.get("meta_id", "")))
-	cell = SerializationUtil.vector2i_from_dict(data.get("cell", {}) as Dictionary)
-	random_seed = int(data.get("random_seed", 0))
-	flags = SerializationUtil.string_array_to_string_names(data.get("flags", []) as Array)
+	position = SerializationUtil.vector2_from_dict(data.get("position", {}) as Dictionary)
+	flags = restored_flags
 	health = maxi(0, int(data.get("health", 1)))
 	return true

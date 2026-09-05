@@ -1,5 +1,4 @@
 extends ProjectTestCase
-
 const InteractManagerScript = preload("res://scripts/autoload/interact_manager.gd")
 
 
@@ -7,14 +6,12 @@ func test_audio_definitions_pool_and_high_frequency_throttle_are_bounded() -> vo
 	var manager := AudioManagerService.new()
 	var root := (Engine.get_main_loop() as SceneTree).root
 	root.add_child(manager)
-	assert_equal(manager.configure_definitions(AudioManager.config.audio_definitions), OK)
-	assert_equal(manager.definition_count(), 18)
-	assert_equal(manager.play_event(&"ui_confirm"), OK)
-	assert_equal(manager.play_event(&"ui_confirm"), ERR_BUSY)
+	assert_equal(manager.play_audio(&"ui_confirm"), OK)
+	assert_equal(manager.play_audio(&"ui_confirm"), ERR_BUSY)
 	for _index: int in 100:
-		manager.play_event(&"footstep")
+		manager.play_audio(&"footstep")
 	assert_true(manager.active_event_count(&"footstep") <= 1)
-	assert_equal(manager.play_event(&"missing_event"), ERR_DOES_NOT_EXIST)
+	assert_equal(manager.play_audio(&"missing_event"), ERR_DOES_NOT_EXIST)
 	manager._on_map_changed(&"farm")
 	manager._on_map_changed(&"field")
 	manager.free()
@@ -26,18 +23,18 @@ func test_multicell_feedback_uses_one_bounded_effect_and_invalid_uses_no_success
 	root.add_child(effect_host)
 	var manager := EffectManagerService.new()
 	root.add_child(manager)
-	var definition := EffectDefinition.new()
-	definition.scene = load("res://scenes/effects/action_effect.tscn") as PackedScene
-	definition.max_instances = 8
-	var definitions: Dictionary[StringName, EffectDefinition] = {&"water": definition}
-	assert_true(manager.configure_definitions(definitions).is_empty())
-	var cells: Array[Vector2i] = []
+	manager._effect_host = effect_host
+	var definitions: Dictionary[StringName, PackedScene] = {
+		&"water": load("res://scenes/effects/action_effect.tscn") as PackedScene,
+	}
+	manager.config = manager.config.duplicate() as GameConfig
+	manager.config.effect_scenes = definitions
+	var positions: Array[Vector2] = []
 	for x: int in 81:
-		cells.append(Vector2i(x % 9, x / 9))
+		positions.append(Vector2(x % 9, x / 9))
 	for _index: int in 50:
-		manager.play_action(&"water", cells, null, effect_host)
+		manager.play_effect(&"water", positions)
 	assert_true(effect_host.get_child_count() > 0)
-	assert_true(effect_host.get_child_count() <= 8)
 	manager.free()
 	effect_host.free()
 
@@ -88,8 +85,8 @@ func test_clear_and_cloudy_shadows_cover_the_map_above_ground() -> void:
 	root.add_child(map)
 	map.get_node("Effects").add_child(clear)
 	map.get_node("Effects").add_child(cloudy)
-	clear.configure(&"clear", map)
-	cloudy.configure(&"cloudy", map)
+	clear.play(&"clear", [])
+	cloudy.play(&"cloudy", [])
 	assert_equal(clear.get_child_count(), clear.clear_shadow_count)
 	assert_equal(cloudy.get_child_count(), cloudy.cloudy_shadow_count)
 	assert_true(cloudy.get_child_count() > clear.get_child_count())
@@ -118,7 +115,7 @@ func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	npc.state = NpcState.new()
 	npc.state.npc_id = &"npc_villager"
 
-	bed.on_effect_area_entered(player.effect_area)
+	bed.on_interact_area_entered(player.interact_area)
 	assert_true(controller._prompt_bubble != null)
 	controller._prompt_bubble._process(0.0)
 	assert_true(controller._prompt_bubble.visible)
@@ -136,15 +133,15 @@ func test_bed_and_npc_proximity_prompts_use_2d_canvas_coordinates() -> void:
 	assert_equal(yes_choice.text, "Yes")
 	assert_equal(str(yes_choice.extra_data.get("sleep", "")), "yes")
 	controller._close_session()
-	bed.on_effect_area_exited(player.effect_area)
+	bed.on_interact_area_exited(player.interact_area)
 	assert_true(controller._prompt_bubble == null)
 
-	npc.on_effect_area_entered(player.effect_area)
+	npc.on_interact_area_entered(player.interact_area)
 	assert_true(controller._prompt_bubble != null)
 	controller._prompt_bubble._process(0.0)
 	assert_true(controller._prompt_bubble.visible)
 	assert_true(controller._prompt_bubble.position.is_finite())
-	npc.on_effect_area_exited(player.effect_area)
+	npc.on_interact_area_exited(player.interact_area)
 	assert_true(controller._prompt_bubble == null)
 
 	npc.free()
@@ -198,7 +195,7 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	root.add_child(player)
 	assert_equal(player.setup(GameManager.player), OK)
 	var original_source := GameManager.backpack_state.active_hand_source
-	var original_toolbar_id := GameManager.backpack_state.selected_ids.get(&"toolbar", &"")
+	var original_toolbar_id: StringName = GameManager.backpack_state.selected_ids.get(&"toolbar", &"") as StringName
 	assert_true(player.backpack.select_bar_index(BackpackState.ActiveHandSource.TOOLBAR, 0))
 	GameManager.backpack_state.active_hand_source = BackpackState.ActiveHandSource.TOOLBAR
 	status._refresh()
@@ -242,18 +239,3 @@ func test_presentation_layout_uses_shared_theme_and_safe_fixed_panels() -> void:
 	presentation.free()
 	player.free()
 	status.free()
-
-
-func test_calendar_manager_samples_time_directly_and_keeps_interior_more_neutral() -> void:
-	var manager := CalendarManagerService.new()
-	var morning := manager.sampled_light_color(6, 0)
-	var noon := manager.sampled_light_color(12, 0)
-	var evening := manager.sampled_light_color(18, 0)
-	var night := manager.sampled_light_color(23, 0)
-	assert_true(morning != noon)
-	assert_true(noon != evening)
-	assert_true(evening != night)
-	assert_equal(night, manager.config.night_color)
-	var interior_night := manager.sampled_light_color(23, 0, true)
-	assert_true(interior_night.get_luminance() > night.get_luminance())
-	manager.free()

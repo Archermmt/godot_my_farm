@@ -26,6 +26,6 @@ func test_calendar_derives_season_and_round_trips() -> void:
 	calendar.hour = 18
 	calendar.minute = 35
 	var restored := CalendarState.from_dict(calendar.to_dict())
-	assert_equal(restored.season(), &"autumn")
+	assert_equal(restored.season(), SeasonMeta.SeasonType.AUTUMN)
 	assert_equal(restored.minute_of_day(), 1115)
 	assert_equal(restored.to_dict(), calendar.to_dict())

@@ -1,9 +1,8 @@
 class_name AudioManagerService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
-
-var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
+var config: GameConfig:
+	get: return DataCatalog.config
 
 var _pools: Dictionary[StringName, Array] = {}
 var _player_events: Dictionary[int, StringName] = {}
@@ -13,89 +12,64 @@ var _music_event: StringName = &""
 
 
 func _ready() -> void:
-	var definition_error := _validate_definitions(config.audio_definitions)
-	if definition_error != OK:
-		push_error("[AudioManager] invalid audio definitions: %s" % error_string(definition_error))
-		return
+	for audio_id: StringName in config.audio_definitions:
+		if audio_id == &"" or config.audio_definitions[audio_id] == null:
+			push_error("[AudioManager] invalid audio definitions")
+			return
 	_apply_bus_volumes()
 	if not EventBus.map_changed.is_connected(_on_map_changed):
 		EventBus.map_changed.connect(_on_map_changed)
 
 
 func _exit_tree() -> void:
-	shutdown()
-
-
-func shutdown() -> void:
-	stop_all()
 	for pool: Array in _pools.values():
 		for player: AudioStreamPlayer in pool:
+			player.stop()
 			player.stream = null
+	_ambient_event = &""
+	_music_event = &""
 	_player_events.clear()
 
 
-func configure_definitions(audio_definitions: Dictionary[StringName, AudioDefinition]) -> Error:
-	stop_all()
-	_last_played_msec.clear()
-	var error := _validate_definitions(audio_definitions)
-	if error != OK:
-		return error
-	config = config.duplicate() as GameConfig
-	config.audio_definitions = audio_definitions.duplicate()
-	return OK
-
-
-func play_event(event_id: StringName) -> Error:
-	var definition := config.audio_definitions.get(event_id, null) as AudioDefinition
+func play_audio(audio_id: StringName) -> Error:
+	var definition := config.audio_definitions.get(audio_id, null) as AudioDefinition
 	if definition == null:
 		return ERR_UNCONFIGURED if config.audio_definitions.is_empty() else ERR_DOES_NOT_EXIST
 	var now: int = Time.get_ticks_msec()
-	var previous := int(_last_played_msec.get(event_id, -1000000))
+	var previous := int(_last_played_msec.get(audio_id, -1000000))
 	if definition.cooldown_msec > 0 and now - previous < definition.cooldown_msec:
 		return ERR_BUSY
-	if active_event_count(event_id) >= definition.max_instances:
+	if active_event_count(audio_id) >= definition.max_instances:
 		return ERR_BUSY
 	var player := _available_player(definition.bus_name())
 	if player == null:
 		return ERR_OUT_OF_MEMORY
-	_player_events[player.get_instance_id()] = event_id
+	_player_events[player.get_instance_id()] = audio_id
 	player.bus = definition.bus_name()
 	player.stream = definition.stream if definition.stream != null else _placeholder_stream(definition)
 	player.volume_db = definition.volume_db
 	player.play()
-	_last_played_msec[event_id] = now
+	_last_played_msec[audio_id] = now
 	return OK
 
 
-func stop_event(event_id: StringName) -> Error:
+func stop_audio(audio_id: StringName) -> Error:
 	var found := false
 	for pool: Array in _pools.values():
 		for player: AudioStreamPlayer in pool:
-			if _player_events.get(player.get_instance_id(), &"") == event_id and player.playing:
+			if _player_events.get(player.get_instance_id(), &"") == audio_id and player.playing:
 				player.stop()
 				found = true
 	return OK if found else ERR_DOES_NOT_EXIST
 
 
-func stop_all() -> void:
-	for pool: Array in _pools.values():
-		for player: AudioStreamPlayer in pool:
-			player.stop()
-	_ambient_event = &""
-	_music_event = &""
-
-
-func active_event_count(event_id: StringName) -> int:
+func active_event_count(audio_id: StringName) -> int:
 	var count := 0
 	for pool: Array in _pools.values():
 		for player: AudioStreamPlayer in pool:
-			if player.playing and _player_events.get(player.get_instance_id(), &"") == event_id:
+			if player.playing and _player_events.get(player.get_instance_id(), &"") == audio_id:
 				count += 1
 	return count
-
-
-func definition_count() -> int:
-	return config.audio_definitions.size()
 
 
 func _available_player(bus_name: StringName) -> AudioStreamPlayer:
@@ -122,7 +96,11 @@ func _placeholder_stream(definition: AudioDefinition) -> AudioStreamWAV:
 	for frame: int in frame_count:
 		var progress := float(frame) / float(frame_count)
 		var envelope := 1.0 if definition.loop else pow(1.0 - progress, 2.0)
-		var sample := clampi(roundi(sin(TAU * definition.placeholder_frequency * float(frame) / MIX_RATE) * envelope * 4096.0), -32768, 32767)
+		var sample := clampi(
+			roundi(sin(TAU * definition.placeholder_frequency * float(frame) / MIX_RATE) * envelope * 4096.0),
+			-32768,
+			32767
+		)
 		data[frame * 2] = sample & 0xff
 		data[frame * 2 + 1] = (sample >> 8) & 0xff
 	var stream := AudioStreamWAV.new()
@@ -155,7 +133,7 @@ func _switch_loop_track(channel: StringName, current_event: StringName, next_eve
 		for player: AudioStreamPlayer in _pools.get(channel, []) as Array:
 			if player.playing and _player_events.get(player.get_instance_id(), &"") == current_event:
 				previous_players.append(player)
-	if play_event(next_event) != OK:
+	if play_audio(next_event) != OK:
 		return current_event
 	for player: AudioStreamPlayer in _pools.get(channel, []) as Array:
 		if player.playing and _player_events.get(player.get_instance_id(), &"") == next_event:
@@ -196,10 +174,3 @@ func _pool_limit(bus_name: StringName) -> int:
 			return config.ui_pool_limit
 		_:
 			return 1
-
-
-func _validate_definitions(audio_definitions: Dictionary[StringName, AudioDefinition]) -> Error:
-	for event_id: StringName in audio_definitions:
-		if event_id == &"" or audio_definitions[event_id] == null:
-			return ERR_INVALID_DATA
-	return OK

@@ -28,7 +28,7 @@ godot --headless --path . --quit
 测试规则：
 
 - 每个 `test_*` 至少一个断言；环境不满足时显式 skip 并说明原因。
-- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、BackpackSlot amount、PlantState meta_id/growth_days。
+- 比较存储后的实际类型和值，例如 JSON 恢复后 Vector2i、BackpackSlot amount、PlantState meta_id/health。
 - 随机行为固定 seed，并断言边界与确定结果。
 - 测试结束清理 `user://` 下测试专用文件，不能覆盖真实 `slot_0.json`。
 - 测试套件之间不共享可变 Autoload 状态；每个套件 reset 或构造独立实例。

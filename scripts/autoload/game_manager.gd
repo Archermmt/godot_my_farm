@@ -1,30 +1,32 @@
 class_name GameManagerService
 extends Node
 
-const DEFAULT_CONFIG_PATH := "res://data/game_config.tres"
 const SAVE_SCHEMA_VERSION := 1
 const SAVE_DIRECTORY := "user://saves"
 const SAVE_FILE_TEMPLATE := SAVE_DIRECTORY + "/slot_%d.json"
+const NPC_SCENE := preload("res://scenes/actors/npcs/npc.tscn")
 
-var config: GameConfig = load(DEFAULT_CONFIG_PATH) as GameConfig
+var config: GameConfig:
+	get:
+		return DataCatalog.config
 
-var player: PlayerState = null
-var backpack_state: BackpackState = null
+var player: FarmPlayer = null
+var _player_state: PlayerState = null
+var _backpack_state: BackpackState = null
 var maps: Dictionary[StringName, MapState] = {}
 var npcs: Dictionary[StringName, NpcState] = {}
 var world_seed: int = 0
 var current_slot: int = -1
 var game_version: String = "0.1.0"
-var calendar: CalendarState = CalendarState.new()
-var time_scale: float = 0.0
-var _running: bool = false
-var _pause_reasons: Dictionary[StringName, bool] = {}
-var _time_accumulator: float = 0.0
-var _ending_day: bool = false
+var calendar: CalendarManagerService:
+	get:
+		return CalendarManager.calendar if is_instance_valid(CalendarManager) else null
 var _save_in_progress := false
 var save_directory: String = SAVE_DIRECTORY
 
 var _initialized: bool = false
+var _npc_actors: Dictionary[StringName, FarmNpc] = {}
+var _npcs_by_map: Dictionary[StringName, Dictionary] = {}
 
 const NPC_PORTAL_GRAPH: Dictionary[StringName, Array] = {
 	&"farm": [&"field", &"beach"],
@@ -39,46 +41,92 @@ const NPC_PORTAL_ARRIVAL_CELLS: Dictionary[String, Vector2i] = {
 }
 
 
-func _init() -> void:
-	time_scale = config.initial_time_scale
-
-
 func _ready() -> void:
-	var time_error := configure_time_scale(config.initial_time_scale)
-	if time_error != OK:
-		push_error("[GameManager] invalid initial time scale: %s" % config.initial_time_scale)
-		return
-	if DataCatalog.is_ready_for_game():
+	if not EventBus.map_changed.is_connected(_sync_npc_actors):
+		EventBus.map_changed.connect(_sync_npc_actors)
+	if not EventBus.time_advanced.is_connected(_sync_npc_actors):
+		EventBus.time_advanced.connect(_sync_npc_actors)
+	if not EventBus.npc_states_changed.is_connected(_sync_npc_actors):
+		EventBus.npc_states_changed.connect(_sync_npc_actors)
+	if DataCatalog.validate().is_empty():
 		var error: Error = new_game(config.default_world_seed)
 		if error != OK:
 			push_error("[GameManager] failed to create default new game: %s" % error_string(error))
 
 
-func _process(delta: float) -> void:
-	if is_instance_valid(CalendarManager):
-		return
-	if not can_advance() or delta <= 0.0:
-		return
-	_time_accumulator += delta * time_scale
-	var whole_minutes := floori(_time_accumulator)
-	if whole_minutes <= 0:
-		return
-	_time_accumulator -= whole_minutes
-	advance_minutes(whole_minutes)
+func _exit_tree() -> void:
+	_clear_npc_actors()
+	_npcs_by_map.clear()
+	player = null
 
 
-func configure_time_scale(value: float) -> Error:
-	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
-		return CalendarManager.configure_time_scale(value)
-	if value <= 0.0 or is_nan(value) or is_inf(value):
+func register_player(next_player: FarmPlayer) -> Error:
+	if next_player == null:
 		return ERR_INVALID_PARAMETER
-	time_scale = value
-	_time_accumulator = 0.0
+	if player != null and player != next_player and is_instance_valid(player):
+		return ERR_ALREADY_IN_USE
+	player = next_player
+	_bind_runtime_state()
 	return OK
 
 
+func player_state() -> PlayerState:
+	return player.state if is_instance_valid(player) else _player_state
+
+
+func _bind_runtime_state() -> void:
+	if not is_instance_valid(player):
+		return
+	if _player_state != null:
+		player.setup(_player_state)
+	if _backpack_state != null and player.backpack != null:
+		player.backpack.setup(_backpack_state)
+
+
+func _sync_npc_actors(_unused = null) -> void:
+	var actor_host := MapManager.actor_host()
+	var current_map := MapManager.current_map()
+	if actor_host == null or current_map == null:
+		return
+	for npc_id: StringName in _npc_actors.keys():
+		var npc_state := get_npc(npc_id)
+		if npc_state == null or npc_state.map_id != current_map.map_id:
+			var actor := _npc_actors[npc_id]
+			_npc_actors.erase(npc_id)
+			if is_instance_valid(actor):
+				actor.queue_free()
+	var map_npcs: Dictionary = _npcs_by_map.get(current_map.map_id, {})
+	for npc_state: NpcState in map_npcs.values():
+		var existing := _npc_actors.get(npc_state.npc_id, null) as FarmNpc
+		if existing != null and is_instance_valid(existing):
+			existing.refresh_target()
+			continue
+		var actor := NPC_SCENE.instantiate() as FarmNpc
+		if actor == null:
+			continue
+		actor_host.add_child(actor)
+		if actor.bind(npc_state, current_map) != OK:
+			actor.queue_free()
+			continue
+		actor.name = String(npc_state.npc_id)
+		_npc_actors[npc_state.npc_id] = actor
+
+
+func _clear_npc_actors() -> void:
+	for actor: FarmNpc in _npc_actors.values():
+		if is_instance_valid(actor):
+			actor.queue_free()
+	_npc_actors.clear()
+
+
+func _index_npc(npc_state: NpcState) -> void:
+	var map_npcs: Dictionary = _npcs_by_map.get(npc_state.map_id, {})
+	map_npcs[npc_state.npc_id] = npc_state
+	_npcs_by_map[npc_state.map_id] = map_npcs
+
+
 func new_game(p_seed: int) -> Error:
-	if not DataCatalog.is_ready_for_game():
+	if not DataCatalog.validate().is_empty():
 		return ERR_UNCONFIGURED
 
 	var next_player := _create_player_state(true)
@@ -97,34 +145,35 @@ func new_game(p_seed: int) -> Error:
 		map_state.map_id = map_id
 		next_maps[map_id] = map_state
 
-	player = next_player
-	backpack_state = next_backpack
+	ItemManager.reset_unique_count()
+	_player_state = next_player
+	_backpack_state = next_backpack
 	maps = next_maps
 	npcs = {}
+	_npcs_by_map.clear()
 	world_seed = p_seed
 	current_slot = -1
-	calendar = CalendarState.new()
-	sync_calendar_season()
+	CalendarManager.reset_calendar(p_seed)
+	CalendarManager.refresh()
 	_initialize_npcs()
-	_running = false
-	_pause_reasons.clear()
-	_time_accumulator = 0.0
-	_ending_day = false
 	_initialized = true
-	EventBus.player_state_changed.emit(player)
+	_bind_runtime_state()
+	EventBus.player_state_changed.emit(_player_state)
 	print(
 		(
 			"[GameManager] new game | seed=%d map=%s inventory=%d/%d"
 			% [
 				world_seed,
-				player.map_id,
-				backpack_state.used_slot_count(&"main_space")
-					+ backpack_state.used_slot_count(&"toolbar")
-					+ backpack_state.used_slot_count(&"itembar"),
+				MapManager.current_map_id(),
 				(
-					backpack_state.capacity(&"main_space")
-					+ backpack_state.capacity(&"toolbar")
-					+ backpack_state.capacity(&"itembar")
+					_backpack_state.used_slot_count(&"main_space")
+					+ _backpack_state.used_slot_count(&"toolbar")
+					+ _backpack_state.used_slot_count(&"itembar")
+				),
+				(
+					_backpack_state.capacity(&"main_space")
+					+ _backpack_state.capacity(&"toolbar")
+					+ _backpack_state.capacity(&"itembar")
 				),
 			]
 		)
@@ -138,9 +187,7 @@ func _create_backpack_state(allow_legacy_template: bool = true) -> BackpackState
 	if allow_legacy_template and config.backpack_state_template != null:
 		return config.backpack_state_template.duplicate(true) as BackpackState
 	var state := BackpackState.new(
-		config.backpack_main_space_capacity,
-		config.backpack_toolbar_capacity,
-		config.backpack_itembar_capacity
+		config.backpack_main_space_capacity, config.backpack_toolbar_capacity, config.backpack_itembar_capacity
 	)
 	for slot_id: StringName in config.backpack_initial_slots:
 		var slot := config.backpack_initial_slots[slot_id] as BackpackSlot
@@ -156,9 +203,7 @@ func _create_player_state(allow_legacy_template: bool = true) -> PlayerState:
 	if allow_legacy_template and config.player_state_template != null:
 		return config.player_state_template.duplicate(true) as PlayerState
 	var state := PlayerState.new()
-	state.map_id = config.player_map_id
-	state.spawn_id = config.player_spawn_id
-	state.cell = config.player_cell
+	state.position = Vector2.ZERO
 	state.facing = config.player_facing
 	state.max_health = config.player_max_health
 	state.health = clampi(config.player_initial_health, 0, state.max_health)
@@ -181,128 +226,17 @@ func is_initialized() -> bool:
 
 
 func reset() -> void:
+	CalendarManager.stop()
+	CalendarManager.reset_calendar(0)
+	CalendarManager.refresh()
 	player = null
-	backpack_state = null
+	_npcs_by_map.clear()
+	_backpack_state = null
 	maps.clear()
 	npcs.clear()
 	world_seed = 0
 	current_slot = -1
-	calendar = CalendarState.new()
-	sync_calendar_season()
-	_running = false
-	_pause_reasons.clear()
-	_time_accumulator = 0.0
-	_ending_day = false
 	_initialized = false
-
-
-func start() -> void:
-	_running = true
-
-
-func stop() -> void:
-	_running = false
-
-
-func is_running() -> bool:
-	return _running
-
-
-func pause(reason: StringName) -> Error:
-	if reason == &"":
-		return ERR_INVALID_PARAMETER
-	_pause_reasons[reason] = true
-	return OK
-
-
-func resume(reason: StringName) -> Error:
-	if reason == &"":
-		return ERR_INVALID_PARAMETER
-	if not _pause_reasons.erase(reason):
-		return ERR_DOES_NOT_EXIST
-	return OK
-
-
-func is_paused() -> bool:
-	return not _pause_reasons.is_empty()
-
-
-func can_advance() -> bool:
-	return _running and not is_paused()
-
-
-func advance_minutes(minutes: int) -> Error:
-	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
-		return CalendarManager.advance_minutes(minutes)
-	if not _initialized or minutes < 0:
-		return ERR_INVALID_PARAMETER if minutes < 0 else ERR_UNCONFIGURED
-	if minutes == 0:
-		return OK
-	for _index in range(minutes):
-		var before := calendar.to_dict()
-		calendar.add_minutes(1)
-		sync_calendar_season()
-		EventBus.time_advanced.emit(1, before, 1)
-		if calendar.hour >= 23:
-			_refresh_npc_schedules()
-			return request_end_day()
-	_refresh_npc_schedules()
-	return OK
-
-
-func request_end_day() -> Error:
-	if not _initialized:
-		return ERR_UNCONFIGURED
-	if _ending_day:
-		return OK
-	_ending_day = true
-	if self == GameManager and is_instance_valid(MapManager) and MapManager.can_run_day_transition():
-		var transition_error := MapManager.request_day_transition()
-		if transition_error == OK:
-			return OK
-		_ending_day = false
-		return transition_error
-	_complete_day()
-	return OK
-
-
-func complete_day() -> Error:
-	if not _initialized:
-		return ERR_UNCONFIGURED
-	if not _ending_day:
-		return ERR_UNAVAILABLE
-	_complete_day()
-	return OK
-
-
-func cancel_end_day() -> void:
-	_ending_day = false
-
-
-func _complete_day() -> void:
-	var previous_day := calendar.day
-	if self == GameManager and is_instance_valid(CalendarManager) and CalendarManager.is_configured():
-		previous_day = CalendarManager.advance_to_next_day()
-	else:
-		calendar.add_minutes((24 * 60) - calendar.minute_of_day())
-		calendar.hour = 6
-		calendar.minute = 0
-		sync_calendar_season()
-	_refresh_npc_schedules()
-	EventBus.day_advanced.emit(previous_day, calendar.day)
-	if player != null:
-		player.restore_for_new_day()
-		player.map_id = &"farm"
-		player.spawn_id = &"wake"
-		EventBus.player_state_changed.emit(player)
-	_ending_day = false
-
-
-func pause_reasons() -> Array[StringName]:
-	var reasons: Array[StringName] = []
-	reasons.assign(_pause_reasons.keys())
-	reasons.sort()
-	return reasons
 
 
 func snapshot() -> Dictionary:
@@ -325,8 +259,13 @@ func snapshot() -> Dictionary:
 			"game_version": game_version,
 			"world_seed": world_seed,
 			"current_slot": current_slot,
-			"player": player.to_dict(),
-			"backpack": backpack_state.to_dict(),
+			"current_map_id": String(MapManager.current_map_id()),
+			"player": player_state().to_dict(),
+			"backpack": (
+				player.backpack.backpack_state.to_dict()
+				if is_instance_valid(player) and player.backpack != null and player.backpack.backpack_state != null
+				else _backpack_state.to_dict()
+			),
 			"maps": map_data,
 			"npcs": npc_data,
 		}
@@ -338,9 +277,9 @@ func time_snapshot() -> Dictionary:
 	return (
 		{
 			"calendar": calendar.to_dict(),
-			"time_scale": time_scale,
-			"running": _running,
-			"pause_reasons": SerializationUtil.string_name_array_to_strings(pause_reasons()),
+			"time_scale": CalendarManager.time_scale,
+			"running": CalendarManager.is_running(),
+			"pause_reasons": SerializationUtil.string_name_array_to_strings(CalendarManager.pause_reasons()),
 		}
 		. duplicate(true)
 	)
@@ -373,10 +312,11 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 	):
 		return ERR_INVALID_DATA
 	var time_data := data.get("time", {}) as Dictionary
-	var next_calendar := CalendarState.from_dict(time_data.get("calendar", {}) as Dictionary)
+	var next_calendar := CalendarManagerService.new()
+	var calendar_error := next_calendar.load_dict(time_data.get("calendar", {}) as Dictionary)
 	var raw_time_scale: Variant = time_data.get("time_scale", config.initial_time_scale)
 	if (
-		next_calendar == null
+		calendar_error != OK
 		or (typeof(raw_time_scale) != TYPE_FLOAT and typeof(raw_time_scale) != TYPE_INT)
 		or float(raw_time_scale) <= 0.0
 		or not SerializationUtil.has_valid_bool(time_data, "running")
@@ -391,16 +331,17 @@ func replace_build_snapshot(data: Dictionary) -> Error:
 	var game_error := replace_snapshot(data.get("game", {}) as Dictionary)
 	if game_error != OK:
 		return game_error
-	calendar = next_calendar
-	sync_calendar_season()
-	if self == GameManager and is_instance_valid(CalendarManager):
-		CalendarManager.refresh()
+	CalendarManager.load_dict(next_calendar.to_dict())
+	CalendarManager.world_seed = int((data.get("game", {}) as Dictionary).get("world_seed", world_seed))
+	CalendarManager.refresh()
 	_refresh_npc_schedules()
-	time_scale = float(time_data.get("time_scale", config.initial_time_scale))
-	_running = bool(time_data.get("running", false))
-	_pause_reasons = next_pause_reasons
-	_time_accumulator = 0.0
-	_ending_day = false
+	CalendarManager.configure_time_scale(float(time_data.get("time_scale", config.initial_time_scale)))
+	if bool(time_data.get("running", false)):
+		CalendarManager._running = true
+	else:
+		CalendarManager.stop()
+	for reason: StringName in next_pause_reasons:
+		CalendarManager.pause(reason)
 	return OK
 
 
@@ -545,6 +486,8 @@ func replace_snapshot(data: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_dictionary(data, "player"):
 		return ERR_INVALID_DATA
+	if not SerializationUtil.has_valid_string(data, "current_map_id"):
+		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_dictionary(data, "backpack"):
 		return ERR_INVALID_DATA
 	if not SerializationUtil.has_valid_array(data, "maps") or not SerializationUtil.has_valid_array(data, "npcs"):
@@ -564,7 +507,7 @@ func replace_snapshot(data: Dictionary) -> Error:
 		if map_state == null or next_maps.has(map_state.map_id):
 			return ERR_INVALID_DATA
 		next_maps[map_state.map_id] = map_state
-	if next_maps.is_empty() or not next_maps.has(next_player.map_id):
+	if next_maps.is_empty():
 		return ERR_INVALID_DATA
 	var next_npcs: Dictionary[StringName, NpcState] = {}
 	for raw_npc: Variant in data.get("npcs", []) as Array:
@@ -574,30 +517,24 @@ func replace_snapshot(data: Dictionary) -> Error:
 		if npc_state == null or next_npcs.has(npc_state.npc_id) or not next_maps.has(npc_state.map_id):
 			return ERR_INVALID_DATA
 		next_npcs[npc_state.npc_id] = npc_state
+		_index_npc(npc_state)
+	ItemManager.reset_unique_count()
+	for map_state: MapState in next_maps.values():
+		for item_id: StringName in map_state.items:
+			ItemManager.register_unique_id(item_id)
 
-	player = next_player
-	backpack_state = next_backpack
+	_player_state = next_player
+	MapManager.set_loaded_map_id(StringName(str(data.get("current_map_id", config.player_map_id))))
+	_backpack_state = next_backpack
 	maps = next_maps
 	npcs = next_npcs
 	world_seed = int(data.get("world_seed", 0))
 	current_slot = int(data.get("current_slot", -1))
 	game_version = str(data.get("game_version", game_version))
 	_initialized = true
-	EventBus.player_state_changed.emit(player)
+	_bind_runtime_state()
+	EventBus.player_state_changed.emit(_player_state)
 	return OK
-
-
-func sync_calendar_season() -> void:
-	if (
-		self != GameManager
-		or calendar == null
-		or not is_instance_valid(CalendarManager)
-		or not CalendarManager.is_configured()
-	):
-		return
-	var next_season: StringName = CalendarManager.season_id_for_month(calendar.month)
-	if next_season != &"":
-		calendar.set_season(next_season)
 
 
 func set_npc(state: NpcState) -> Error:
@@ -608,6 +545,7 @@ func set_npc(state: NpcState) -> Error:
 	if not maps.has(state.map_id):
 		return ERR_DOES_NOT_EXIST
 	npcs[state.npc_id] = state
+	_index_npc(state)
 	return OK
 
 
@@ -617,8 +555,9 @@ func get_npc(npc_id: StringName) -> NpcState:
 
 func _initialize_npcs() -> void:
 	npcs.clear()
+	_npcs_by_map.clear()
 	var schedule_ids: Array[StringName] = []
-	schedule_ids.assign(DataCatalog.npc_schedules.keys())
+	schedule_ids.assign(DataCatalog.config.npc_schedules.keys())
 	schedule_ids.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
 	for schedule_id: StringName in schedule_ids:
 		var schedule := DataCatalog.get_npc_schedule(schedule_id)
@@ -632,6 +571,7 @@ func _initialize_npcs() -> void:
 		npc_state.behavior_id = schedule.fallback_behavior_id
 		npc_state.target_cell = schedule.fallback_cell
 		npcs[npc_state.npc_id] = npc_state
+		_index_npc(npc_state)
 		_apply_npc_schedule(schedule, npc_state)
 	EventBus.npc_states_changed.emit()
 
@@ -663,8 +603,11 @@ func _apply_npc_schedule(schedule: NpcSchedule, npc_state: NpcState) -> bool:
 	if npc_state.current_event_id == next_event and npc_state.map_id == next_map:
 		return false
 	if npc_state.map_id != next_map:
+		var previous_map_npcs: Dictionary = _npcs_by_map.get(previous_map, {})
+		previous_map_npcs.erase(npc_state.npc_id)
 		npc_state.map_id = next_map
 		npc_state.cell = npc_portal_arrival_cell(previous_map, next_map, npc_state.target_cell)
+		_index_npc(npc_state)
 	npc_state.current_event_id = next_event
 	return true
 
@@ -704,7 +647,7 @@ func npc_active_event(schedule: NpcSchedule) -> NpcScheduleEvent:
 		var previous := _previous_npc_date()
 		if (
 			event.contains_minute(minute, true)
-			and event.matches_date(previous.season_id, previous.month, previous.weekday)
+			and event.matches_date(previous.season, previous.month, previous.weekday)
 		):
 			matches.append(event)
 	if matches.is_empty():
@@ -757,18 +700,17 @@ func _previous_npc_date() -> Dictionary:
 	var previous_month := calendar.month
 	if previous_day < 1:
 		previous_month = 12 if previous_month == 1 else previous_month - 1
-		previous_day = CalendarState.DAYS_PER_MONTH
-	var season_index := floori(float(previous_month - 1) / 3.0)
+		previous_day = CalendarManagerService.DAYS_PER_MONTH
 	return {
 		"month": previous_month,
 		"day": previous_day,
 		"weekday": 7 if calendar.weekday == 1 else calendar.weekday - 1,
-		"season_id": CalendarState.SEASONS[season_index]
+		"season": calendar.season(previous_month)
 	}
 
 
 func _validate_player_containers(next_backpack: BackpackState) -> bool:
-	if not DataCatalog.is_ready_for_game():
+	if not DataCatalog.validate().is_empty():
 		return false
 	for container_id: StringName in [&"main_space", &"toolbar", &"itembar"]:
 		for index: int in next_backpack.capacity(container_id):
@@ -783,7 +725,7 @@ func _container_accepts(container_id: StringName, meta: ItemMeta) -> bool:
 	if meta == null:
 		return false
 	if container_id == &"toolbar":
-		return meta.is_tool()
+		return meta is ToolMeta
 	if container_id == &"itembar":
-		return not meta.is_tool() and not meta is HarvestableMeta
+		return not meta is ToolMeta and not meta is HarvestableMeta
 	return container_id == &"main_space"

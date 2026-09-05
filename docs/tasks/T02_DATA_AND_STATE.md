@@ -10,8 +10,8 @@
 
 ## 交付范围
 
-- `scripts/data/item/`：ItemMeta、ToolMeta、HarvestableMeta、PlantMeta、PlantStage、HarvestableStage、HarvestableDrop；`scripts/data/`：NpcSchedule/event。Meta 仅用于被多个实例共享的类型定义。
-- `scripts/state/item/`：ItemState、HarvestableState、PlantState；`scripts/state/inventory/`：BackpackState、BackpackSlot；`scripts/state/`：PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/items/` 保存运行时 Item、Harvestable 和 Plant，与 `scripts/world/` 同级；`scripts/world/` 保存 BaseMap 与 MapCell。
+- `scripts/data/item/`：ItemMeta、ToolMeta、HarvestableMeta、PlantMeta、HarvestableStage、HarvestableDrop；`scripts/data/`：NpcSchedule/event。Meta 仅用于被多个实例共享的类型定义。
+- `scripts/state/item/`：ItemState、HarvestableState、PlantState；`scripts/state/inventory/`：BackpackState、BackpackSlot；`scripts/state/`：PlayerState、CalendarState、CellState、NpcState、MapState；`scripts/item/` 保存运行时 Item、Harvestable 和 Plant，与 `scripts/world/` 同级；`scripts/world/` 保存 BaseMap 与 MapCell。
 - `DataCatalog` 配置：最小测试定义集合，包括 6 个工具、欧洲防风草种子/作物、木材、石头、草、食物占位定义。
 - `tests/unit/`：catalog/state/round-trip 测试。
 

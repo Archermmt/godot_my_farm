@@ -16,13 +16,13 @@ func interact(_player: FarmPlayer) -> String:
 	return "This is %s..." % _item_type_label()
 
 
-func on_effect_area_entered(effect_area: EffectArea) -> void:
-	var player := effect_area.get_parent() as FarmPlayer
+func on_interact_area_entered(interact_area: InteractArea) -> void:
+	var player := interact_area.get_parent() as FarmPlayer
 	if player != null:
 		InteractManager.show_prompt(self, player)
 
 
-func on_effect_area_exited(_effect_area: EffectArea) -> void:
+func on_interact_area_exited(_interact_area: InteractArea) -> void:
 	InteractManager.hide_prompt(self)
 
 

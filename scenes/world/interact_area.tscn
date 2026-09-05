@@ -1,18 +1,18 @@
 [gd_scene load_steps=3 format=4]
 
-[ext_resource type="Script" path="res://scripts/actors/effect_area.gd" id="1_effect_area"]
+[ext_resource type="Script" path="res://scripts/actors/interact_area.gd" id="1_interact_area"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
 radius = 44.0
 
-[node name="EffectArea" type="Area2D"]
+[node name="InteractArea" type="Area2D"]
 top_level = true
 z_index = 5
 collision_layer = 2
 collision_mask = 4
 monitoring = true
 monitorable = true
-script = ExtResource("1_effect_area")
+script = ExtResource("1_interact_area")
 
 [node name="InteractionShape" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_interaction")

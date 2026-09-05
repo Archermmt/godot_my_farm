@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- `scripts/world/items_generator.gd`、地图 Generator 子节点与候选值 Resource。
+- `scripts/world/item_generator.gd`、地图 Generator 子节点与候选值 Resource。
 - farm/field 的生成区域、候选定义和稳定 spawn ID。
 - MapState snapshot/restore 完整链路。
 - generation/map persistence 测试。
@@ -49,7 +49,7 @@ STATUS 记录 seed、初始/恢复 Item 摘要、20 次往返结果、run_id 和
 
 2026-08-14 实现记录：
 
-- farm/field 已分别挂载可编辑的 `ItemsGenerator` 子节点，候选为 tree/rock/grass；固定 seed 由 world seed、map ID、generation epoch 与 salt 派生。
+- farm/field 已分别挂载可编辑的 `ItemGenerator` 子节点，候选为 tree/rock/grass；固定 seed 由 world seed、map ID、generation epoch 与 salt 派生。
 - MapState 新增并序列化 `generation_epoch`；首次加载后设置 `generator_initialized`，地图恢复不再生成。启用 `regenerate_daily` 时只追加新 epoch 对象。
 - 自动化覆盖同 seed、不同 seed、Candidate required flags、GenerateLayer、安全区、满地图有限退出、生成标签、状态深恢复以及 20 次恢复不增殖。
 - 原生 runner：107 tests / 4811 assertions；Godot 资源扫描和 `git diff --check` 通过。

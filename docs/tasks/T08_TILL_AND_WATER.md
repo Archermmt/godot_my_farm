@@ -23,7 +23,7 @@
 4. 成功事务顺序：状态提交 -> 无状态视觉投影 -> 体力扣除 -> facts signal -> audio/effect。投影失败必须报告并可由状态重建。
 5. Tool 返回结构化结果：`effect_cells`、skipped reasons、energy spent；UI 不解析日志判断结果。
 6. MapState 写回并恢复后，dug/watered 表现与状态一致。
-7. EffectArea preview 的 valid 条件复用 MapCell 的查询规则，不能另写一套。
+7. InteractArea preview 的 valid 条件复用 MapCell 的查询规则，不能另写一套。
 8. 本任务引入的 Hoe、WateringCan 及共用 Tool 类型必须生成并配置可区分的 ItemMeta 图标，能够在 Toolbar Slot 和手持状态面板中显示。
 
 ## 自动化验收
@@ -47,10 +47,10 @@
 ## 完成记录
 
 - 状态：completed（2026-08-11）。
-- 新增运行时 `Tool` 与结构化 `ToolOutcome`；Hoe/WateringCan 按 ToolMeta 配置执行，工具事务不进入 EffectArea，Player 只根据 Outcome 扣除体力。
+- 新增运行时 `Tool` 与结构化 `ToolOutcome`；Hoe/WateringCan 按 ToolMeta 配置执行，工具事务不进入 InteractArea，Player 只根据 Outcome 扣除体力。
 - MapCell 的 till/water 查询同时供 preview 与 commit 使用；重复翻地、重复浇水、占用、非可耕地和未翻地均返回稳定的 skipped reason。
 - 多格事务先收集有效格，每次事务固定消耗一次 `base_energy_cost`；蓄力扩大范围不按格重复收费。体力不足时 flags、revision 和 energy 全部不变。
 - 成功顺序为 CellState 修改、BaseMap projection/revision、PlayerState energy、事实信号、AudioManager/效果请求；投影错误单独写入 result 并发出事实。
 - BaseMap 通过无状态 `CellStateProjection` 绘制 DUG/WATERED，不建立动态 TileMapLayer；MapState JSON 往返后可直接重建。
-- `clear_watered()` 供 T08 在作物生长结算完成后调用，确保读取前一天 WATERED 后再清除。
+- `BaseMap._on_day_advanced()` 先读取前一天 WATERED 结算作物生长，再按当前天气更新 WATERED，不暴露独立日结接口或无消费方的返回值。
 - 自动化：82 tests / 4340 assertions；包含 9x9 最大蓄力固定单次消耗和可耕地专用 tile 场景契约。资源 import、主场景启动和 `git diff --check` 通过。

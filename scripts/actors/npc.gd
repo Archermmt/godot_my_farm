@@ -23,12 +23,12 @@ func bind(next_state: NpcState, next_map: BaseMap) -> Error:
 	var next_schedule := DataCatalog.get_npc_schedule(next_state.schedule_id)
 	if next_schedule == null or next_state.npc_id != next_schedule.npc_id:
 		return ERR_INVALID_DATA
-	if next_state.map_id != next_map.map_id or not next_map.contains_cell(next_state.cell):
+	if next_state.map_id != next_map.map_id or not next_map.cells.has(next_state.cell):
 		return ERR_INVALID_DATA
 	state = next_state
 	schedule = next_schedule
 	map = next_map
-	global_position = map.cell_to_world_center(state.cell)
+	global_position = map.cell_to_world(state.cell)
 	sprite.modulate = schedule.body_color
 	accent.color = schedule.accent_color
 	navigation_agent.path_desired_distance = 2.0
@@ -43,11 +43,11 @@ func refresh_target() -> Error:
 	var spawn_id := state.target_spawn_id
 	if spawn_id != &"":
 		target_cell = map.world_to_cell(map.spawn_position(spawn_id))
-	if not map.contains_cell(target_cell):
+	if not map.cells.has(target_cell):
 		return ERR_INVALID_DATA
-	target_position = map.cell_to_world_center(target_cell)
+	target_position = map.cell_to_world(target_cell)
 	navigation_agent.target_position = target_position
-	if map.is_walkable(target_cell):
+	if map.check_cell(target_cell, CellState.CellCondition.WALKABLE):
 		_warning_key = &""
 	else:
 		_warn_unreachable(map.world_to_cell(global_position), target_cell)
@@ -55,7 +55,7 @@ func refresh_target() -> Error:
 
 
 func _physics_process(_delta: float) -> void:
-	if is_instance_valid(GameManager) and GameManager.is_paused():
+	if is_instance_valid(GameManager) and CalendarManager.is_paused():
 		velocity = Vector2.ZERO
 		_set_animation(false, state.facing if state != null else &"down")
 		return
@@ -82,7 +82,7 @@ func _physics_process(_delta: float) -> void:
 	state.facing = _facing_for(direction, state.facing)
 	velocity = direction * schedule.move_speed
 	move_and_slide()
-	if map.contains_cell(map.world_to_cell(global_position)):
+	if map.cells.has(map.world_to_cell(global_position)):
 		state.cell = map.world_to_cell(global_position)
 	_set_animation(true, state.facing)
 
@@ -110,15 +110,15 @@ func interact(player: FarmPlayer) -> void:
 		_: InteractManager.begin(&"npc_villager_default", self, player)
 
 
-func on_effect_area_entered(effect_area: EffectArea) -> void:
-	var player := effect_area.get_parent() as FarmPlayer
+func on_interact_area_entered(interact_area: InteractArea) -> void:
+	var player := interact_area.get_parent() as FarmPlayer
 	if player != null and state == null:
 		return
 	if player != null:
 		InteractManager.show_prompt(self, player)
 
 
-func on_effect_area_exited(_effect_area: EffectArea) -> void:
+func on_interact_area_exited(_interact_area: InteractArea) -> void:
 	InteractManager.hide_prompt(self)
 
 

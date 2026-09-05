@@ -3,27 +3,24 @@ extends ProjectTestCase
 
 func test_cell_and_item_state_deep_json_round_trip() -> void:
 	var crop := PlantState.new()
-	crop.instance_id = &"crop_7_-2"
+	crop.unique_id = &"crop_7_-2"
 	crop.meta_id = &"parsnip"
-	crop.growth_days = 4
 	crop.health = 2
-	crop.planted_on_day = 3
-	crop.random_seed = 741
+	crop.last_growth_day = 3
 
 	var cell := CellState.new()
 	cell.cell = Vector2i(7, -2)
 	cell.flags = CellState.CellFlag.DUG | CellState.CellFlag.WATERED
-	cell.item_ids = [crop.instance_id]
+	cell.item_ids = [crop.unique_id]
 
 	var item_cell := CellState.new()
 	item_cell.cell = Vector2i(10, 5)
 	var item := HarvestableState.new()
-	item.instance_id = &"tree_001"
+	item.unique_id = &"tree_001"
 	item.meta_id = &"tree"
 	item.health = 3
-	item.random_seed = 99
-	item.flags = [&"persistent", &"blocks"]
-	item_cell.item_ids = [item.instance_id]
+	item.flags = [ItemMeta.ItemFlag.HURT, ItemMeta.ItemFlag.DESTROYED]
+	item_cell.item_ids = [item.unique_id]
 
 	var map_state := MapState.new()
 	map_state.map_id = &"farm"
@@ -31,8 +28,8 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	map_state.generation_epoch = 3
 	map_state.cells[cell.cell] = cell
 	map_state.cells[item_cell.cell] = item_cell
-	map_state.items[crop.instance_id] = crop
-	map_state.items[item.instance_id] = item
+	map_state.items[crop.unique_id] = crop
+	map_state.items[item.unique_id] = item
 
 	var parsed: Dictionary = JSON.parse_string(JSON.stringify(map_state.to_dict())) as Dictionary
 	var restored := MapState.from_dict(parsed)
@@ -46,20 +43,22 @@ func test_cell_and_item_state_deep_json_round_trip() -> void:
 	assert_equal(typeof(restored_cell.cell), TYPE_VECTOR2I)
 	assert_equal(restored_cell.flags, CellState.CellFlag.DUG | CellState.CellFlag.WATERED)
 	assert_equal(restored_crop.meta_id, &"parsnip")
-	assert_equal(restored_crop.growth_days, 4)
 	assert_equal(restored_crop.health, 2)
-	assert_equal(restored_crop.planted_on_day, 3)
+	assert_equal(restored_crop.last_growth_day, 3)
 	assert_true(restored_item is HarvestableState)
 	assert_equal(restored_item.health, 3)
 	assert_true(&"crop_7_-2" in restored_cell.item_ids)
-	assert_equal(restored_item.flags, [&"persistent", &"blocks"])
-	assert_equal(typeof(restored_item.flags[0]), TYPE_STRING_NAME)
+	assert_equal(restored_item.flags, [ItemMeta.ItemFlag.HURT, ItemMeta.ItemFlag.DESTROYED])
+	assert_true(restored_item.has_flag(ItemMeta.ItemFlag.HURT))
 	assert_true(restored.generator_initialized)
 	assert_equal(restored.generation_epoch, 3)
 func test_dynamic_cell_flags_survive_state_binding() -> void:
+	var map := BaseMap.new()
 	var cell := MapCell.new()
+	map.cells[Vector2i.ZERO] = cell
 	var state := CellState.new()
 	state.flags = CellState.CellFlag.DUG | CellState.CellFlag.WATERED
 	assert_equal(cell.bind_state(state), OK)
-	assert_true(cell.is_dug())
-	assert_true(cell.is_watered())
+	assert_true(map.check_cell(Vector2i.ZERO, CellState.CellCondition.DUG))
+	assert_true(map.check_cell(Vector2i.ZERO, CellState.CellCondition.WATERED))
+	map.free()

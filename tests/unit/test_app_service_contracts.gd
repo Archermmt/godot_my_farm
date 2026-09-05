@@ -14,7 +14,6 @@ func test_event_bus_declares_only_confirmed_signal_surface() -> void:
 		&"container_changed",
 		&"bar_selection_changed",
 		&"active_hand_changed",
-		&"cells_tool_used",
 		&"cell_projection_failed",
 		&"request_tool_feedback",
 		&"request_invalid_feedback",
@@ -27,27 +26,19 @@ func test_event_bus_declares_only_confirmed_signal_surface() -> void:
 
 func test_map_manager_requires_explicit_hosts() -> void:
 	var router := MapManagerService.new()
-	assert_equal(router.register_hosts(null, null, null, null), ERR_INVALID_PARAMETER)
-	var map_host := Node2D.new()
-	var actor_host := Node2D.new()
-	var ui_layer := CanvasLayer.new()
-	var overlay := ColorRect.new()
-	var day_overlay := ColorRect.new()
-	var shader_material := ShaderMaterial.new()
-	shader_material.shader = load("res://assets/shaders/day_iris_transition.gdshader") as Shader
-	day_overlay.material = shader_material
-	assert_equal(router.register_hosts(map_host, actor_host, ui_layer, overlay, day_overlay), OK)
-	assert_true(router.has_registered_hosts())
-	assert_true(not router.can_run_day_transition())
-	assert_equal(router.request_map_change(&"farm", &"default"), ERR_UNCONFIGURED)
-	router.unregister_hosts(map_host)
+	assert_equal(router.validate(), ERR_UNCONFIGURED)
 	assert_true(not router.has_registered_hosts())
-	day_overlay.free()
-	overlay.free()
-	ui_layer.free()
-	actor_host.free()
-	map_host.free()
 	router.free()
+
+
+func test_item_manager_owns_global_unique_id_count() -> void:
+	var manager := ItemManagerService.new()
+	assert_equal(manager.get_unique_id(&"tree"), &"tree_1")
+	assert_equal(manager.get_unique_id(&"pickup_wood"), &"pickup_wood_2")
+	manager.register_unique_id(&"rock_40")
+	assert_equal(manager.get_unique_id(&"tree"), &"tree_41")
+	assert_equal(manager.get_unique_id(&""), &"")
+	manager.free()
 
 
 func test_unconfigured_save_and_audio_operations_return_errors() -> void:
@@ -58,9 +49,9 @@ func test_unconfigured_save_and_audio_operations_return_errors() -> void:
 	effect_manager.config = GameConfig.new()
 	assert_equal(game_manager.save_slot(0), ERR_UNAVAILABLE)
 	assert_equal(game_manager.load_slot(0), ERR_UNAVAILABLE)
-	assert_equal(audio_manager.play_event(&"ui_confirm"), ERR_UNCONFIGURED)
-	assert_equal(audio_manager.stop_event(&"ui_confirm"), ERR_DOES_NOT_EXIST)
-	assert_equal(effect_manager.definition_count(), 0)
+	assert_equal(audio_manager.play_audio(&"ui_confirm"), ERR_UNCONFIGURED)
+	assert_equal(audio_manager.stop_audio(&"ui_confirm"), ERR_DOES_NOT_EXIST)
+	assert_equal(effect_manager.validate(), OK)
 	game_manager.free()
 	audio_manager.free()
 	effect_manager.free()

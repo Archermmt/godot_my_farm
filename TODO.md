@@ -1,23 +1,18 @@
-代码整理顺序：(data,effects)->state->autoload->items->world->actors->ui->app
+代码整理顺序：(data,effects)->state->item->world->autoload->actors->ui->app
 
+1. 思考state存在的必要性：目前state主要作用是信息的保存/加载，这个直接用runtime obj to_dict/from_dict就能实现，使用state只是想减少保存与加载的时间，这种保存与加载一般发生在save/load和map切换的时候，考虑：1.除了用json保存/加载以外有没有更加高效的信息保存形式；2.如果用state保存的话，是不是切换地图之后还需要内存中保留大量非激活地图的信息？这样以来运行过程中会造成内存负担越来越重，state的设计到底是好是坏？
 
-23. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/data/item/harvestable_stage.gd
-看一下这个stage和plant_stage是不是可以合并？他们都表示harvestable某一个阶段的信息，看看是不是都可以合并到harvestable_stage，可以考虑plant不用days决定阶段而是用health，这样就喝harvestable stage的决定方式统一了，plant growth可以变成health增加
+2. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/autoload/game_manager.gd
+npc_assignment不用了，需要的信息直接从NpcScheduleEvent获取
 
-24. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/plant.gd
-_refresh_stage_visual 变成复用基类的refresh_visual，plant_state和plant_meta改成复用基类的get_state和get_meta，stage_index和current_stage可以合并到harvestable里面
+3. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/autoload/game_manager.gd
+npc自己负责自己的schedule逻辑吧，game_manager只需要在切换地图的时候对npc进行enable和disable就行，同时calender_manager增加advanced_hour信号，npc通过这个信号刷新自己的schedule，并通过当前的map决定自己是否应该enable/disable，现在game_manager管理npc逻辑太多了
 
-25. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/seed.gd
-_init换成_new传入state
+4. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/state/npc_state.gd
+NPCState不需要记录cell，而是应该记录postion
 
-26. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/outcome
-考虑这些outcome是否可以统一成一个outcome.gd：1.不需要记录error了，2.只需要记录cells和items信息，cells是影响到了哪些cell，是array<vector2>,items是作用到了哪些item，是dict<StringName, ItemState>来表示item被使用工具之后的不同状态，例如destroyed，hurt，planted，dropped等，ItemState可以加上用于记录item当前各种状态的参数（phase，类型是ItemMeta.ItemPhase）。用这两个信息可以覆盖现有的所有outcome信息
+5. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/autoload/interact_manager.gd
+current_player不需要保存，全局只有一个player，可以通过GameManger.player获取
 
-28. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/seed.gd
-if target_cells.size() > available_count: 判断太简单了，有可能target_cells中又一些被占用了，应该是下面的的循环过程进行计数，超过available_count就break
-
-29. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/seed.gd
-if not map.check_cell(cell, BaseMap.CellCondition.PLANTABLE) 这里改成用cell.plantable() 来检查吧，这种cell应该负责的逻辑不要放在map里面
-
-30. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/items/tool.gd
-targets_cells 改成 is_cell_tool，名字比较直观
+6. /Users/tongmeng/Desktop/codes/godot_my_farm/scripts/autoload/interact_manager.gd
+_timeline_for_id 和 _dialogue_id 内连;begin 函数不需要传入player和target了，player是全局的，target也已经记录在current_target里面了，dialogic做成memeber吧，_ready的时候获取，不需要每次都重新拿了

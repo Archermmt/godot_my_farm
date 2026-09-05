@@ -2,7 +2,7 @@
 
 ## 目标
 
-在 T14 的 NPC 移动和 T16 的持久化之间，建立统一的面对面交互流程。玩家可以与房屋内的床、电视等场景物件交互，也可以与 NPC 交互并进入可推进的对话。这里的“场景物件”是地图中已实例化的家具或设施，不是背包中的 `Item`。交互目标由独立场景中的 `InteractionArea` 与玩家 `EffectArea` 的进入/离开事件发现；对话期间角色停止移动，直到对话结束或被取消。
+在 T14 的 NPC 移动和 T16 的持久化之间，建立统一的面对面交互流程。玩家可以与房屋内的床、电视等场景物件交互，也可以与 NPC 交互并进入可推进的对话。这里的“场景物件”是地图中已实例化的家具或设施，不是背包中的 `Item`。交互目标由独立场景中的 `InteractionArea` 与玩家 `InteractArea` 的进入/离开事件发现；对话期间角色停止移动，直到对话结束或被取消。
 
 本任务参考 GDQuest Open RPG 的对话流程，正式实现前必须先安装并启用与当前 Godot 版本兼容的 Dialogic 插件。对话内容放在可编辑的 `DialogicTimeline` 资源中，触发脚本通过适配层调用 `Dialogic.start_timeline()`，并监听 `timeline_ended` 等信号；文本气泡、姓名、头像和推进状态由 Dialogic 的布局与会话系统负责。本项目仍保留 `Player -> InteractManager -> interaction target` 的目标选择、GameManager 的状态边界以及插件适配层，NPC 或家具不得直接依赖 Dialogic API。
 
@@ -67,7 +67,7 @@
 ### 1. 目标与查询
 
 1. 目标必须是当前地图中已实例化的运行时对象，或由 BaseMap 根据目标 cell 返回的对象；不能让 Player 反向遍历全局所有 NPC/Item。
-2. `EffectArea` 同时提供工具/种子预览和交互范围传感器；它只转发目标进入/离开事件并更新 `InteractManager`，不负责创建气泡或执行对话业务。
+2. `InteractArea` 同时提供工具/种子预览和交互范围传感器；它只转发目标进入/离开事件并更新 `InteractManager`，不负责创建气泡或执行对话业务。
 3. 目标查询按以下顺序处理：计算 player 当前 cell 前方的首个 cell，从 BaseMap/当前场景收集该 cell 上的交互目标，按目标优先级和距离选出一个目标，在目标不可用时返回原因但不打开气泡。
 4. NPC、家具和设备可以共享同一交互协议，但其业务行为保留在各自 runtime object 中。不要为每一种目标创建只转发调用的 controller。
 
@@ -105,7 +105,7 @@ Player 负责输入并调用 `InteractManager`；目标负责自身业务；Inte
 2. 玩家面对电视按 `interact`，打开至少两行可推进的电视信息对话，逐字显示、跳过和关闭均正常。
 3. 玩家面对壁炉或其他家具时，未配置 dialogue 的目标给出明确不可交互结果，不产生空气泡或错误日志。
 4. 交互目标不在 facing cell、被墙阻挡、超出范围或玩家处于工具 hold 状态时，按键不会误触发。
-5. 玩家 `EffectArea` 进入目标 `InteractionArea` 时显示范围提示气泡，离开时只隐藏对应气泡；多个目标重叠时不得残留旧目标提示。
+5. 玩家 `InteractArea` 进入目标 `InteractionArea` 时显示范围提示气泡，离开时只隐藏对应气泡；多个目标重叠时不得残留旧目标提示。
 
 ## NPC 交互验收场景
 

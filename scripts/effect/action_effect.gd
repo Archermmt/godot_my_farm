@@ -14,18 +14,27 @@ const COLORS := {
 
 var points: PackedVector2Array = PackedVector2Array()
 var effect_color: Color = Color.WHITE
+var _playing := false
 
 
-func configure(event_id: StringName, cells: Array[Vector2i], map: BaseMap) -> void:
+func play(event_id: StringName, positions: Array[Vector2]) -> void:
+	_playing = true
 	effect_color = COLORS.get(event_id, Color("e9d986")) as Color
 	points.clear()
-	if map != null:
-		for cell: Vector2i in cells:
-			points.append(to_local(map.cell_to_world_center(cell)))
+	for position: Vector2 in positions:
+		points.append(to_local(position))
 	queue_redraw()
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, lifetime).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.finished.connect(queue_free)
+func stop() -> void:
+	_playing = false
+	modulate.a = 1.0
+	points.clear()
+	queue_redraw()
+
+func is_playing() -> bool:
+	return _playing
 
 
 func _draw() -> void:

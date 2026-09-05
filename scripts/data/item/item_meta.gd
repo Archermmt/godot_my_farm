@@ -2,7 +2,7 @@ class_name ItemMeta
 extends Resource
 
 enum ItemType { TOOL, SEED, FOOD, MATERIAL, OBSTACLE, PLANT, FURNITURE }
-enum ItemFlag { AVAILABLE, DEPLETED, NOT_MATURE, WRONG_TOOL, INVALID }
+enum ItemFlag { AVAILABLE, DEPLETED, NOT_MATURE, WRONG_TOOL, INVALID, HURT, DESTROYED, PLANTED, DROPPED, GENERATED }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -16,7 +16,3 @@ enum ItemFlag { AVAILABLE, DEPLETED, NOT_MATURE, WRONG_TOOL, INVALID }
 @export_range(1, 999, 1) var stack_limit: int = 1
 @export_range(0, 999999, 1) var buy_price: int = 0
 @export_range(0, 999999, 1) var sell_price: int = 0
-
-
-func is_tool() -> bool:
-	return false

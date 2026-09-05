@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=3]
 
-[ext_resource type="Script" path="res://scripts/effects/rain_weather.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/effect/rain_weather.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/art/effects/raindrop.svg" id="2_drop"]
 [ext_resource type="Texture2D" path="res://assets/art/effects/ripple.svg" id="3_ripple"]
 [ext_resource type="PackedScene" path="res://scenes/effects/lightning_weather.tscn" id="4_lightning"]

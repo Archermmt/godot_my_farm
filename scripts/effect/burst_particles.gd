@@ -6,10 +6,11 @@ extends Node2D
 @onready var emitter_template: CPUParticles2D = $EmitterTemplate
 
 
-func configure(_event_id: StringName, world_position: Vector2) -> void:
+func play(_event_id: StringName, positions: Array[Vector2]) -> void:
 	if emitter_template == null:
 		queue_free()
 		return
+	var world_position := positions[0] if not positions.is_empty() else Vector2.ZERO
 	emitter_template.position = to_local(world_position)
 	emitter_template.emitting = true
 	emitter_template.restart()

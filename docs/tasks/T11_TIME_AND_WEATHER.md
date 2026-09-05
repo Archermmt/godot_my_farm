@@ -12,7 +12,7 @@
 
 - 完善 GameManager 内的时间控制与 CalendarState。
 - 脚本型 `CalendarManager` Autoload：从 `GameConfig` 读取配置，负责每日天气选择和全局 CanvasModulate 天光。
-- Inspector 可配置的 `SeasonMeta`：每季一份，记录 season_id、月份集合、天气选择权重和天光色调。
+- Inspector 可配置的 `SeasonMeta`：每个 `SeasonType` 一份，记录天气选择权重和天光色调。
 - 常驻“游戏状态 + 人物状态”显示面板：同一面板显示日期、时间、季节、天气、生命、体力、金币和手持状态，并随运行时状态实时更新。
 - time/weather 单元和集成测试。
 - clear、cloudy、rain、storm、snow 天气图标及状态面板图标显示。
@@ -22,7 +22,7 @@
 ## 实现要求
 
 1. 现实时间按配置倍率转换为游戏分钟；HUD 每 5 游戏分钟刷新，但底层时间精确到分钟。
-2. year/month/day/week_day/hour/minute 边界依次推进，30 天/月、12 月/年；月份到季节的归属由 CalendarManager 的 `SeasonMeta.months` 决定，并同步到 CalendarState 的派生 `season_id`；测试大 delta。
+2. year/month/day/week_day/hour/minute 边界依次推进，30 天/月、12 月/年；CalendarState 按每三个月一个季节直接计算 `SeasonType`；测试大 delta。
 3. 到 23:00 只发起一次 end-day。体力或生命归零也请求同一协调流程，不能递归/重复加天。
 4. 换日顺序遵循架构：记录 previous -> iris 收缩至全黑 -> MapManager 加载 farm 并定位 House wake 点 -> 日历推进到次日 06:00 -> crop/generator/NPC、cell/weather 与贴图更新 -> Player 恢复 -> iris 展开。
 5. 工具/播种/采集使用统一 PlayerState.consume_energy；不足时行动原子失败。Food Item 可恢复体力但不超过上限。

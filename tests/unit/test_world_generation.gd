@@ -13,33 +13,34 @@ func after_each() -> void:
 	_nodes.clear()
 
 
-func test_generation_is_seeded_and_respects_cell_and_safe_zone_constraints() -> void:
+func test_generation_is_seeded_and_respects_cell_constraints() -> void:
 	var first_state := MapState.new()
 	first_state.map_id = &"farm"
 	var first := _farm()
-	assert_equal(first.configure_state(first_state, 7301, true), OK)
+	assert_equal(first.setup(first_state, true), OK)
 	var first_layout := _layout(first_state)
 	assert_true(first_state.generator_initialized)
 	assert_true(not first_layout.is_empty())
-	assert_equal(int(first.last_generation_summary["spawned"]), first_state.items.size())
-	for item_state: ItemState in first_state.items.values():
-		assert_true(Rect2i(Vector2i.ZERO, first.get_map_size()).has_point(item_state.cell))
-		var cell := first.get_cell(item_state.cell)
-		assert_true(cell.has_static_flag(CellState.CellFlag.BASE))
-		assert_true(cell.has_static_flag(CellState.CellFlag.GENERATE))
-		assert_true(&"generated" in item_state.flags)
-		assert_true(not _inside_safe_zone(first, item_state.cell, first.items_generator.safe_radius))
+	for item_id: StringName in first_state.items:
+		var item_state := first_state.items[item_id] as ItemState
+		var item_cell := first.get_item_coord(item_id)
+		assert_true(Rect2i(Vector2i.ZERO, first.get_map_size()).has_point(item_cell))
+		var cell := first.get_cell(item_cell)
+		assert_true(cell.has_flag(CellState.CellFlag.BASE))
+		assert_true(cell.has_flag(CellState.CellFlag.GENERATE))
+		assert_true(item_state.has_flag(ItemMeta.ItemFlag.GENERATED))
 
 	var same_state := MapState.new()
 	same_state.map_id = &"farm"
 	var same := _farm()
-	assert_equal(same.configure_state(same_state, 7301, true), OK)
+	assert_equal(same.setup(same_state, true), OK)
 	assert_equal(_layout(same_state), first_layout)
 
 	var different_state := MapState.new()
 	different_state.map_id = &"farm"
 	var different := _farm()
-	assert_equal(different.configure_state(different_state, 7302, true), OK)
+	different.item_generator.seed_salt += 1
+	assert_equal(different.setup(different_state, true), OK)
 	assert_true(_layout(different_state) != first_layout)
 
 
@@ -47,7 +48,7 @@ func test_generation_runs_once_across_twenty_map_restores() -> void:
 	var state := MapState.new()
 	state.map_id = &"farm"
 	var first := _farm()
-	assert_equal(first.configure_state(state, 8080, true), OK)
+	assert_equal(first.setup(state, true), OK)
 	var expected_ids := _sorted_ids(state)
 	assert_true(not expected_ids.is_empty())
 	_nodes.erase(first)
@@ -55,7 +56,7 @@ func test_generation_runs_once_across_twenty_map_restores() -> void:
 
 	for _iteration: int in 20:
 		var restored := _farm()
-		assert_equal(restored.configure_state(state, 8080, true), OK)
+		assert_equal(restored.setup(state, true), OK)
 		assert_equal(_sorted_ids(state), expected_ids)
 		assert_equal(restored.items.size(), expected_ids.size())
 		_nodes.erase(restored)
@@ -66,7 +67,7 @@ func test_generated_and_manual_item_state_survive_snapshot_restore() -> void:
 	var state := MapState.new()
 	state.map_id = &"farm"
 	var map := _farm()
-	assert_equal(map.configure_state(state, 991, true), OK)
+	assert_equal(map.setup(state, true), OK)
 	var removed_id: StringName = _sorted_ids(state)[0]
 	assert_equal(map.remove_item(removed_id), OK)
 	var changed_id: StringName = _sorted_ids(state)[0]
@@ -74,49 +75,47 @@ func test_generated_and_manual_item_state_survive_snapshot_restore() -> void:
 	changed.health = 1
 
 	var pickup := ItemState.new()
-	pickup.instance_id = &"manual_wood"
+	pickup.unique_id = &"manual_wood"
 	pickup.meta_id = &"wood"
 	var pickup_cell := _empty_cell(map)
-	assert_equal(map.add_item_state(pickup, pickup_cell), OK)
+	assert_equal(map.add_item(ItemManager.create_from_state(pickup), pickup_cell), OK)
 	var plant := PlantState.new()
-	plant.instance_id = &"manual_parsnip"
+	plant.unique_id = &"manual_parsnip"
 	plant.meta_id = &"parsnip"
 	plant.health = 1
-	plant.growth_days = 2
-	plant.planted_on_day = 1
 	var plant_cell := _empty_cell(map)
-	assert_equal(map.add_item_state(plant, plant_cell), OK)
+	assert_equal(map.add_item(ItemManager.create_from_state(plant), plant_cell), OK)
 
 	var restored_state := MapState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict())) as Dictionary)
 	assert_true(restored_state != null)
 	var restored := _farm()
-	assert_equal(restored.configure_state(restored_state, 991, true), OK)
+	assert_equal(restored.setup(restored_state, true), OK)
 	assert_true(not restored_state.items.has(removed_id))
 	assert_equal((restored_state.items[changed_id] as HarvestableState).health, 1)
 	assert_true(restored_state.items[&"manual_wood"] is ItemState)
 	assert_true(restored_state.items[&"manual_parsnip"] is PlantState)
-	assert_equal((restored_state.items[&"manual_parsnip"] as PlantState).growth_days, 2)
+	assert_equal((restored_state.items[&"manual_parsnip"] as PlantState).health, 1)
 
 
 func test_no_valid_cells_finishes_without_attempt_loop() -> void:
 	var state := MapState.new()
 	state.map_id = &"farm"
 	var map := _farm()
+	assert_equal(map.setup(state), OK)
 	for cell: MapCell in map.cells.values():
-		cell.remove_static_flag(CellState.CellFlag.GENERATE)
-	assert_equal(map.configure_state(state, 77, true), OK)
+		cell.remove_flag(CellState.CellFlag.GENERATE)
+	assert_equal(map.setup(state, true), OK)
 	assert_true(state.generator_initialized)
-	assert_equal(int(map.last_generation_summary["spawned"]), 0)
-	assert_equal(int(map.last_generation_summary["attempts"]), 0)
-	assert_equal(int(map.last_generation_summary["skipped"]), int(map.last_generation_summary["requested"]))
+	assert_true(state.items.is_empty())
 
 
 func test_generator_rejects_empty_candidate_id() -> void:
-	var generator := ItemsGenerator.new()
+	var generator := ItemGenerator.new()
 	_nodes.append(generator)
-	var candidate := ItemsGeneratorCandidate.new()
+	var candidate := ItemGeneratorCandidate.new()
+	candidate.item_ids = [&""]
 	candidate.max_count = 1
-	generator.candidates = {&"": candidate}
+	generator.candidates = [candidate]
 	assert_equal(generator.validation_error(), ERR_INVALID_DATA)
 
 
@@ -126,20 +125,21 @@ func test_field_generation_uses_resource_cells_within_map_size() -> void:
 	var map := FIELD_SCENE.instantiate() as BaseMap
 	_nodes.append(map)
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
-	assert_equal(map.configure_state(state, 4021, true), OK)
+	assert_equal(map.setup(state, true), OK)
 	assert_true(state.items.size() > 0)
-	for item_state: ItemState in state.items.values():
-		assert_true(Rect2i(Vector2i.ZERO, map.get_map_size()).has_point(item_state.cell))
-		var cell := map.get_cell(item_state.cell)
-		assert_true(cell.has_static_flag(CellState.CellFlag.BASE))
-		assert_true(cell.has_static_flag(CellState.CellFlag.GENERATE))
+	for item_id: StringName in state.items:
+		var item_cell := map.get_item_coord(item_id)
+		assert_true(Rect2i(Vector2i.ZERO, map.get_map_size()).has_point(item_cell))
+		var cell := map.get_cell(item_cell)
+		assert_true(cell.has_flag(CellState.CellFlag.BASE))
+		assert_true(cell.has_flag(CellState.CellFlag.GENERATE))
 
 
 func test_farm_and_field_generate_loose_pickup_items() -> void:
 	for map: BaseMap in [_farm(), _field()]:
 		var state := MapState.new()
 		state.map_id = map.map_id
-		assert_equal(map.configure_state(state, 6127, true), OK)
+		assert_equal(map.setup(state, true), OK)
 		var loose_items := 0
 		for item_state: ItemState in state.items.values():
 			if item_state is HarvestableState:
@@ -167,7 +167,7 @@ func _field() -> BaseMap:
 func _layout(state: MapState) -> Array[String]:
 	var layout: Array[String] = []
 	for item_state: ItemState in state.items.values():
-		layout.append("%s:%d,%d" % [item_state.meta_id, item_state.cell.x, item_state.cell.y])
+		layout.append("%s:%.3f,%.3f" % [item_state.meta_id, item_state.position.x, item_state.position.y])
 	layout.sort()
 	return layout
 

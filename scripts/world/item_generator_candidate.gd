@@ -1,7 +1,8 @@
-class_name ItemsGeneratorCandidate
+class_name ItemGeneratorCandidate
 extends Resource
 
 @export_category("Item")
+@export var item_ids: Array[StringName] = []
 @export var required_flags: Array[CellState.CellFlag] = [CellState.CellFlag.GENERATE]
 
 @export_category("Amount")

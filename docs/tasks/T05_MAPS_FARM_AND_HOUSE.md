@@ -20,9 +20,9 @@
 
 1. 三地图视觉和边界明显不同且尺寸大于单屏探索范围；farm 有大面积农地、道路与水塘，field 有山坡、资源区和不规则小径，beach 有沙滩与逐行变化的不规则海岸线。
 2. TileMapLayer 直接挂在地图根节点的 `TileMaps` 容器下；TileMaps 保持 identity transform，Farm、Field、Beach 全部直接使用 BaseMap，并校验 tile size/transform/origin 对齐。
-3. `cell_flags: Dictionary[TileMapLayer, CellState.CellFlag]` 将每层全部 used cells 映射为可组合的静态 CellState；MapCell 持有 CellState、绑定 CellState 并负责运行时行为。
+3. `map_layers: Dictionary[CellState.CellFlag, TileMapLayer]` 将每个 layer 直接映射到包含的 flags，并把其全部 used cells 映射为可组合的静态 CellState；MapCell 持有 CellState、绑定 CellState 并负责运行时行为。
 4. 静态地图 cell 必须绘制并序列化在 `.tscn` 中；Dug/Watered 投影层初始为空，只根据 CellState 的动态 flag 增删贴图，不得作为第二份状态权威。
-5. 提供 world_to_cell、cell_to_world_center、get_cell_state、is_walkable、get_cells_in_rect 等 typed API。
+5. 提供 world_to_cell、cell_to_world、get_cell_state、is_walkable 等 typed API。
 6. ScenePort 通过 map_id/spawn_id 请求 MapManager；重复进入只提交一次。
 7. MapManager 完成事务式锁输入/时间、写回当前 MapState、fade、替换 MapHost、恢复目标状态、放置 Player、解锁。
 8. Camera limits 在地图 ready 时注入 Player Camera。转场第一帧不显示地图外空白。
@@ -39,9 +39,9 @@
 ## 房屋实现要求
 
 1. House 是可独立实例化并挂到任意 BaseMap 的 Node2D；不得使用 MapManager 切换地图。
-2. 地板、墙和屋顶使用 House 自有 TileMapLayer，保持 identity transform，不加入 BaseMap.cell_flags。
+2. 地板、墙和屋顶使用 House 自有 TileMapLayer，保持 identity transform，不加入 BaseMap.map_layers。
 3. 墙体碰撞只在明确的 Door 开口留出通道；Door 与 FloorLayer 同属地面层，不遮挡 Player。
-4. InteriorArea 只响应 FarmPlayer；进入时隐藏 RoofLayer、放大相机并广播室内状态，离开时恢复。退出树时必须恢复。
+4. InteriorArea 只响应 FarmPlayer；RoofLayer 必须位于 Player 绘制层之上，进入时降低屋顶透明度、放大相机并广播室内状态，离开时恢复。退出树时必须恢复。
 5. 室内包含床、电视、壁炉等家具；家具不堵门，并通过统一交互协议接入 T15。
 6. 新游戏从 farm 室外 default 点开始；只有穿过门进入 InteriorArea 后才触发室内逻辑。
 

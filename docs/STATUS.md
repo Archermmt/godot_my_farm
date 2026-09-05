@@ -27,10 +27,10 @@
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
 - T05 已完成统一 `BackpackState`/`BackpackSlot` 数据模型：命名槽位由 Dictionary 保存，Toolbar/Itembar 通过槽位 ID 数组组织，Backpack 提供 add/remove/switch API；InventoryState/ToolbarState/ItembarState/ItemStack 已删除。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。
 - 背包通过 P 打开，方向键/WASD 移动唯一焦点，X 标记并交换/合并，F 将栏位设为手持；工具与非工具类型约束、非法交换原子回滚及 `inventory` input/time lock 均已接入。
-- T06 已建立统一 `EffectArea`；Player 场景持有并直接控制唯一的 EffectArea，EffectArea 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview，但不执行 release 动作。Player 通过子节点 PlayerBackpack 复用当前背包中的 Tool/Seed 运行时对象，释放 `use_held` 时由 Player 调用对象 use、扣体力/数量并发反馈。EffectArea 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
+- T06 已建立统一 `InteractArea`；Player 场景持有并直接控制唯一的 InteractArea，InteractArea 从 PlayerState 读取交互输入状态，统一维护蓄力、计算并绘制 CellState preview，但不执行 release 动作。Player 通过子节点 PlayerBackpack 复用当前背包中的 Tool/Seed 运行时对象，释放 `use_held` 时由 Player 调用对象 use、扣体力/数量并发反馈。InteractArea 使用 top-level 变换保持世界格坐标稳定。`ToolMeta.charge_levels` 支持 1、3x1、3x3、9x3、9x9 目标形状。
 - T07 已实现运行时 `Tool` 与结构化 `ToolOutcome`。Hoe/WateringCan 复用 MapCell 查询规则，每次事务固定扣除一次工具体力并原子写入 DUG/WATERED；重复操作不耗体力。BaseMap 使用无状态 `CellStateProjection` 绘制并可从 MapState 恢复，不创建动态 TileMapLayer。Farm 的 DIGGABLE 静态层使用专用图块，与不可耕地面明确区分。
 - T09 已接通 Sickle/Basket/Pickaxe/Axe 到 Harvestable：工具验证、伤害、固定单次体力消耗、成熟 Plant 收获、确定 RNG 掉落、Tree -> Stump -> 清除和旧 instance ID 防重复结算均由结构化结果与 BaseMap 事务完成。
-- T11 环境生成实现已完成：farm/field 各自挂载可在 Inspector 配置的 ItemsGenerator 子节点，以 world seed/map/epoch/salt 确定生成 tree/rock/grass，避开静态否决格和 SpawnPoints/Ports 安全区，并通过 BaseMap 事务写入普通 ItemState。MapState 保存 generation_epoch/initialized，地图恢复不重复生成。
+- T11 环境生成实现已完成：farm/field 各自挂载可在 Inspector 配置的 ItemGenerator 子节点，以 world seed/map/epoch/salt 确定生成 tree/rock/grass，避开静态否决格和 SpawnPoints/Ports 安全区，并通过 BaseMap 事务写入普通 ItemState。MapState 保存 generation_epoch/initialized，地图恢复不重复生成。
 - 可拾取物使用普通 ItemState/Item，资格由 ItemMeta.can_pickup 决定；BaseMap 按 Player 的 `pickup_radius` 返回候选，Item 必须在场景中预置 PickupArea，Area2D 信号和 Item 内部 trace Timer 共同控制追踪，Player 负责吸附、接触拾取、Itembar 优先入包并在成功后请求 Map 删除。Player 场景统一配置 trace_delay（drop=1 秒、harvestable=0.5 秒、generate=0）和指数 pickup_speed_curve。可拾取 Item 保留 CellState 引用但不阻塞播种/放置，`drop_held` 先创建世界 Item 再扣 Itembar。
 - EffectManager 已作为脚本型全局服务注册，效果定义在 `data/game_config.tres` 中通过 Inspector 配置；调用方传入动态 host，动作反馈、碎屑、雨雪等效果不再依赖 Main 场景中的固定 EffectHost。
 - 新游戏 farm 的 MapState 固定包含草、石、树和成熟欧洲防风草各一份，供 T09 键盘验收；运行节点统一挂入 BaseMap 的分类 Item host。
@@ -46,7 +46,7 @@
 ## 最近一次验证
 
 - 日期：2026-08-17（Asia/Shanghai）。
-- House 启动修复：清除 farm/field/beach 中 PackedScene 实例的重复子节点覆盖；新游戏固定从 farm/default 室外开始，House 在 MapManager 完成地图配置后才启用 InteriorArea，避免加载中间帧误触发相机 Tween。地图 fixture 验证初始屋顶可见/zoom=1.0，穿门进入后屋顶隐藏/zoom=1.5，离开恢复，并继续完成 farm -> field -> beach；原生 runner 为 127 tests / 19783 assertions。
+- House 启动修复：清除 farm/field/beach 中 PackedScene 实例的重复子节点覆盖；新游戏固定从 farm/default 室外开始。InteriorArea 始终启用，是否允许进入由 Door 组件负责；地图 fixture 验证初始屋顶可见/zoom=1.0，穿门进入后屋顶半透明/zoom=1.5，离开恢复，并继续完成 farm -> field -> beach；原生 runner 为 127 tests / 19783 assertions。
 - 日期：2026-08-17（Asia/Shanghai）。
 - T05 探索地图与房屋：farm 48x34、field 56x38、beach 58x38；field 曲折道路跨越多个行坐标，beach 海岸线逐行变化。House 使用独立 Floor/Wall/Roof TileMapLayer、门洞墙体碰撞、InteriorArea、床/电视/壁炉，并在同一 farm 内驱动屋顶、Camera2D zoom、室内天光和天气特效显隐。旧室内独立地图已从 registry 和场景中移除；日结回到 farm/wake。资源 import、主场景 smoke、地图 fixture `farm -> field -> beach`、`git diff --check` 均通过；原生 runner 为 127 tests / 19773 assertions。
 - 日期：2026-08-16（Asia/Shanghai）。
@@ -58,7 +58,7 @@
 - T11 自动化：原生 runner 为 107 tests / 4811 assertions；覆盖 farm/field 配置、seed 确定性、格子 flag、安全区、生成标签、无合法格有限退出、完整状态恢复和 20 次地图恢复不增殖。Godot 资源扫描、主场景运行和 `git diff --check` 通过。
 - T11 godot-ai：session `godot-my-farm@c274`；farm 生成 23/23，field 生成 41/44（3 个受最小距离约束跳过），运行错误为空；farm/field 1280x720 framebuffer 均为实时非空画面，`stale_frame=false`。
 - 日期：2026-08-11（Asia/Shanghai）。
-- T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、EffectArea 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
+- T07 自动化：原生 runner 为 82 tests / 4340 assertions；覆盖可用性与跳过原因、体力 0/少 1/恰好边界、9x9 最大蓄力固定单次消耗、多格原子性、可耕地专用 tile、事实/反馈信号、InteractArea 委托、WATERED 清除以及 farm MapState JSON 往返和投影重建。资源 import、主场景启动和 `git diff --check` 均通过。
 - 日期：2026-08-10（Asia/Shanghai）。
 - T05 自动化：资源 import、runner、键盘背包 fixture、地图往返 fixture、玩家碰撞 fixture、主场景 quit 和 `git diff --check` 全部 exit 0；runner 为 63 tests / 3936 assertions。
 - T05 键盘流程：`InventoryKeyboardTest` 验证 Toolbar/Itembar 切换、Player 头顶提示、唯一 HeldVisual、空栏清手、非法 tool -> Itembar 回滚、Toolbar/Itembar -> Inventory 交换以及锁释放，输出 `PASS | toolbar/itembar/head-ui/swap/locks`。

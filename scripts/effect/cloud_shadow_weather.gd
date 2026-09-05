@@ -5,22 +5,22 @@ extends Node2D
 @export var cloud_groups: Dictionary[StringName, CloudGroup] = {}
 @export_range(0.0, 0.35, 0.01) var shape_variation: float = 0.18
 @export_range(0.0, 30.0, 0.5) var drift_speed: float = 5.0
+@export var effect_range: Vector2 = Vector2(1600, 1200)
 
 var _bounds := Rect2()
 var _rng := RandomNumberGenerator.new()
 
 
-func configure(weather_id: StringName, map: BaseMap) -> void:
-	if map == null or shadow_texture == null:
-		queue_free()
+func play(weather_id: StringName, _positions: Array[Vector2]) -> void:
+	if shadow_texture == null:
 		return
-	_bounds = map.map_bounds_world()
-	_rng.seed = hash([weather_id, map.name])
+	_bounds = Rect2(-effect_range * 0.5, effect_range)
+	_rng.seed = hash(weather_id)
 	for child: Node in get_children():
 		child.queue_free()
 	var group := cloud_groups.get(weather_id, null) as CloudGroup
 	if group == null:
-		queue_free()
+		return
 		return
 	var count := group.shadow_count
 	var shadow_scale := group.shadow_scale

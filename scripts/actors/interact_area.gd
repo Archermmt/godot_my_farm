@@ -1,4 +1,4 @@
-class_name EffectArea
+class_name InteractArea
 extends Area2D
 
 enum InteractionState {
@@ -38,14 +38,14 @@ func _on_interaction_area_entered(area: Area2D) -> void:
 	var player := get_parent() as FarmPlayer
 	if target != null and player != null and target.has_method("interact"):
 		InteractManager.register_target(target, player)
-	if target != null and target.has_method("on_effect_area_entered"):
-		target.call("on_effect_area_entered", self)
+	if target != null and target.has_method("on_interact_area_entered"):
+		target.call("on_interact_area_entered", self)
 
 
 func _on_interaction_area_exited(area: Area2D) -> void:
 	var target := area.get_parent()
-	if target != null and target.has_method("on_effect_area_exited"):
-		target.call("on_effect_area_exited", self)
+	if target != null and target.has_method("on_interact_area_exited"):
+		target.call("on_interact_area_exited", self)
 	if target != null:
 		InteractManager.unregister_target(target)
 
@@ -88,11 +88,12 @@ func update(delta: float) -> void:
 func move_origin(next_cell: Vector2i) -> Error:
 	if state != InteractionState.CHARGING or player_state == null or _map == null:
 		return ERR_UNAVAILABLE
-	if not _map.contains_cell(next_cell):
+	if not _map.cells.has(next_cell):
 		return ERR_INVALID_PARAMETER
-	if next_cell == player_state.cell:
+	var current_cell := _map.world_to_cell(player_state.position)
+	if next_cell == current_cell:
 		return OK
-	player_state.cell = next_cell
+	player_state.position = _map.cell_to_world(next_cell)
 	_refresh_preview()
 	return OK
 
@@ -138,8 +139,7 @@ func charge_progress() -> float:
 	if state != InteractionState.CHARGING:
 		return 0.0
 	if _item is Tool:
-		var tool := _item as Tool
-		var typed_meta := tool.tool_meta()
+		var typed_meta := (_item as Tool).meta as ToolMeta
 		if typed_meta == null:
 			return 0.0
 	var last_level := max_charge_level()
@@ -166,13 +166,13 @@ func _build_preview() -> Array[CellState]:
 	if slot == null or slot.is_empty() or player_state.energy <= 0:
 		return result
 	var dimensions := _dimensions(charge_level)
-	var target_cells := _target_cells(player_state.cell, player_state.facing, dimensions.x, dimensions.y)
+	var target_cells := _target_cells(_map.world_to_cell(player_state.position), player_state.facing, dimensions.x, dimensions.y)
 	for index: int in target_cells.size():
 		var cell: Vector2i = target_cells[index]
-		if not _map.contains_cell(cell):
+		if not _map.cells.has(cell):
 			continue
 		var map_cell := _map.get_cell(cell)
-		var source_state := map_cell.cell_state()
+		var source_state := map_cell.state
 		var preview_state := CellState.new()
 		preview_state.cell = source_state.cell
 		preview_state.flags = source_state.flags
@@ -199,7 +199,7 @@ func _level_for_elapsed() -> int:
 
 func _dimensions(level: int) -> Vector2i:
 	if _item != null and _item.meta is ToolMeta:
-		return (_item.meta as ToolMeta).effect_dimensions(level)
+		return (_item.meta as ToolMeta).level_area(level)
 	var levels := _charge_levels()
 	if levels.is_empty():
 		return Vector2i.ONE
@@ -209,7 +209,10 @@ func _dimensions(level: int) -> Vector2i:
 
 func _charge_levels() -> Array[Vector2i]:
 	if _item != null and _item.meta is ToolMeta:
-		return (_item.meta as ToolMeta).charge_levels
+		var result: Array[Vector2i] = []
+		for level: ToolLevel in (_item.meta as ToolMeta).levels:
+			result.append(level.effect_range)
+		return result
 	if _item != null and _item.meta is SeedMeta:
 		return (_item.meta as SeedMeta).charge_levels
 	return []
@@ -230,16 +233,20 @@ func _cell_accepts(cell: MapCell) -> bool:
 	if cell == null:
 		return false
 	if _item is Seed:
-		return _map.check_cell(cell.coordinates, BaseMap.CellCondition.PLANTABLE)
+		return _map.check_cell(cell.coordinates, CellState.CellCondition.PLANTABLE)
 	if not _item is Tool:
 		return false
 	var tool := _item as Tool
-	var tool_meta := tool.tool_meta()
-	if tool.targets_cells():
-		return tool.rejection_reason(cell) == &""
+	var tool_meta := tool.meta as ToolMeta
+	if tool_meta != null and tool_meta.is_cell_tool:
+		return cell.apply_tool(tool_meta.tool_kind, false)
 	if tool_meta == null or tool_meta.tool_kind == ToolMeta.ToolKind.NONE:
 		return cell.has_occupant()
-	return tool.harvest_rejection_reason(_map, cell.coordinates) == &""
+	var target := _map.harvestable_at(cell.coordinates)
+	return (
+		target != null
+		and target.apply_tool(tool_meta.tool_kind, 0, false) == ItemMeta.ItemFlag.AVAILABLE
+	)
 
 
 func _clear_to_idle() -> void:
@@ -258,7 +265,7 @@ func _draw() -> void:
 		return
 	var tile_size := Vector2(_map.get_tile_size())
 	for cell_state: CellState in preview:
-		var center := to_local(_map.cell_to_world_center(cell_state.cell))
+		var center := to_local(_map.cell_to_world(cell_state.cell))
 		var rect := Rect2(center - tile_size * 0.5, tile_size)
 		var is_valid := (cell_state.interaction_flags & CellState.InteractionFlag.VALID) != 0
 		draw_rect(rect, Color("78d6a3", 0.38) if is_valid else Color("e05a63", 0.32), true)

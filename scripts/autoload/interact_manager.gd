@@ -64,11 +64,10 @@ func begin(dialogue_id: StringName, next_target: Node2D, next_player: FarmPlayer
 		return ERR_BUSY
 	if next_player == null or dialogue_id == &"":
 		return ERR_INVALID_PARAMETER
-	var definition := DataCatalog.get_dialogue(dialogue_id)
-	var timeline := _timeline_for_id(dialogue_id, definition)
+	var timeline := _timeline_for_id(dialogue_id)
 	if timeline == null:
 		return ERR_DOES_NOT_EXIST
-	return begin_timeline(timeline, next_target, next_player, confirmation_callback, definition)
+	return begin_timeline(timeline, next_target, next_player, confirmation_callback)
 
 
 func begin_timeline(timeline: Resource, next_target: Node2D, next_player: FarmPlayer, confirmation_callback: Callable = Callable(), source_definition: Resource = null) -> Error:
@@ -89,7 +88,7 @@ func begin_timeline(timeline: Resource, next_target: Node2D, next_player: FarmPl
 	if player.lock_input(DIALOGUE_LOCK) != OK:
 		_clear_session()
 		return ERR_BUSY
-	if GameManager.pause(DIALOGUE_LOCK) != OK:
+	if CalendarManager.pause(DIALOGUE_LOCK) != OK:
 		player.unlock_input(DIALOGUE_LOCK)
 		_clear_session()
 		return ERR_BUSY
@@ -156,7 +155,7 @@ func _close_session() -> void:
 		dialogic.end_timeline(true)
 	if is_instance_valid(player):
 		player.unlock_input(DIALOGUE_LOCK)
-	GameManager.resume(DIALOGUE_LOCK)
+	CalendarManager.resume(DIALOGUE_LOCK)
 	EventBus.dialogue_ended.emit()
 	_clear_session()
 
@@ -181,29 +180,13 @@ func _dialogue_id(timeline: Resource) -> StringName:
 	return StringName(timeline.resource_path.get_file().get_basename())
 
 
-func _timeline_for_id(dialogue_id: StringName, definition: Resource) -> Resource:
+func _timeline_for_id(dialogue_id: StringName) -> Resource:
 	var path := "res://data/dialogue/%s.dtl" % String(dialogue_id)
 	if ResourceLoader.exists(path):
 		var loaded := load(path)
 		if loaded != null:
 			return loaded
-	if definition == null or not "lines" in definition:
-		return null
-	return _timeline_from_definition(definition)
-
-
-func _timeline_from_definition(definition: Resource) -> Resource:
-	if definition == null or not "lines" in definition:
-		return null
-	var timeline := DialogicTimeline.new()
-	var text_lines := PackedStringArray()
-	for line: Resource in definition.lines:
-		if line == null or line.text.is_empty():
-			continue
-		var speaker: String = line.speaker_name if not line.speaker_name.is_empty() else ""
-		text_lines.append((speaker + ": " if not speaker.is_empty() else "") + line.text)
-	timeline.from_text("\n".join(text_lines))
-	return timeline
+	return null
 
 
 func _style_dialogic_choices() -> void:

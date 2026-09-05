@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/items/harvestable.gd" id="1_harvestable"]
+[ext_resource type="Script" path="res://scripts/item/harvestable.gd" id="1_harvestable"]
 [ext_resource type="Shader" path="res://assets/shaders/harvestable_hit_flash.gdshader" id="2_hit_flash"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_hit_flash"]

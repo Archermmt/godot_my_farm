@@ -9,7 +9,6 @@ var backpack_state_template: BackpackState = null
 @export_category("Catalog")
 @export var items: Dictionary[StringName, ItemMeta] = {}
 @export var npc_schedules: Dictionary[StringName, NpcSchedule] = {}
-@export var dialogue_definitions: Dictionary[StringName, Resource] = {}
 
 @export_category("Game")
 @export var default_world_seed: int = 12031992
@@ -39,9 +38,9 @@ var backpack_state_template: BackpackState = null
 @export_range(0.0, 2.0, 0.05) var player_camera_zoom_duration: float = 0.3
 
 @export_category("Backpack")
-@export_range(0, 999, 1) var backpack_main_space_capacity: int = 20
+@export_range(0, 999, 1) var backpack_main_space_capacity: int = 18
 @export_range(0, 999, 1) var backpack_toolbar_capacity: int = 6
-@export_range(0, 999, 1) var backpack_itembar_capacity: int = 10
+@export_range(0, 999, 1) var backpack_itembar_capacity: int = 6
 @export var backpack_initial_slots: Dictionary[StringName, BackpackSlot] = {}
 
 @export_category("Map")
@@ -49,7 +48,7 @@ var backpack_state_template: BackpackState = null
 @export_range(0.0, 5.0, 0.01, "or_greater") var day_transition_duration: float = 0.55
 
 @export_category("Calender")
-@export var season_metas: Dictionary[StringName, SeasonMeta] = {}
+@export var season_metas: Dictionary[SeasonMeta.SeasonType, SeasonMeta] = {}
 @export var weather_icons: Dictionary[StringName, Texture2D] = {}
 @export var weather_selection_salt: int = 7319
 @export var morning_color: Color = Color("d9d5b8")
@@ -59,8 +58,7 @@ var backpack_state_template: BackpackState = null
 @export_range(0.0, 1.0, 0.05) var interior_neutral_blend: float = 0.55
 
 @export_category("Effect")
-@export var effect_definitions: Dictionary[StringName, EffectDefinition] = {}
-@export var weather_effect_scenes: Dictionary[StringName, PackedScene] = {}
+@export var effect_scenes: Dictionary[StringName, PackedScene] = {}
 
 @export_category("Audio")
 @export var audio_definitions: Dictionary[StringName, AudioDefinition] = {}

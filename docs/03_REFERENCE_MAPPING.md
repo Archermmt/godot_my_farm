@@ -36,7 +36,7 @@
 | `ItemData [Serializable]` | 物品静态定义 | `GameConfig.tres` 内嵌的 `ItemMeta extends Resource` |
 | Prefab + `Resources.Load` | 物品/效果实例化 | `PackedScene` 直接引用 + `ItemFactory` |
 | `Item` | 物品通用状态/交互 | ItemMeta + held/world scene 组件 |
-| `Tool` | 体力和蓄力 | Tool 运行时类型 + EffectArea |
+| `Tool` | 体力和蓄力 | Tool 运行时类型 + InteractArea |
 | `GridTool` | 网格行动 | 具体 Tool + MapCell transaction |
 | `ItemTool` | 对对象行动 | 具体 Tool + Harvestable |
 | `Seed` | 种植范围和消耗 | Item 使用逻辑 + PlantMeta |
@@ -45,10 +45,10 @@
 | `TreeBase/TreeTrunk` | 斧击、倒向、树桩 | `HarvestableMeta` + TreeWorldItem 专属状态/动画策略 |
 | `Pickable` | 吸附拾取 | `PickupItem (Area2D)` |
 | `FieldGrid` | 单格标签与地图 Item | MapCell/CellState + BaseMap/MapState items |
-| `FieldLayer` | Tilemap 标签/保存 | `BaseMap.cell_flags` + MapCell |
-| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + EffectArea |
-| `EffectArea` | 有效/无效目标反馈 | `EffectArea` scene |
-| `Generator` | 随机环境对象 | seeded `ItemsGenerator` + MapState |
+| `FieldLayer` | Tilemap 标签/保存 | `BaseMap.map_layers` + MapCell |
+| `FieldManager` | 网格、光标、工具执行 | `BaseMap` + InteractArea |
+| `InteractArea` | 有效/无效目标反馈 | `InteractArea` scene |
+| `Generator` | 随机环境对象 | seeded `ItemGenerator` + MapState |
 | `BaseInventory/Container/Slot` | 背包数据和 UI 混合 | `BackpackState`/`BackpackSlot` 与 InventoryUI 分离 |
 | `ToolBar` | 快捷栏选择 | 分离的 `ToolbarUI`（工具）+ `ItembarUI`（非工具物品）+ Player 头顶选择提示 |
 | `Player` | 输入、移动、持物、交互 | 单一 `player.gd` 根控制器 + 无业务脚本的表现/挂点子节点 |
@@ -59,14 +59,14 @@
 | `ItemManager` | 定义索引、工厂、地图 item 内存 | DataCatalog + ItemFactory + MapState |
 | `GameLight` | 时段光照 | CanvasModulate/Light2D + LightSchedule Resource |
 | `AudioManager/Sound` | 音频查找与播放 | AudioManager pool + AudioDefinition |
-| `EffectManager` | 特效工厂 | 全局 EffectManager + EffectDefinition + 调用方动态 host |
+| `EffectManager` | 特效工厂 | 全局 EffectManager + PackedScene + 调用方动态 host |
 | `NPC` 自建路径 | 日程、寻路、跨场景 | GameManager/NpcState + FarmNpc/NavigationAgent2D |
 
 ## 4. 必须保留的架构意图
 
 ### 4.1 同一套地块查询驱动所有行动
 
-参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 EffectArea。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套目标坐标逻辑；目标由 Player facing 计算，不再读取鼠标位置。
+参考代码的 `FieldManager.CheckItem()` 让工具、种子和普通物品共享网格范围与 InteractArea。Godot 版必须维持统一 preview/commit 链路，不能为锄头、种子和斧头各写一套目标坐标逻辑；目标由 Player facing 计算，不再读取鼠标位置。
 
 ### 4.2 工具类别与目标能力匹配
 

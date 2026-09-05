@@ -17,7 +17,7 @@ func _init(item_state: ItemState = null) -> void:
 	add_child(trace_timer)
 	if item_state != null:
 		var item_meta := DataCatalog.get_item(item_state.meta_id)
-		if item_state.instance_id != &"" and item_meta != null:
+		if item_state.unique_id != &"" and item_meta != null:
 			state = item_state
 			meta = item_meta
 
@@ -30,16 +30,13 @@ func _ready() -> void:
 		if not pickup_area.body_exited.is_connected(_on_pickup_area_body_exited):
 			pickup_area.body_exited.connect(_on_pickup_area_body_exited)
 
+
+func _exit_tree() -> void:
+	ItemManager.unregister_pickup(self)
+
+
 func item_id() -> StringName:
-	return state.instance_id if state != null else &""
-
-
-func get_state() -> ItemState:
-	return state
-
-
-func get_meta() -> ItemMeta:
-	return meta
+	return state.unique_id if state != null else &""
 
 
 func is_depleted() -> bool:
@@ -53,10 +50,11 @@ func destroy() -> void:
 func set_trace_delay(delay_seconds: float) -> void:
 	_tracing_player = false
 	trace_timer.stop()
-	trace_timer.wait_time = maxf(delay_seconds, 0.0)
-	if trace_timer.wait_time <= 0.0:
+	var delay := maxf(delay_seconds, 0.0)
+	if delay <= 0.0:
 		_tracing_player = _player_in_pickup_area
 	else:
+		trace_timer.wait_time = delay
 		trace_timer.start()
 
 
@@ -70,16 +68,24 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, 6.0, Color("fff4b5"), false, 2.0)
 
 
-func refresh_visual(texture: Texture2D, position: Vector2) -> void:
+func refresh_visual(texture: Texture2D, visual_position: Vector2) -> void:
 	if visual == null:
 		visual = get_node_or_null("Visual") as Sprite2D
 	if visual != null:
 		visual.texture = texture
-		visual.position = position
+		visual.position = visual_position
 	queue_redraw()
+
+
+func _visual_material() -> ShaderMaterial:
+	if visual == null or not visual.material is ShaderMaterial:
+		return null
+	return visual.material as ShaderMaterial
+
 
 func _on_pickup_area_body_entered(body: Node2D) -> void:
 	if body != null and body.is_in_group("player"):
+		ItemManager.register_pickup(self)
 		_player_in_pickup_area = true
 		if trace_timer == null or trace_timer.is_stopped():
 			_tracing_player = true
@@ -87,6 +93,7 @@ func _on_pickup_area_body_entered(body: Node2D) -> void:
 
 func _on_pickup_area_body_exited(body: Node2D) -> void:
 	if body != null and body.is_in_group("player"):
+		ItemManager.unregister_pickup(self)
 		_player_in_pickup_area = false
 		_tracing_player = false
 

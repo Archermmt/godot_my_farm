@@ -50,7 +50,7 @@ var _outdoor_camera_zoom := Vector2.ONE
 @onready var selection_popup: Control = $SelectionPopup
 @onready var selection_slots: HBoxContainer = $SelectionPopup/Slots
 @onready var selection_timer: Timer = $SelectionTimer
-@onready var effect_area: EffectArea = $EffectArea
+@onready var interact_area: InteractArea = $InteractArea
 @onready var backpack: PlayerBackpack = get_node_or_null("Backpack") as PlayerBackpack
 @onready var charge_bar: ProgressBar = $ChargeBar
 
@@ -70,6 +70,20 @@ func _ready() -> void:
 		EventBus.player_state_changed.connect(_on_player_state_changed)
 	if not EventBus.house_interior_changed.is_connected(_on_house_interior_changed):
 		EventBus.house_interior_changed.connect(_on_house_interior_changed)
+	if not EventBus.map_changed.is_connected(_on_map_changed):
+		EventBus.map_changed.connect(_on_map_changed)
+
+
+func _on_map_changed(_map_id: StringName) -> void:
+	var map := MapManager.current_map()
+	if map == null:
+		return
+	var spawn := map.spawn_position(MapManager.current_spawn_id())
+	global_position = spawn
+	if state != null:
+		state.position = spawn
+	var world_bounds := Rect2(Vector2.ZERO, Vector2(map.get_map_size() * map.get_tile_size()))
+	set_camera_limits(Rect2i(world_bounds.position, world_bounds.size))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -95,7 +109,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_interact_with_facing_target()
 	elif event.is_action_pressed("skip_day"):
-		GameManager.request_end_day()
+		CalendarManager.advance_to_next_day()
 	elif event.is_action_pressed("drop") or event.is_action_pressed("drop_held"):
 		_drop_held_item()
 	elif event.is_action_pressed("cancel"):
@@ -123,18 +137,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _interact_with_facing_target() -> void:
-	if is_input_locked() or (effect_area != null and effect_area.is_charging()):
+	if is_input_locked() or (interact_area != null and interact_area.is_charging()):
 		return
 	InteractManager.interact(self)
 
 
 func _process(delta: float) -> void:
-	if effect_area == null:
+	if interact_area == null:
 		return
-	if effect_area.is_charging() and is_input_locked():
+	if interact_area.is_charging() and is_input_locked():
 		_cancel_interaction()
 		return
-	effect_area.update(delta)
+	interact_area.update(delta)
 	_refresh_charge_bar()
 
 
@@ -144,13 +158,13 @@ func _notification(what: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# EffectArea is top-level so its cell preview uses world coordinates; keep
+	# InteractArea is top-level so its cell preview uses world coordinates; keep
 	# its proximity sensor centered on the player as the player moves.
-	if effect_area != null:
-		effect_area.global_position = global_position
+	if interact_area != null:
+		interact_area.global_position = global_position
 	input_direction = movement_vector()
 	walking = wants_walk()
-	if effect_area != null and effect_area.is_charging():
+	if interact_area != null and interact_area.is_charging():
 		# Keep movement continuous while locking facing. The cursor itself only
 		# refreshes after _sync_state_cell() observes a crossed cell boundary.
 		velocity = velocity_for(input_direction, walking)
@@ -173,7 +187,7 @@ func _process_pickups(delta: float) -> void:
 	var map: BaseMap = MapManager.current_map()
 	if map == null:
 		return
-	for item: Item in map.pickup_items_in_radius(global_position, state.pickup_radius):
+	for item: Item in ItemManager.get_pickups():
 		_process_pickup(item, map, delta)
 
 
@@ -192,7 +206,9 @@ func _process_pickup(item: Item, map: BaseMap, delta: float) -> bool:
 		if state.pickup_speed_curve != null:
 			speed = maxf(state.pickup_speed_curve.sample_baked(proximity), 0.0)
 		var travel := speed * maxf(delta, 0.0)
-		item.global_position += offset / distance * minf(distance, travel)
+		var target_position := item.global_position + offset / distance * minf(distance, travel)
+		var move_error := map.move_item(item.item_id(), target_position)
+		assert(move_error == OK, "Moving pickup must remain inside the current map")
 		return false
 	if collect_item(item.meta, 1) != 1:
 		return false
@@ -210,7 +226,7 @@ func _process_footsteps(delta: float) -> void:
 	if _footstep_elapsed < interval:
 		return
 	_footstep_elapsed = 0.0
-	AudioManager.play_event(&"footstep")
+	AudioManager.play_audio(&"footstep")
 
 
 func movement_vector() -> Vector2:
@@ -238,7 +254,7 @@ func set_facing(value: StringName) -> void:
 	if value not in DIRECTIONS:
 		return
 	set_motion(motion_state, value)
-	if effect_area != null and effect_area.is_charging():
+	if interact_area != null and interact_area.is_charging():
 		_cancel_interaction()
 
 
@@ -359,14 +375,12 @@ func _on_house_interior_changed(_house: Node2D, actor: Node2D, active: bool) -> 
 
 func _on_bar_selection_changed(source: int, _selected_index: int) -> void:
 	_show_selection_popup(source as BackpackState.ActiveHandSource)
-	AudioManager.play_event(&"ui_confirm")
+	AudioManager.play_audio(&"ui_confirm")
 
 
 func _on_player_state_changed(next_state: PlayerState) -> void:
 	_cancel_interaction()
 	setup(next_state)
-	if backpack != null and is_instance_valid(GameManager) and GameManager.backpack_state != null:
-		backpack.setup(GameManager.backpack_state)
 
 
 func setup(next_state: PlayerState) -> Error:
@@ -383,19 +397,15 @@ func collect_item(item_meta: ItemMeta, amount: int) -> int:
 		or backpack == null
 		or backpack.backpack_state == null
 		or item_meta == null
-		or item_meta.is_tool()
+		or item_meta is ToolMeta
 		or amount <= 0
 		or not backpack.accepts(&"itembar", item_meta)
 	):
 		return 0
-	var accepted_by_itembar := backpack.add_item(
-		&"itembar", item_meta.id, amount, item_meta.stack_limit
-	)
+	var accepted_by_itembar := backpack.add_item(&"itembar", item_meta.id, amount, item_meta.stack_limit)
 	var remaining := amount - accepted_by_itembar
 	var accepted_by_inventory := (
-		backpack.add_item(&"main_space", item_meta.id, remaining, item_meta.stack_limit)
-		if remaining > 0
-		else 0
+		backpack.add_item(&"main_space", item_meta.id, remaining, item_meta.stack_limit) if remaining > 0 else 0
 	)
 	if accepted_by_itembar > 0:
 		EventBus.container_changed.emit(&"itembar")
@@ -408,12 +418,12 @@ func collect_item(item_meta: ItemMeta, amount: int) -> int:
 		)
 	var accepted := accepted_by_itembar + accepted_by_inventory
 	if accepted > 0:
-		AudioManager.play_event(&"pickup")
+		AudioManager.play_audio(&"pickup")
 	return accepted
 
 
 func _begin_interaction() -> void:
-	if effect_area == null or state == null:
+	if interact_area == null or state == null:
 		return
 	var slot := backpack.active_slot() if backpack != null else null
 	if slot == null or slot.is_empty():
@@ -425,8 +435,8 @@ func _begin_interaction() -> void:
 	if item == null:
 		return
 	var player_cell := map.world_to_cell(global_position)
-	state.cell = player_cell
-	if effect_area.begin(state, backpack, map, item) == OK:
+	state.position = global_position
+	if interact_area.begin(state, backpack, map, item) == OK:
 		_refresh_charge_bar()
 
 
@@ -437,16 +447,16 @@ func _sync_state_cell() -> void:
 	if map == null:
 		return
 	var current_cell := map.world_to_cell(global_position)
-	if not map.contains_cell(current_cell):
+	if not map.cells.has(current_cell):
 		return
-	if effect_area != null and effect_area.is_charging():
-		effect_area.move_origin(current_cell)
+	if interact_area != null and interact_area.is_charging():
+		interact_area.move_origin(current_cell)
 	else:
-		state.cell = current_cell
+		state.position = global_position
 
 
 func _release_interaction() -> void:
-	if effect_area == null or state == null or backpack == null:
+	if interact_area == null or state == null or backpack == null:
 		return
 	var map: BaseMap = MapManager.current_map()
 	var item := backpack.active_item()
@@ -454,36 +464,34 @@ func _release_interaction() -> void:
 		_cancel_interaction()
 		_emit_invalid_interaction()
 		return
-	var target_cells := effect_area.preview_cells(false)
-	var valid_cells := effect_area.preview_cells(true)
-	var charge_level := effect_area.charge_level
-	var release_error := effect_area.release_preview()
+	var target_cells := interact_area.preview_cells(false)
+	var valid_cells := interact_area.preview_cells(true)
+	var charge_level := interact_area.charge_level
+	var release_error := interact_area.release_preview()
 	_hide_charge_bar()
 	if release_error != OK:
 		_emit_invalid_interaction()
 		return
 	if item is Tool:
-		var tool_result := (item as Tool).use(
-			map, target_cells, state.energy, state.cell, charge_level, trace_delay_for(&"harvestable")
-		)
-		if tool_result.error != OK:
+		var tool_result := (item as Tool).use(map, target_cells, state.energy, charge_level)
+		if not tool_result.succeeded():
 			_emit_invalid_interaction()
 			return
-		var energy_spent := tool_result.energy_spent
+		var energy_spent := (item.meta as ToolMeta).level_energy_cost(charge_level)
 		if energy_spent > 0 and state.consume_energy(energy_spent):
 			if state.energy <= 0:
-				GameManager.request_end_day()
+				CalendarManager.advance_to_next_day()
 			EventBus.player_state_changed.emit(state)
-		_emit_tool_outcome(tool_result)
 	elif item is Seed:
 		var slot := backpack.active_slot()
 		var available_count := slot.amount if slot != null and not slot.is_empty() else 0
-		var seed_outcome := (item as Seed).use(map, valid_cells, GameManager.calendar.day, available_count)
-		if seed_outcome.error != OK:
+		var seed_result := (item as Seed).use(map, valid_cells, available_count)
+		if not seed_result.succeeded():
 			_emit_invalid_interaction()
 			return
-		if seed_outcome.consumed_count() > 0:
-			backpack.remove_item(&"itembar", seed_outcome.seed_item_id, seed_outcome.consumed_count())
+		var consumed_count := seed_result.cells.size()
+		if consumed_count > 0:
+			backpack.remove_item(&"itembar", item.meta.id, consumed_count)
 			EventBus.container_changed.emit(&"itembar")
 			var active := backpack.active_slot()
 			EventBus.active_hand_changed.emit(
@@ -508,17 +516,21 @@ func _drop_held_item() -> void:
 	var item_meta := DataCatalog.get_item(slot.item_id) if slot != null and not slot.is_empty() else null
 	if slot == null or slot.is_empty() or item_meta == null or not item_meta.dropable or map == null:
 		return
-	var facing_offset: Vector2i = EffectArea.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
+	var facing_offset: Vector2i = InteractArea.FACING_VECTORS.get(state.facing, Vector2i.DOWN)
 	var target_cell: Vector2i = map.world_to_cell(global_position) + facing_offset
-	if effect_area != null and effect_area.is_charging():
-		var preview_cells := effect_area.preview_cells(true)
+	if interact_area != null and interact_area.is_charging():
+		var preview_cells := interact_area.preview_cells(true)
 		if not preview_cells.is_empty():
 			target_cell = preview_cells[0]
-	if not map.check_cell(target_cell, BaseMap.CellCondition.DROPABLE):
+	if not map.check_cell(target_cell, CellState.CellCondition.DROPABLE):
 		return
 	var dropped_item_id := slot.item_id
-	if map.spawn_pickup(dropped_item_id, target_cell, trace_delay_for(&"drop")) == &"":
+	var dropped_item := ItemManager.create_from_id(dropped_item_id)
+	if dropped_item == null or map.add_item(dropped_item, map.cell_to_world(target_cell)) != OK:
+		if dropped_item != null:
+			dropped_item.free()
 		return
+	dropped_item.set_trace_delay(trace_delay_for(&"drop"))
 	var container_id: StringName = (
 		&"toolbar"
 		if backpack.backpack_state.active_hand_source == BackpackState.ActiveHandSource.TOOLBAR
@@ -541,49 +553,21 @@ func trace_delay_for(source: StringName) -> float:
 
 func _emit_invalid_interaction() -> void:
 	EventBus.request_invalid_feedback.emit(&"invalid_target")
-	AudioManager.play_event(&"invalid")
-
-
-func _emit_tool_outcome(result: ToolOutcome) -> void:
-	if result == null:
-		return
-	EventBus.cells_tool_used.emit(result.tool_kind, result.effect_cells, result.energy_spent)
-	if result is CellToolOutcome:
-		var cell_result := result as CellToolOutcome
-		if cell_result.projection_error != OK:
-			EventBus.cell_projection_failed.emit(cell_result.effect_cells, cell_result.projection_error)
-	var event_id: StringName
-	match result.tool_kind:
-		ToolMeta.ToolKind.HOE:
-			event_id = &"till"
-		ToolMeta.ToolKind.WATERING_CAN:
-			event_id = &"water"
-		ToolMeta.ToolKind.SICKLE:
-			event_id = &"cut"
-		ToolMeta.ToolKind.BASKET:
-			event_id = &"harvest"
-		ToolMeta.ToolKind.PICKAXE:
-			event_id = &"mine"
-		ToolMeta.ToolKind.AXE:
-			event_id = &"chop"
-		_:
-			event_id = &"tool_use"
-	EventBus.request_tool_feedback.emit(event_id, result.effect_cells)
-	AudioManager.play_event(event_id)
+	AudioManager.play_audio(&"invalid")
 
 
 func _cancel_interaction() -> void:
-	if effect_area != null:
-		effect_area.cancel()
+	if interact_area != null:
+		interact_area.cancel()
 	_hide_charge_bar()
 
 
 func _refresh_charge_bar() -> void:
-	if charge_bar == null or effect_area == null or not effect_area.is_charging():
+	if charge_bar == null or interact_area == null or not interact_area.is_charging():
 		_hide_charge_bar()
 		return
 	charge_bar.visible = true
-	var progress := effect_area.charge_progress()
+	var progress := interact_area.charge_progress()
 	charge_bar.value = progress
 	if _charge_fill_style != null:
 		_charge_fill_style.bg_color = CHARGE_COLOR_LOW.lerp(CHARGE_COLOR_HIGH, progress)

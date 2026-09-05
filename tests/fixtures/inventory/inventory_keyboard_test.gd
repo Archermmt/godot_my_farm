@@ -40,7 +40,7 @@ func _run() -> void:
 	if not ui.panel_open or not player.is_input_locked() or not game_manager.is_paused():
 		_fail("inventory lock failed")
 		return
-	if ui.toolbar_slots.get_child_count() != 6 or ui.itembar_slots.get_child_count() != 10 or ui.inventory_slots.get_child_count() != 20:
+	if ui.toolbar_slots.get_child_count() != 6 or ui.itembar_slots.get_child_count() != 6 or ui.inventory_slots.get_child_count() != 18:
 		_fail("inventory slots were not built after player registration")
 		return
 	var toolbar_icon := ui.toolbar_slots.get_child(0).get_node("Icon") as TextureRect

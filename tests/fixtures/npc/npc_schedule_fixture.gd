@@ -16,7 +16,7 @@ func _run() -> void:
 
 	GameManager.calendar.hour = 11
 	GameManager.calendar.minute = 59
-	if GameManager.advance_minutes(1) != OK:
+	if CalendarManager.advance_minutes(1) != OK:
 		_fail("failed to advance to noon schedule")
 		return
 	await process_frame

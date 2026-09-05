@@ -13,6 +13,6 @@ func interact(player: FarmPlayer) -> String:
 		player,
 		func(choice: Dictionary) -> void:
 			if str(choice.get("sleep", "")) == "yes":
-				GameManager.request_end_day()
+				CalendarManager.advance_to_next_day()
 	)
 	return ""

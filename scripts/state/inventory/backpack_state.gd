@@ -11,12 +11,22 @@ var selected_ids: Dictionary[StringName, StringName] = {}
 var active_hand_source: ActiveHandSource = ActiveHandSource.NONE
 
 
-func _init(
-	p_main_space_capacity: int = 20,
-	p_toolbar_capacity: int = 6,
-	p_itembar_capacity: int = 10
-) -> void:
-	_initialize_layout(p_main_space_capacity, p_toolbar_capacity, p_itembar_capacity)
+func _init(p_main_space_capacity: int = 20, p_toolbar_capacity: int = 6, p_itembar_capacity: int = 10) -> void:
+	var capacities: Dictionary[StringName, int] = {
+		&"main_space": maxi(0, p_main_space_capacity),
+		&"toolbar": maxi(0, p_toolbar_capacity),
+		&"itembar": maxi(0, p_itembar_capacity),
+	}
+	for container_id: StringName in capacities:
+		var container_slots := _container_slots(container_id)
+		container_slots.clear()
+		for index: int in capacities[container_id]:
+			var slot_id := StringName("%s_%d" % [container_id, index])
+			container_slots.append(slot_id)
+			if not slots.has(slot_id):
+				slots[slot_id] = BackpackSlot.new(slot_id)
+		if not container_slots.is_empty() and not container_slots.has(selected_ids.get(container_id, &"")):
+			selected_ids[container_id] = container_slots[0]
 
 
 func ensure_layout() -> void:
@@ -73,24 +83,6 @@ func used_slot_count(container_id: StringName = &"main_space") -> int:
 	return used
 
 
-func _initialize_layout(main_space_capacity: int, toolbar_capacity: int, itembar_capacity: int) -> void:
-	var capacities: Dictionary[StringName, int] = {
-		&"main_space": maxi(0, main_space_capacity),
-		&"toolbar": maxi(0, toolbar_capacity),
-		&"itembar": maxi(0, itembar_capacity),
-	}
-	for container_id: StringName in capacities:
-		var container_slots := _container_slots(container_id)
-		container_slots.clear()
-		for index: int in capacities[container_id]:
-			var slot_id := StringName("%s_%d" % [container_id, index])
-			container_slots.append(slot_id)
-			if not slots.has(slot_id):
-				slots[slot_id] = BackpackSlot.new(slot_id)
-		if not container_slots.is_empty() and not container_slots.has(selected_ids.get(container_id, &"")):
-			selected_ids[container_id] = container_slots[0]
-
-
 func _slot_id(container_id: StringName, index: int) -> StringName:
 	var container_slots := _container_slots(container_id)
 	if index < 0 or index >= container_slots.size():
@@ -106,8 +98,7 @@ func _container_slots(container_id: StringName) -> Array[StringName]:
 			return toolbar
 		&"itembar":
 			return itembar
-	var empty: Array[StringName] = []
-	return empty
+	return []
 
 
 func to_dict() -> Dictionary:
@@ -121,7 +112,8 @@ func to_dict() -> Dictionary:
 		"toolbar": toolbar.map(func(value: StringName) -> String: return String(value)),
 		"itembar": itembar.map(func(value: StringName) -> String: return String(value)),
 		"main_space": main_space.map(func(value: StringName) -> String: return String(value)),
-		"selected_ids": {
+		"selected_ids":
+		{
 			"toolbar": String(selected_ids.get(&"toolbar", &"")),
 			"itembar": String(selected_ids.get(&"itembar", &"")),
 		},
@@ -179,7 +171,10 @@ static func from_dict(data: Dictionary) -> BackpackState:
 			return null
 		var selected_id := StringName(str(restored_selected_ids.get(String(container_id), "")))
 		var container_slots := restored._container_slots(container_id)
-		if (container_slots.is_empty() and selected_id != &"") or (not container_slots.is_empty() and not container_slots.has(selected_id)):
+		if (
+			(container_slots.is_empty() and selected_id != &"")
+			or (not container_slots.is_empty() and not container_slots.has(selected_id))
+		):
 			return null
 		restored.selected_ids[container_id] = selected_id
 	restored.active_hand_source = restored_source

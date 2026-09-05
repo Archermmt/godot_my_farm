@@ -26,7 +26,7 @@ func test_game_services_start_in_architecture_order() -> void:
 
 
 func test_autoload_definitions_and_new_game_are_ready() -> void:
-	assert_true(DataCatalog.is_ready_for_game())
+	assert_true(DataCatalog.validate().is_empty())
 	assert_equal((DataCatalog.get_item(&"hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
 	assert_true(GameManager.is_initialized())
 	assert_equal(GameManager.player.map_id, &"farm")
@@ -47,12 +47,11 @@ func test_configurable_managers_load_shared_game_config() -> void:
 	assert_equal(GameManager.time_scale, 1.0)
 	assert_equal(MapManager.config.transition_duration, 0.12)
 	assert_equal(MapManager.config.day_transition_duration, 0.55)
-	assert_true(CalendarManager.is_configured())
+	assert_true(CalendarManager.validate().is_empty())
 	assert_equal(CalendarManager.config.season_metas.size(), 4)
-	assert_equal(CalendarManager.season_id_for_month(1), &"spring")
-	assert_true(CalendarManager.current_weather_id() != &"")
+	assert_equal(CalendarManager.calendar.season(1), SeasonMeta.SeasonType.SPRING)
+	assert_true(CalendarManager.current_weather != &"")
 	assert_equal(AudioManager.config.audio_definitions.size(), 18)
 	assert_equal(AudioManager.config.sfx_pool_limit, 10)
-	assert_true(EffectManager.is_configured())
-	assert_equal(EffectManager.definition_count(), 7)
-	assert_equal(EffectManager.config.weather_effect_scenes.size(), 4)
+	assert_equal(EffectManager.validate(), OK)
+	assert_true(EffectManager.config.effect_scenes.has(&"rain"))

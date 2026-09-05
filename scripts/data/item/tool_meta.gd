@@ -4,18 +4,10 @@ extends ItemMeta
 enum ToolKind { NONE, HOE, WATERING_CAN, SICKLE, BASKET, PICKAXE, AXE }
 
 @export var tool_kind: ToolKind = ToolKind.NONE
+@export var event_id: StringName = &"tool_use"
+@export var is_cell_tool: bool = false
 @export_range(0, 999, 1) var base_energy_cost: int = 0
-@export_range(1, 999, 1) var damage: int = 1
-@export var charge_levels: Array[Vector2i] = [Vector2i.ONE, Vector2i(3, 1), Vector2i(3, 3), Vector2i(9, 3), Vector2i(9, 9)]
-@export var damage_multipliers: Array[int] = [1]
-
-
-func _init() -> void:
-	item_type = ItemType.TOOL
-
-
-func is_tool() -> bool:
-	return true
+@export var levels: Array[ToolLevel] = [ToolLevel.new()]
 
 
 func charges_damage() -> bool:
@@ -23,22 +15,21 @@ func charges_damage() -> bool:
 
 
 func max_charge_level() -> int:
-	return maxi(0, configured_level_count() - 1)
+	return maxi(0, levels.size() - 1)
 
 
-func configured_level_count() -> int:
-	return damage_multipliers.size() if charges_damage() else charge_levels.size()
-
-
-func effect_dimensions(charge_level: int) -> Vector2i:
-	if charges_damage() or charge_levels.is_empty():
+func level_area(level: int) -> Vector2i:
+	if levels.is_empty():
 		return Vector2i.ONE
-	var configured := charge_levels[clampi(charge_level, 0, charge_levels.size() - 1)]
-	return Vector2i(maxi(1, configured.x), maxi(1, configured.y))
+	var configured := levels[clampi(level, 0, levels.size() - 1)]
+	return Vector2i(maxi(1, configured.effect_range.x), maxi(1, configured.effect_range.y))
 
 
-func damage_at_charge(charge_level: int) -> int:
-	if not charges_damage() or damage_multipliers.is_empty():
-		return damage
-	var multiplier := damage_multipliers[clampi(charge_level, 0, damage_multipliers.size() - 1)]
-	return damage * maxi(1, multiplier)
+func level_damage(level: int) -> int:
+	if levels.is_empty():
+		return 1
+	return levels[clampi(level, 0, levels.size() - 1)].damage
+
+
+func level_energy_cost(level: int) -> int:
+	return base_energy_cost * (clampi(level, 0, max_charge_level()) + 1)

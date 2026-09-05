@@ -21,7 +21,7 @@ var _slot_nodes: Dictionary[StringName, Array] = {}
 
 
 func _ready() -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	_ensure_slots(player)
 	if not EventBus.container_changed.is_connected(_on_container_changed):
 		EventBus.container_changed.connect(_on_container_changed)
@@ -78,18 +78,18 @@ func _toggle_panel() -> void:
 
 
 func _open_panel() -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	if player == null or player.state == null:
 		return
 	_ensure_slots(player)
-	if player.lock_input(INVENTORY_LOCK) != OK or GameManager.pause(INVENTORY_LOCK) != OK:
+	if player.lock_input(INVENTORY_LOCK) != OK or CalendarManager.pause(INVENTORY_LOCK) != OK:
 		player.unlock_input(INVENTORY_LOCK)
 		return
 	panel_open = true
 	focus_container = &"toolbar"
 	focus_index = player.backpack.selected_index(&"toolbar")
 	inventory_panel.visible = true
-	AudioManager.play_event(&"ui_confirm")
+	AudioManager.play_audio(&"ui_confirm")
 	_refresh_all()
 
 
@@ -97,12 +97,12 @@ func _close_panel() -> void:
 	panel_open = false
 	inventory_panel.visible = false
 	_clear_mark()
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	if player != null and INVENTORY_LOCK in player.input_lock_reasons():
 		player.unlock_input(INVENTORY_LOCK)
-	if INVENTORY_LOCK in GameManager.pause_reasons():
-		GameManager.resume(INVENTORY_LOCK)
-	AudioManager.play_event(&"ui_cancel")
+	if INVENTORY_LOCK in CalendarManager.pause_reasons():
+		CalendarManager.resume(INVENTORY_LOCK)
+	AudioManager.play_audio(&"ui_cancel")
 
 
 func _handle_swap() -> void:
@@ -110,7 +110,7 @@ func _handle_swap() -> void:
 		marked_container = focus_container
 		marked_index = focus_index
 		return
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	var error := (
 		player.backpack.exchange_container_slots(marked_container, marked_index, focus_container, focus_index)
 		if player != null and player.backpack != null
@@ -118,39 +118,42 @@ func _handle_swap() -> void:
 	)
 	mode_label.text = "SWAPPED" if error == OK else "INVALID TARGET"
 	if error == OK:
-		AudioManager.play_event(&"ui_confirm")
+		AudioManager.play_audio(&"ui_confirm")
 	else:
-		AudioManager.play_event(&"invalid")
+		AudioManager.play_audio(&"invalid")
 		EventBus.request_invalid_feedback.emit(&"invalid_target")
 	_clear_mark(false)
 
 
 func _confirm_focus() -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	if player == null or player.backpack == null:
 		return
 	if focus_container == &"toolbar":
 		if not player.backpack.select_bar_index(BackpackState.ActiveHandSource.TOOLBAR, focus_index):
-			AudioManager.play_event(&"invalid")
+			AudioManager.play_audio(&"invalid")
 	elif focus_container == &"itembar":
 		if not player.backpack.select_bar_index(BackpackState.ActiveHandSource.ITEMBAR, focus_index):
-			AudioManager.play_event(&"invalid")
+			AudioManager.play_audio(&"invalid")
 
 
 func _move_horizontal(direction: int) -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
 	if backpack_state == null:
 		return
 	if focus_container == &"main_space":
-		var row_start := floori(float(focus_index) / 10.0) * 10
-		focus_index = row_start + wrapi((focus_index - row_start) + direction, 0, 10)
+		var columns := 6
+		var row_start := floori(float(focus_index) / columns) * columns
+		var row_size := mini(columns, backpack_state.capacity(&"main_space") - row_start)
+		if row_size > 0:
+			focus_index = row_start + wrapi((focus_index - row_start) + direction, 0, row_size)
 	else:
 		focus_index = wrapi(focus_index + direction, 0, backpack_state.capacity(focus_container))
 
 
 func _move_vertical(direction: int) -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	if player == null or player.state == null:
 		return
 	if focus_container == &"toolbar":
@@ -160,12 +163,13 @@ func _move_vertical(direction: int) -> void:
 		focus_container = &"toolbar" if direction < 0 else &"main_space"
 		focus_index = mini(focus_index, player.backpack.backpack_state.capacity(focus_container) - 1)
 	else:
-		var next_index := focus_index + direction * 10
+		var columns := 6
+		var next_index := focus_index + direction * columns
 		if next_index >= 0 and next_index < player.backpack.backpack_state.capacity(&"main_space"):
 			focus_index = next_index
 		else:
 			focus_container = &"itembar" if direction < 0 else &"toolbar"
-			focus_index = mini(focus_index % 10, player.backpack.backpack_state.capacity(focus_container) - 1)
+		focus_index = mini(focus_index % 6, player.backpack.backpack_state.capacity(focus_container) - 1)
 
 
 func _clear_mark(reset_mode: bool = true) -> void:
@@ -204,14 +208,14 @@ func _ensure_container_slots(container_id: StringName, parent: Container, count:
 
 
 func _refresh_all() -> void:
-	_ensure_slots(MapManager.registered_player())
+	_ensure_slots(GameManager.player)
 	for container_id: StringName in CONTAINER_ORDER:
 		_refresh_container(container_id)
 	_refresh_details()
 
 
 func _refresh_container(container_id: StringName) -> void:
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
 	var nodes: Array = _slot_nodes.get(container_id, []) as Array
 	if backpack_state == null:
@@ -253,7 +257,7 @@ func _refresh_container(container_id: StringName) -> void:
 func _refresh_details() -> void:
 	if not panel_open:
 		return
-	var player := MapManager.registered_player()
+	var player := GameManager.player
 	var backpack_state := player.backpack.backpack_state if player != null and player.backpack != null else null
 	var slot := backpack_state.get_slot(focus_container, focus_index) if backpack_state != null else null
 	if slot == null or slot.is_empty():

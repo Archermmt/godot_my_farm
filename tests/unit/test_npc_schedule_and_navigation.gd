@@ -7,11 +7,11 @@ func test_schedule_filters_priority_fallback_and_cross_midnight() -> void:
 	schedule.fallback_map_id = &"farm"
 	schedule.fallback_cell = Vector2i(2, 2)
 	var regular := _event(&"regular", 480, 120, &"farm", Vector2i(4, 4))
-	regular.seasons = [&"spring"]
+	regular.seasons = [SeasonMeta.SeasonType.SPRING]
 	regular.months = [1]
 	regular.weekdays = [1]
 	var priority := _event(&"priority", 510, 30, &"field", Vector2i(6, 6))
-	priority.seasons = [&"spring"]
+	priority.seasons = [SeasonMeta.SeasonType.SPRING]
 	priority.months = [1]
 	priority.weekdays = [1]
 	priority.priority = 1
@@ -47,11 +47,12 @@ func test_catalog_rejects_same_priority_schedule_conflicts_and_invalid_filters()
 	schedule.npc_id = &"npc_conflict"
 	schedule.events = [first, second]
 	var schedules: Dictionary[StringName, NpcSchedule] = {schedule.id: schedule}
-	var errors := DataCatalogService.validate_definitions({}, schedules)
+	var catalog := DataCatalogService.new()
+	var errors := catalog.validate()
 	assert_true(_contains(errors, "overlap at priority"))
 	assert_true(_contains(errors, "weekday 8 invalid"))
 	second.priority = 1
-	errors = DataCatalogService.validate_definitions({}, schedules)
+	errors = catalog.validate()
 	assert_true(not _contains(errors, "overlap at priority"))
 
 
@@ -89,8 +90,8 @@ func test_game_manager_initializes_one_npc_per_starting_map() -> void:
 	var root := (Engine.get_main_loop() as SceneTree).root
 	root.add_child(field)
 	root.add_child(ranger)
-	assert_true(field.contains_cell(manager.get_npc(&"npc_ranger").cell))
-	assert_true(field.is_walkable(manager.get_npc(&"npc_ranger").cell))
+	assert_true(field.cells.has(manager.get_npc(&"npc_ranger").cell))
+	assert_true(field.check_cell(manager.get_npc(&"npc_ranger").cell, CellState.CellCondition.WALKABLE))
 	assert_equal(ranger.bind(manager.get_npc(&"npc_ranger"), field), OK)
 	assert_equal(ranger.state.schedule_id, &"ranger")
 	ranger.free()
@@ -134,7 +135,9 @@ func _map(width: int, height: int) -> BaseMap:
 	var map := BaseMap.new()
 	for y: int in height:
 		for x: int in width:
-			map.cells[Vector2i(x, y)] = MapCell.new(Vector2i(x, y), CellState.CellFlag.BASE)
+			var cell_state := CellState.new()
+			cell_state.flags = CellState.CellFlag.BASE
+			map.cells[Vector2i(x, y)] = MapCell.new(Vector2i(x, y), cell_state)
 	return map
 
 

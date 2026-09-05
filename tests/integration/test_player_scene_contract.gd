@@ -32,11 +32,11 @@ func test_player_leaf_scene_uses_one_root_controller() -> void:
 	assert_true(player.pickup_speed_curve != null)
 	assert_true(not player.has_node("PickupRange"))
 	assert_true(not player.has_node("CollectArea"))
-	var effect_area := player.get_node("EffectArea") as EffectArea
-	assert_true(effect_area != null)
-	assert_true(effect_area.top_level)
+	var interact_area := player.get_node("InteractArea") as InteractArea
+	assert_true(interact_area != null)
+	assert_true(interact_area.top_level)
 	player.position = Vector2(100, 100)
-	assert_equal(effect_area.global_position, Vector2.ZERO)
+	assert_equal(interact_area.global_position, Vector2.ZERO)
 	var camera: Camera2D = player.get_node("Camera2D") as Camera2D
 	assert_true(camera.enabled)
 	assert_equal(camera.process_callback, Camera2D.CAMERA2D_PROCESS_PHYSICS)
@@ -78,7 +78,9 @@ func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as FarmPlayer
 	scene_tree.root.add_child(player)
 	var map := BaseMap.new()
-	map.cells[Vector2i(0, 1)] = MapCell.new(Vector2i(0, 1), CellState.CellFlag.BASE)
+	var cell_state := CellState.new()
+	cell_state.flags = CellState.CellFlag.BASE
+	map.cells[Vector2i(0, 1)] = MapCell.new(Vector2i(0, 1), cell_state)
 	var player_state := PlayerState.new()
 	player_state.cell = Vector2i.ZERO
 	player_state.facing = &"down"
@@ -89,20 +91,20 @@ func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
 	assert_equal(player.setup(player_state), OK)
 	assert_equal(player.backpack.setup(backpack_state), OK)
 	var tool_meta := DataCatalog.get_item(&"axe") as ToolMeta
-	var tool := Tool.new(tool_meta)
-	assert_equal(player.effect_area.begin(player_state, backpack_state, map, tool), OK)
+	var tool := _test_tool(tool_meta)
+	assert_equal(player.interact_area.begin(player_state, player.backpack, map, tool), OK)
 	player._refresh_charge_bar()
 	assert_true(player.charge_bar.visible)
 	assert_equal(player.charge_bar.max_value, 1.0)
 	assert_equal(player.charge_bar.value, 0.0)
 	assert_equal(player._charge_fill_style.bg_color, FarmPlayer.CHARGE_COLOR_LOW)
-	player.effect_area.update(0.1)
+	player.interact_area.update(0.1)
 	player._refresh_charge_bar()
 	assert_true(player.charge_bar.value > 0.0)
 	assert_true(player._charge_fill_style.bg_color != FarmPlayer.CHARGE_COLOR_LOW)
-	player.effect_area.update(0.3)
+	player.interact_area.update(0.3)
 	player._refresh_charge_bar()
-	assert_equal(player.effect_area.charge_level, 1)
+	assert_equal(player.interact_area.charge_level, 1)
 	assert_true(is_equal_approx(player.charge_bar.value, 0.8))
 	assert_true(player.charge_bar.value > 0.0)
 	assert_true(player._charge_fill_style.bg_color != FarmPlayer.CHARGE_COLOR_LOW)
@@ -113,3 +115,12 @@ func test_player_charge_bar_tracks_level_color_and_cancel_lifecycle() -> void:
 	tool.free()
 	map.free()
 	player.free()
+
+
+func _test_tool(item_meta: ToolMeta) -> Tool:
+	var item_state := ItemState.new()
+	item_state.unique_id = StringName("test_%s" % item_meta.id)
+	item_state.meta_id = item_meta.id
+	var tool := Tool.new(item_state)
+	tool.meta = item_meta
+	return tool

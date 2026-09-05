@@ -102,10 +102,24 @@ func _run() -> void:
 			)
 		)
 		return
+	var beach_return_result := router.request_map_change(&"farm", &"from_beach")
+	if beach_return_result != OK:
+		_fail("beach -> farm request failed: %s" % error_string(beach_return_result))
+		return
+	await event_bus.map_changed
+	await get_tree().process_frame
+	if router.current_map_id() != &"farm" or player.global_position != router.current_map().spawn_position(&"from_beach"):
+		_fail("beach -> farm contract failed")
+		return
+	if router.request_map_change(&"beach", &"from_farm") != OK:
+		_fail("second farm -> beach request failed")
+		return
+	await event_bus.map_changed
+	await get_tree().process_frame
 	var previous_day := GameManager.calendar.day
 	if (
-		GameManager.request_end_day() != OK
-		or GameManager.request_end_day() != OK
+		CalendarManager.advance_to_next_day() != OK
+		or CalendarManager.advance_to_next_day() != OK
 		or GameManager.calendar.day != previous_day
 	):
 		_fail("day transition must defer state changes until the iris closes")
@@ -145,7 +159,7 @@ func _run() -> void:
 			)
 		)
 		return
-	print("[MapTransitionTest] PASS | farm -> field -> farm -> beach -> iris day wake | players=%d" % player_count)
+	print("[MapTransitionTest] PASS | farm -> field -> farm -> beach -> farm -> beach -> iris day wake | players=%d" % player_count)
 	main.queue_free()
 	await get_tree().process_frame
 	get_tree().quit(0)
