@@ -46,7 +46,7 @@ func _run() -> void:
 	for _day: int in 2:
 		GameManager._complete_day()
 		await process_frame
-	if GameManager.npcs.size() != 3 or not _assert_current_npcs([&"npc_villager"]):
+	if GameManager.npc_states.size() != 3 or not _assert_current_npcs([&"npc_villager"]):
 		_fail("two day advances changed NPC uniqueness or current farm actors")
 		return
 	print("[NpcScheduleFixture] PASS | npcs=3 | map_round_trips=20 | day_advances=2")

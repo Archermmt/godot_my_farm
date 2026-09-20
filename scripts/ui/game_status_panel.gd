@@ -19,8 +19,6 @@ func _ready() -> void:
 		EventBus.day_advanced.connect(_on_day_advanced)
 	if not EventBus.weather_changed.is_connected(_on_weather_changed):
 		EventBus.weather_changed.connect(_on_weather_changed)
-	if not EventBus.player_state_changed.is_connected(_on_state_changed):
-		EventBus.player_state_changed.connect(_on_state_changed)
 	if not EventBus.active_hand_changed.is_connected(_on_state_changed):
 		EventBus.active_hand_changed.connect(_on_state_changed)
 	if not EventBus.bar_selection_changed.is_connected(_on_state_changed):
@@ -44,7 +42,7 @@ func _refresh() -> void:
 	if not is_instance_valid(GameManager) or not GameManager.is_initialized():
 		return
 	var calendar: CalendarManagerService = GameManager.calendar
-	var player: PlayerState = GameManager.player_state()
+	var player := GameManager.player
 	if calendar == null or player == null:
 		return
 	var player_node := GameManager.player
@@ -70,9 +68,9 @@ func _refresh() -> void:
 			player.max_energy,
 			player.gold,
 			(
-				player_node.backpack.backpack_state.active_hand_source
-				if player_node != null and player_node.backpack != null and player_node.backpack.backpack_state != null
-				else BackpackState.ActiveHandSource.NONE
+				player_node.backpack.active_hand_source
+				if player_node != null and player_node.backpack != null
+				else PlayerBackpack.ActiveHandSource.NONE
 			),
 			active_slot.item_id if active_slot != null else &"",
 			active_slot.amount if active_slot != null else 0,

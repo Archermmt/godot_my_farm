@@ -26,24 +26,37 @@ func get_item(id: StringName) -> ItemMeta:
 
 
 func get_npc_schedule(id: StringName) -> NpcSchedule:
-	var definition: NpcSchedule = config.npc_schedules.get(id) as NpcSchedule
+	var definition: NpcSchedule = null
+	for entries: Array in config.npc_schedules.values():
+		for candidate: NpcSchedule in entries:
+			if candidate != null and candidate.id == id:
+				definition = candidate
+				break
+		if definition != null:
+			break
 	if definition == null:
 		push_error("[DataCatalog] unknown NPC schedule id: %s" % id)
 	return definition
+
+
+func get_npc_schedules(npc_id: StringName) -> Array[NpcSchedule]:
+	var result: Array[NpcSchedule] = []
+	for schedule: NpcSchedule in config.npc_schedules.get(npc_id, []):
+		if schedule != null:
+			result.append(schedule)
+	return result
 
 
 func has_item(id: StringName) -> bool:
 	return config.items.has(id)
 
 
-func validate() -> Array[String]:
+func setup() -> Array[String]:
 	var item_definitions := config.items
 	var schedule_definitions := config.npc_schedules
 	var errors: Array[String] = []
 	var item_ids := _validate_item_dictionary(item_definitions, errors)
 	_validate_schedule_dictionary(schedule_definitions, errors)
-	var schedule_npc_ids: Dictionary[StringName, StringName] = {}
-
 	for item: ItemMeta in item_definitions.values():
 		if item == null:
 			continue
@@ -53,7 +66,7 @@ func validate() -> Array[String]:
 			errors.append("item %s buy_price must be non-negative" % item.id)
 		if item.sell_price < 0:
 			errors.append("item %s sell_price must be non-negative" % item.id)
-		if item is ToolMeta:
+		if item is ToolMeta and not item is SeedMeta:
 			_validate_tool(item as ToolMeta, errors)
 		if item is SeedMeta:
 			_validate_seed(item as SeedMeta, item_ids, errors)
@@ -63,61 +76,23 @@ func validate() -> Array[String]:
 		elif item is HarvestableMeta:
 			_validate_harvestable(item as HarvestableMeta, item_ids, errors)
 
-	for schedule: NpcSchedule in schedule_definitions.values():
-		if schedule == null:
-			continue
-		if schedule.npc_id == &"":
-			errors.append("npc_schedule %s npc_id must not be empty" % schedule.id)
-		elif schedule_npc_ids.has(schedule.npc_id):
-			errors.append(
-				(
-					"npc_schedule %s duplicates npc_id %s from %s"
-					% [schedule.id, schedule.npc_id, schedule_npc_ids[schedule.npc_id]]
-				)
-			)
-		else:
-			schedule_npc_ids[schedule.npc_id] = schedule.id
-		if schedule.fallback_map_id == &"":
-			errors.append("npc_schedule %s fallback_map_id must not be empty" % schedule.id)
-		var event_ids: Dictionary = {}
-		for index: int in schedule.events.size():
-			var event: NpcScheduleEvent = schedule.events[index]
-			if event == null:
-				errors.append("npc_schedule %s events[%d] is null" % [schedule.id, index])
+	for schedule_list: Array in schedule_definitions.values():
+		for schedule: NpcSchedule in schedule_list:
+			if schedule == null:
 				continue
-			if event.id == &"":
-				errors.append("npc_schedule %s events[%d].id must not be empty" % [schedule.id, index])
-			elif event_ids.has(event.id):
-				errors.append("npc_schedule %s duplicate event id %s" % [schedule.id, event.id])
-			event_ids[event.id] = true
-			if event.start_minute < 0 or event.start_minute > 1439:
-				errors.append("npc_schedule %s event %s start_minute invalid" % [schedule.id, event.id])
-			if event.duration_minutes <= 0:
-				errors.append("npc_schedule %s event %s duration_minutes invalid" % [schedule.id, event.id])
-			if event.map_id == &"":
-				errors.append("npc_schedule %s event %s map_id must not be empty" % [schedule.id, event.id])
-			for season: SeasonMeta.SeasonType in event.seasons:
+			if schedule.start_minute < 0 or schedule.start_minute > 1439:
+				errors.append("npc_schedule %s start_minute invalid" % schedule.id)
+			if schedule.map_id == &"":
+				errors.append("npc_schedule %s map_id must not be empty" % schedule.id)
+			for season: SeasonMeta.SeasonType in schedule.seasons:
 				if season < SeasonMeta.SeasonType.SPRING or season > SeasonMeta.SeasonType.WINTER:
-					errors.append("npc_schedule %s event %s season %d invalid" % [schedule.id, event.id, season])
-			for month: int in event.months:
+					errors.append("npc_schedule %s season %d invalid" % [schedule.id, season])
+			for month: int in schedule.months:
 				if month < 1 or month > CalendarManagerService.MONTHS_PER_YEAR:
-					errors.append("npc_schedule %s event %s month %d invalid" % [schedule.id, event.id, month])
-			for weekday: int in event.weekdays:
+					errors.append("npc_schedule %s month %d invalid" % [schedule.id, month])
+			for weekday: int in schedule.weekdays:
 				if weekday < 1 or weekday > 7:
-					errors.append("npc_schedule %s event %s weekday %d invalid" % [schedule.id, event.id, weekday])
-		for left_index: int in schedule.events.size():
-			var left := schedule.events[left_index]
-			if left == null:
-				continue
-			for right_index: int in range(left_index + 1, schedule.events.size()):
-				var right := schedule.events[right_index]
-				if right != null and left.priority == right.priority and _schedule_events_overlap(left, right):
-					errors.append(
-						(
-							"npc_schedule %s events %s and %s overlap at priority %d"
-							% [schedule.id, left.id, right.id, left.priority]
-						)
-					)
+					errors.append("npc_schedule %s weekday %d invalid" % [schedule.id, weekday])
 
 	return errors
 
@@ -142,16 +117,18 @@ func _validate_item_dictionary(
 
 
 func _validate_schedule_dictionary(
-	schedule_definitions: Dictionary[StringName, NpcSchedule], errors: Array[String]
+	schedule_definitions: Dictionary[StringName, Array], errors: Array[String]
 ) -> void:
 	for schedule_id: StringName in schedule_definitions:
-		var schedule := schedule_definitions[schedule_id] as NpcSchedule
+		var schedule_list: Array = schedule_definitions[schedule_id]
 		if schedule_id == &"":
 			errors.append("npc_schedules contains an empty key")
-		elif schedule == null:
-			errors.append("npc_schedules[%s] is null" % schedule_id)
-		elif schedule.id != schedule_id:
-			errors.append("npc_schedules[%s].id must match dictionary key, got %s" % [schedule_id, schedule.id])
+		elif schedule_list == null or schedule_list.is_empty():
+			errors.append("npc_schedules[%s] is empty" % schedule_id)
+		else:
+			for schedule: NpcSchedule in schedule_list:
+				if schedule == null:
+					errors.append("npc_schedules[%s] contains null" % schedule_id)
 
 
 func _validate_plant(plant: PlantMeta, item_ids: Dictionary, errors: Array[String]) -> void:
@@ -186,8 +163,12 @@ func _validate_tool(tool: ToolMeta, errors: Array[String]) -> void:
 		errors.append("tool %s event_id must not be empty" % tool.id)
 	if tool.levels.is_empty():
 		errors.append("tool %s levels must not be empty" % tool.id)
-	for level: ToolLevel in tool.levels:
-		if level == null or level.damage <= 0 or level.effect_range.x <= 0 or level.effect_range.y <= 0:
+	for level: Resource in tool.levels:
+		if level == null or not (level is ItemToolLevel or level is CellToolLevel):
+			errors.append("tool %s levels contain invalid values" % tool.id)
+		elif level is ItemToolLevel and (level.damage <= 0 or level.scale <= 0.0):
+			errors.append("tool %s levels contain invalid values" % tool.id)
+		elif level is CellToolLevel and (level.damage <= 0 or level.range.x <= 0 or level.range.y <= 0):
 			errors.append("tool %s levels contain invalid values" % tool.id)
 
 
@@ -236,37 +217,6 @@ func _validate_drops(
 			errors.append("%s drops[%d] amount range invalid" % [owner_label, index])
 		if drop.chance < 0.0 or drop.chance > 1.0:
 			errors.append("%s drops[%d].chance invalid" % [owner_label, index])
-
-
-func _schedule_events_overlap(left: NpcScheduleEvent, right: NpcScheduleEvent) -> bool:
-	if not _filter_arrays_overlap(left.seasons, right.seasons):
-		return false
-	if not _filter_arrays_overlap(left.months, right.months):
-		return false
-	if not _filter_arrays_overlap(left.weekdays, right.weekdays):
-		return false
-	for left_range: Vector2i in _event_minute_ranges(left):
-		for right_range: Vector2i in _event_minute_ranges(right):
-			if maxi(left_range.x, right_range.x) < mini(left_range.y, right_range.y):
-				return true
-	return false
-
-
-func _filter_arrays_overlap(left: Array, right: Array) -> bool:
-	if left.is_empty() or right.is_empty():
-		return true
-	for value: Variant in left:
-		if value in right:
-			return true
-	return false
-
-
-func _event_minute_ranges(event: NpcScheduleEvent) -> Array[Vector2i]:
-	var end_minute := event.start_minute + event.duration_minutes
-	var ranges: Array[Vector2i] = [Vector2i(event.start_minute, mini(end_minute, 1440))]
-	if end_minute > 1440:
-		ranges.append(Vector2i(0, end_minute - 1440))
-	return ranges
 
 
 func _count_meta_type(meta_script: Script) -> int:

@@ -2,7 +2,7 @@ class_name MapState
 extends RefCounted
 
 var map_id: StringName = &"farm"
-var generator_initialized: bool = false
+var generated: bool = false
 var generation_epoch: int = 0
 var cells: Dictionary[Vector2i, CellState] = {}
 var items: Dictionary[StringName, ItemState] = {}
@@ -20,7 +20,7 @@ func to_dict() -> Dictionary:
 		item_data.append(ItemCodec.to_dict(items[item_id]))
 	return {
 		"map_id": String(map_id),
-		"generator_initialized": generator_initialized,
+		"generated": generated,
 		"generation_epoch": generation_epoch,
 		"cells": cell_data,
 		"items": item_data,
@@ -28,7 +28,7 @@ func to_dict() -> Dictionary:
 
 
 static func from_dict(data: Dictionary) -> MapState:
-	if not SerializationUtil.has_valid_string(data, "map_id") or not SerializationUtil.has_valid_bool(data, "generator_initialized") or not SerializationUtil.has_valid_int(data, "generation_epoch"):
+	if not SerializationUtil.has_valid_string(data, "map_id") or not SerializationUtil.has_valid_bool(data, "generated") or not SerializationUtil.has_valid_int(data, "generation_epoch"):
 		return null
 	if not SerializationUtil.has_valid_array(data, "cells") or not SerializationUtil.has_valid_array(data, "items"):
 		return null
@@ -36,7 +36,7 @@ static func from_dict(data: Dictionary) -> MapState:
 		return null
 	var restored := MapState.new()
 	restored.map_id = StringName(str(data.get("map_id", "farm")))
-	restored.generator_initialized = bool(data.get("generator_initialized", false))
+	restored.generated = bool(data.get("generated", false))
 	restored.generation_epoch = int(data.get("generation_epoch", 0))
 	if restored.generation_epoch < 0:
 		return null
@@ -51,7 +51,7 @@ static func from_dict(data: Dictionary) -> MapState:
 		if typeof(raw_cell) != TYPE_DICTIONARY:
 			return null
 		var cell := CellState.from_dict(raw_cell as Dictionary)
-		if cell == null or restored.cells.has(cell.cell):
+		if cell == null or restored.cells.has(cell.coord):
 			return null
-		restored.cells[cell.cell] = cell
+		restored.cells[cell.coord] = cell
 	return restored

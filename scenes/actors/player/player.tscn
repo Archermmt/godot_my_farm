@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://ctuq8r0y26w3g"]
 
-[ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actors/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actor/player.gd" id="1_player"]
 [ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
-[ext_resource type="AnimationLibrary" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
+[ext_resource type="AnimationLibrary" uid="uid://vyh3yhltdeot" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
 [ext_resource type="PackedScene" path="res://scenes/world/interact_area.tscn" id="7_interact_area"]
-[ext_resource type="Script" path="res://scripts/actors/backpack.gd" id="8_backpack"]
+[ext_resource type="Script" uid="uid://cq4t3tm1opk5a" path="res://scripts/actor/backpack.gd" id="8_backpack"]
 
 [sub_resource type="CapsuleShape2D" id="CapsulePlayer"]
 radius = 6.0
@@ -47,10 +47,9 @@ frame = 8
 libraries/ = ExtResource("6_animations")
 autoplay = &"idle_down"
 
-[node name="ChargeBar" type="ProgressBar" parent="."]
+[node name="ChargeBar" type="ProgressBar" parent="." unique_id=2102465929]
 visible = false
 z_index = 25
-max_value = 1.0
 offset_left = -18.0
 offset_top = -43.0
 offset_right = 18.0
@@ -58,6 +57,7 @@ offset_bottom = -37.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxChargeBackground")
 theme_override_styles/fill = SubResource("StyleBoxChargeFill")
+max_value = 1.0
 show_percentage = false
 
 [node name="SelectionPopup" type="Control" parent="." unique_id=720045240]

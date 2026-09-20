@@ -31,7 +31,7 @@
 | T14 | [NPC 日程与跨地图导航](./tasks/T14_NPC_SCHEDULE.md) | T05, T11, T12 | C 活世界 | completed |
 | T15 | [场景物件、NPC 交互与对话气泡](./tasks/T15_INTERACTION_AND_DIALOGUE.md) | T05, T11, T13, T14 | C 活世界 | completed |
 | T16 | [版本化保存与读取](./tasks/T16_SAVE_AND_LOAD.md) | T12, T14, T15 | D 完整性 | completed |
-| T17 | [完整流程集成与稳定性](./tasks/T17_INTEGRATION.md) | T13, T16 | D 完整性 | pending |
+| T17 | [完整流程集成与稳定性](./tasks/T17_INTEGRATION.md) | T13, T16 | D 完整性 | completed |
 | T18 | [正式资源、可读性与许可清单](./tasks/T18_ASSET_AND_POLISH.md) | T17 | D 完整性 | pending |
 | T19 | [发布检查与运行证明](./tasks/T19_RELEASE_PROOF.md) | T18 | D 完整性 | pending |
 

@@ -138,7 +138,7 @@ signal load_completed(slot: int)
 
 ### 5.2 DataCatalog
 
-- 脚本型 Autoload 从 `data/game_config.tres` 读取 `items: Dictionary[StringName, ItemMeta]` 和 `npc_schedules: Dictionary[StringName, NpcSchedule]`；Config 是唯一配置源，不建立场景副本、运行时目录猜测或同构私有索引。
+- 脚本型 Autoload 从 `data/game_config.tres` 读取 `items: Dictionary[StringName, ItemMeta]` 和按 NPC 分组的 `npc_schedules: Dictionary[StringName, Array[NpcSchedule]]`；Config 是唯一配置源，不建立场景副本、运行时目录猜测或同构私有索引。
 - Autoload 通过项目注册的全局名直接访问，不作为参数传递，也不在 Player、BaseMap、ScenePort 等节点中建立重复服务字段。State/DTO 不访问或保存 Autoload；需要 Catalog 的初始化校验由 GameManager、BaseMap 等运行时所有者完成，以避免脚本资源循环。Tool 等 RefCounted 领域对象不访问 EventBus 或 AudioManager，只返回 `ToolOutcome`，由 Player 统一发出工具事实和反馈。
 - Item、NPC 日程、Audio、Effect 和 Season 定义在 `GameConfig` Inspector 中使用类型化 Dictionary 配置，key 分别是 Item ID、日程 ID、音频事件 ID、特效 ID 和季节 ID。Dictionary 同时是校验后的唯一 ID 查询源；ItemMeta、NpcSchedule 和 SeasonMeta 的内部 ID 必须与 key 一致，Effect 直接使用 PackedScene 映射。
 - `GameConfig` 仅承载 Autoload 共享的全局规则与 Catalog。Player 的移动、拾取、相机等局部行为参数保存在 Player 场景；地图和 Generator 的局部参数保存在各自场景。Main 是 Composition Root，只注册 Host、绑定 PlayerState、加载初始地图并控制启动/错误遮罩，不作为第三个业务配置源。
@@ -157,7 +157,7 @@ signal load_completed(slot: int)
 - `PlayerState`：当前位置的地图/出生信息、生命、体力、上限和金币。
 - `BackpackState`：独立保存玩家容器、选择状态和当前唯一手持来源（NONE/TOOLBAR/ITEMBAR）。
 - `Dictionary[StringName, MapState]`：每张地图的 cell 动态状态及其格内 Item 状态。
-- `Dictionary[StringName, NpcState]`：跨地图 NPC 的全局状态；`map_id/cell` 表示当前位置。
+- `Dictionary[StringName, NpcState]`：跨地图 NPC 的全局状态；`map_id/current_position/target_position` 表示地图和位置。
 - 新游戏种子、当前存档槽和游戏版本元数据。
 
 GameManager 不实例化节点、不加载 PackedScene、不渲染 UI。
@@ -269,7 +269,7 @@ Plant、Harvestable、Tool、Seed 和普通 Item 的 Meta 统一内嵌在 `data/
 
 ### 6.5 NpcSchedule
 
-每个日程事件包含适用季节/月/星期、开始分钟、持续时间、地图 ID、目标出生点或格子、行为 ID。无匹配日程时使用明确 fallback，不随机消失。
+每个日程条目包含适用季节/月/星期、开始分钟、地图 ID、目标世界位置和行为 ID。日程从开始分钟起生效，直到同一 NPC 的下一个条目；到达目标后可在配置的 wander_zone 内闲逛。
 
 ## 7. 运行时状态模型
 
@@ -325,7 +325,7 @@ MapState 只保存 cells/items DTO，不持有 NPC，也不实现 Item 事务或
 
 MapState 与 BaseMap 不合并：MapState 是可在无场景树时创建和反序列化的纯数据容器，BaseMap 是随地图切换实例化和释放的 Node2D，并拥有当前地图的 MapCell/Item 运行时对象。
 
-NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/cell`，跨地图时直接更新这两个字段；仅为当前地图实例化 Actor 节点。NPC 不是 Item，不进入 MapState.items 或 BaseMap 的 Item host。
+NPC 的持久化唯一所有者是 `GameManager.npcs`。NpcState 自带 `map_id/current_position/target_position`，跨地图时直接更新地图和世界位置；仅为当前地图实例化 Actor 节点。NPC 不是 Item，不进入 MapState.items 或 BaseMap 的 Item host。
 
 ## 8. 场景领域组件
 
@@ -406,7 +406,7 @@ Item (Node2D)
 
 ### 8.5 NPC
 
-- GameManager 根据 CalendarState 更新 NpcState 的当前事件、目标地图和目标格；FarmNpc 只读取自身 NpcState 执行移动与动画。
+- GameManager/Calendar 根据 CalendarState 更新 NpcState 的当前日程、目标地图和目标位置；FarmNpc 只读取自身 NpcState 执行移动、闲逛与动画。
 - NPC 场景内使用 Godot 原生 `NavigationAgent2D` 导航，`FarmNpc` 根据当前日程目标设置 `target_position`；地图导航数据不可用时使用目标点直线移动作为运行时兜底。
 - NPC 跨地图时把状态写入 GameManager；只有位于当前地图的 NPC 需要可见实例。
 - 日程状态以游戏分钟为基准，加载存档后直接重建到正确位置，不要求重放所有历史路径。

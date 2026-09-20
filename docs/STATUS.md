@@ -2,6 +2,28 @@
 
 ## 当前状态
 
+- 当前任务：T17 完整流程集成与稳定性（completed）。已重写 T17 任务卡以匹配当前 Tool/MapManager/GameManager/状态架构；工具体力结算已统一并完成回归覆盖，T17.6 的旧测试/API 清理已完成。
+- T17 验证：`godot --headless --path . -s res://tests/test_runner.gd` 当前通过（41 tests / 384 assertions）；NPC 不可达目标已降为可配置 debug 日志，不再污染正常运行日志。
+- T17 增量：补充了 Player 背包存档、当前地图/NPC live state snapshot、20 次 farm/field 转场、10 次 save、连续 2 次 load、损坏 JSON、非法传送、100 个动态 Item、100 次无效 action 和 2 次换日回归；这些压力项已纳入当前 41 tests / 384 assertions runner。
+- T17 运行验证：主场景 `godot --headless --path . --quit-after 2` 正常启动；editor import、主场景和 runner 均无脚本错误。编辑器退出仍有 2 个 ObjectDB 实例提示，runner 退出仍有 8 个 DummyTexture RID 提示，属于 Godot headless/render resource teardown 遗留。
+- T17 导航增量：NPC 不可达目标现在会在 NavigationRegion2D 周围搜索当前可达候选点并投影到最近路径点；若地图没有可达候选仍保留 debug 记录。
+- T17 工具/背包增量：新增 ToolArea 取消生命周期、CellTool 场景结构、Toolbar/Itembar 选择和非法交换回归；当前 runner 为 41 tests / 384 assertions。
+- T17 首日工具链增量：新增当前 Player/Backpack/Tool 状态链路回归，覆盖翻地、播种、浇水及动态 cell item 绑定；当前 runner 为 41 tests / 384 assertions。
+- T17 农事状态修复：PlantState 现在从第一成长阶段开始；换日先消费上一天浇水再更新当天雨水；植物配置不阻挡玩家；CellTool 预览绘制缩进已修复；各工具等级能量消耗按 1/2/3/4/5 递增配置。
+- Headless 限制：`Input.action_press()` 不会模拟窗口 Viewport 的键盘分发，因此真实按键闭环保留为窗口运行验收；InputMap 的键盘绑定和业务状态链路均已自动化覆盖。
+
+### T17 进度明细
+
+- T17.1 第一日键盘闭环：自动化完成新游戏初始化、Player/Backpack/Tool 的翻地、播种、浇水、成长状态链路和体力结算；InputMap 键盘绑定已覆盖，主场景实际启动通过。
+- T17.2 时间与成长闭环：两次换日、`day_advanced`、Player/farm wake、NPC schedule、wander timer 和跨地图 NPC 唯一性回归通过；植物初始成长阶段和浇水后的换日成长逻辑已修复。
+- T17.3 地图与导航稳定性：20 次 farm/field 往返、非法传送锁清理和导航目标投影回归通过；修复同地图重载分支未复位 `_transitioning` 的生命周期缺口。
+- T17.4 存档回归：玩家、背包、地图、NPC、ItemManager snapshot；10 次 save、连续 2 次 load、空槽位和损坏 JSON 回归通过。
+- T17.5 背包与输入边界：Toolbar/Itembar、非法交换、丢弃、reason token 和 100 次无效 action 回归通过。
+- T17.6 测试和代码清理：当前 tests 可解析并通过，旧 API、旧 fixture、`.gd-E` 备份和已删除 Autoload 引用已清理，未修改 `addons/`。
+- T17.7 运行与性能证明：editor import、主场景实际 `--quit-after 5` 启动和 runner 无项目脚本错误；压力项全部通过。Godot 编辑器自身仍报告 2 个 UndoRedo ObjectDB，headless Dummy renderer 仍报告 8 个 DummyTexture RID，均不是项目业务对象。
+- 当前自动化基线：`godot --headless --path . -s res://tests/test_runner.gd`，`41 tests / 384 assertions`，零 skip。
+- T17 总状态：`completed`。自动化和主场景启动均通过；Godot headless 退出时的 DummyTexture/ObjectDB teardown 提示属于引擎环境遗留，不影响项目运行。
+
 - 阶段：M3 活世界。
 - 当前任务：[T15 场景物件、NPC 交互与对话气泡](./tasks/T15_INTERACTION_AND_DIALOGUE.md)（completed）。
 - T11-T16 已完成时间、季节天气、状态显示、日结、环境生成、统一界面、音频与动作反馈、NPC 日程导航、场景物件/NPC 交互与对话，以及版本化保存与读取。
@@ -22,7 +44,7 @@
 - `player.gd` 单一根控制器集中处理 InputMap、多 reason 输入锁、对角归一化、移动碰撞、朝向、动画选择和 Camera2D limits；默认跑速 96、Shift 慢走 48，斜向朝向水平优先。Visual、Hands、碰撞、交互挂点和相机子节点不再挂角色业务脚本。
 - Player 动画已改为 `AnimationPlayer` + `player_animations.tres`，包含 12 个可编辑的 idle/walk/run 四向动画；运行脚本不再设置 Sprite frame、维护动画相位或手写动画时钟。
 - 原创占位角色图为 144x128、4 行 x 6 帧；T04 已接入原创占位 TileMap 和地图层，资源许可记录在 `assets/licenses/ASSETS.md`，T16 再完成正式美术替换与整体 polish。
-- T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actors/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
+- T03 重构：按单脚本角色规则合并 PlayerInput、PlayerMotor、PlayerVisual 到 `scripts/actor/player.gd`；旧脚本和场景组件已删除，Visual 仅保留无脚本 Sprite 容器，并新增场景契约防回退断言。
 - T05 已建立 farm、field、beach 三张大尺寸探索地图，全部直接使用 BaseMap；field 包含山坡与不规则小径，beach 包含不规则海岸线。House 作为可复用节点挂入 farm，通过门洞、屋顶显隐和 Player 相机 API 实现同图室内外切换。
 - T05-T17 已改为纯键盘交互规划：Toolbar 管理工具、Itembar 管理可选择非工具物品，Player 只有一个 active hand；背包使用方向焦点和两段式交换键，不再支持鼠标选择、使用、丢下或拖拽。
 - T05 已完成统一 `BackpackState`/`BackpackSlot` 数据模型：命名槽位由 Dictionary 保存，Toolbar/Itembar 通过槽位 ID 数组组织，Backpack 提供 add/remove/switch API；InventoryState/ToolbarState/ItembarState/ItemStack 已删除。Q/E 和 Z/C 循环选择并切换唯一 active hand；Player 复用一个 HeldVisual，头顶短暂显示当前栏位，HUD 常驻显示手持来源和物品。

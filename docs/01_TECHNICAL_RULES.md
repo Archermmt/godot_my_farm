@@ -9,6 +9,7 @@
 - 游戏代码全部使用 GDScript 2.0。禁止 `.cs`、`.csproj`、`.sln` 和 C# 插件。
 - 运行时不得依赖 godot-ai；它只用于开发、编辑器操作、验证和截图。
 - 不增加第三方运行时/测试插件，除非用户明确批准并记录原因；T15 已明确允许使用 Dialogic 等对话插件，并要求通过适配层隔离插件 API。
+- 第三方插件目录 `addons/` 视为外部依赖，只读，不直接修改其中的脚本、场景或资源；需要定制时优先在项目目录创建派生 Resource/Scene，通过插件公开的配置、继承和 override 机制接入。若插件升级，项目定制不得依赖未声明的插件内部改动。
 
 ## 2. 目录和命名
 
@@ -20,7 +21,7 @@
 - 变量、方法、信号和 InputMap action：`snake_case`。
 - 常量：`UPPER_SNAKE_CASE`。
 - Resource ID：稳定的英文 `StringName`，例如 `&"hoe"`、`&"parsnip"`；显示文本与 ID 分离。
-- 配置 Dictionary 已经表达数据类别时，key 不重复类别前缀；例如 `npc_schedules` 使用 `fisher`、`villager`、`ranger`，不使用 `schedule_fisher`。
+- 配置 Dictionary 已经表达数据类别时，key 不重复类别前缀；例如 `npc_schedules` 按 NPC 分组使用 `npc_fisher`、`npc_villager`、`npc_ranger`，不使用 `schedule_fisher`。
 - 信号使用完成事实命名，例如 `item_added`、`day_advanced`，请求型事件以 `request_` 开头。
 
 ## 3. GDScript 编码规则
@@ -205,7 +206,7 @@ Itembar 和 main_space 中的 slot 耗尽后必须保持稳定顺序向前压缩
 - Item、Harvestable 和 Plant 的 `Visual`、`PickupArea`、`Obstacle` 及其 CollisionShape2D 必须作为场景节点预置并在编辑器中配置；运行时代码不得创建或猜测碰撞 Shape、接触区域或障碍物。Harvestable 找不到 `Obstacle` 节点时不阻碍移动，`blocks_movement` 只负责启用/禁用场景中已有的 Obstacle 碰撞。所有子类统一通过基类 `refresh_visual(texture, position)` 更新 Visual。
 - Item State 代码统一放在 `scripts/state/item/`，BackpackState/BackpackSlot 放在 `scripts/state/inventory/`，运行时 Item 代码放在与 `scripts/world/` 同级的 `scripts/item/`，不得放回 `scripts/world/entity/`。BackpackSlot 使用 item_id 引用 Meta，不把地图 Node 放进背包。
 - `MapState.items` 和 `MapState.cells` 是存档数据所有者；`BaseMap.items` 和 `BaseMap.cells` 是当前地图运行时对象所有者。所有同步和关系校验由 BaseMap 负责。
-- `NpcState` 的唯一所有者是 `GameManager.npcs`，其 `map_id/cell` 表示 NPC 当前所在地图和格子。NPC 是 Actor，不是 Item，不得写入 MapState.items 或通过 Item host 路由。
+- `NpcState` 的唯一所有者是 `GameManager.npcs`，其 `map_id/target_position/current_position` 表示 NPC 当前地图、目标和位置。NPC 是 Actor，不是 Item，不得写入 MapState.items 或通过 Item host 路由。
 - 创建地图 Item 的事务顺序固定为：BaseMap 校验目标 MapCell/status -> 用 meta_id 从 DataCatalog 解析 ItemMeta -> 写入 ItemState 和 CellState.item_ids -> 创建对应 Item 子类 -> 同时绑定 State/Meta -> 按 `ItemMeta.item_type` 从 `item_hosts` 挂载 host。解析、创建或挂载失败时必须回滚 DTO。
 - 网格移动地图 Item 必须通过 `BaseMap.move_item()` 原子地修改源/目标 `CellState.item_ids`、`ItemState.position` 和 Item 节点位置；连续移动必须通过 `sync_item_position()` 提交目标 world position，按移动前后位置迁移 cell 归属且不得将 Item 吸附到格子中心。调用方不得直接修改地图 Item 的 position；BaseMap 不维护重复的 item-cell 字典。
 - 删除地图 Item 必须通过 BaseMap.remove_item() 同时删除 CellState 引用、MapState.items DTO 和运行时 Item，再结算掉落/事件。
@@ -242,7 +243,7 @@ Itembar 和 main_space 中的 slot 耗尽后必须保持稳定顺序向前压缩
 - 一次 Tool 事务只消耗一次 `base_energy_cost`；蓄力只扩大目标范围，不得将消耗乘以有效格数量，否则最大蓄力范围可能在满体力时也无法使用。
 - MapCell 的工具行为统一通过 `tool_rejection_reason(tool_kind)` 和 `use_tool(tool_kind)`，不得为 Hoe/WateringCan 保留重复的 till/water 方法。Tool 不持有或修改 PlayerState；Player 根据成功的 ToolOutcome.energy_spent 更新体力，InteractArea 直接读取 PlayerState 但不修改其体力。
 - InteractionContext 不再作为中间快照类型；InteractArea.begin 直接接收 PlayerState、BackpackState、BaseMap 和 PlayerBackpack 提供的 Tool/Seed 运行时对象，并在内部保存 BaseMap interaction_revision 快照。`use_held` release 是 Player 的动作：Player 从 InteractArea 读取 preview cells 后调用 Tool/Seed.use、扣体力/数量并发出反馈；InteractArea 只维护蓄力状态、目标集合和预览绘制。
-- Player 专属交互组件脚本与 player.gd 一并放在 scripts/actors/；不得为 InteractArea 单独保留 scripts/interaction/ 目录。
+- Player 专属交互组件脚本与 player.gd 一并放在 scripts/actor/；不得为 InteractArea 单独保留 scripts/interaction/ 目录。
 - DUG/WATERED 的运行时表现由 BaseMap 从 CellState 重建到地图预置的空 `DugLayer`/`WateredLayer`；表现层不拥有状态，也不把 tile 数据写回 State。
 - 对角移动允许时做归一化；NPC 对角寻路不得穿过两个相邻阻挡格的夹角。
 

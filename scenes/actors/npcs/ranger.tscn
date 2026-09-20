@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://2kqwtl3n1r5e"]
+
+[ext_resource type="PackedScene" uid="uid://cs1pymck77wi" path="res://scenes/actors/npcs/npc.tscn" id="1"]
+
+[node name="Ranger" unique_id=1678520169 instance=ExtResource("1")]
+
+[node name="InteractionMarker" parent="." index="3" unique_id=2064810126]
+position = Vector2(0, -58)

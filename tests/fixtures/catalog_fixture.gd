@@ -2,7 +2,7 @@ extends Node
 
 func _ready() -> void:
 	var catalog := DataCatalogService.new()
-	var errors := catalog.validate()
+	var errors: Array[String] = catalog.setup()
 	if not errors.is_empty():
 		for error: String in errors:
 			push_error("[T01Fixture] %s" % error)

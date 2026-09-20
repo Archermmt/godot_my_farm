@@ -21,12 +21,14 @@ func play(event_id: StringName, positions: Array[Vector2]) -> void:
 	_playing = true
 	effect_color = COLORS.get(event_id, Color("e9d986")) as Color
 	points.clear()
-	for position: Vector2 in positions:
-		points.append(to_local(position))
+	for effect_position: Vector2 in positions:
+		points.append(to_local(effect_position))
 	queue_redraw()
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, lifetime).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.finished.connect(queue_free)
+
+
 func stop() -> void:
 	_playing = false
 	modulate.a = 1.0

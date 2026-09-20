@@ -11,7 +11,7 @@
 ## 交付范围
 
 - `scenes/actors/player/player.tscn`。
-- 单一 `scripts/actors/player.gd` 根控制器；不为输入、移动和表现分别创建只服务 Player 的脚本组件。
+- 单一 `scripts/actor/player.gd` 根控制器；不为输入、移动和表现分别创建只服务 Player 的脚本组件。
 - `AnimationPlayer` 与 `AnimationLibrary` 资源；角色脚本只切换动画名称，不直接控制 Sprite frame。
 - Main 在 ActorHost 实例化唯一 Player。
 - 原创占位 player sprite/animation；移动 fixture。

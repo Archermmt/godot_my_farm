@@ -118,8 +118,8 @@ func _run() -> void:
 	await get_tree().process_frame
 	var previous_day := GameManager.calendar.day
 	if (
-		CalendarManager.advance_to_next_day() != OK
-		or CalendarManager.advance_to_next_day() != OK
+		CalendarManager.next_day() != OK
+		or CalendarManager.next_day() != OK
 		or GameManager.calendar.day != previous_day
 	):
 		_fail("day transition must defer state changes until the iris closes")

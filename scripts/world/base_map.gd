@@ -14,59 +14,79 @@ var drop_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 @onready var item_generator: ItemGenerator = get_node_or_null("ItemGenerator") as ItemGenerator
 
 
-func setup(map_state: MapState, run_generation: bool = false) -> Error:
-	if map_state == null or map_state.map_id != map_id:
-		return ERR_INVALID_PARAMETER
+func _ready() -> void:
 	if not EventBus.day_advanced.is_connected(_on_day_advanced):
 		EventBus.day_advanced.connect(_on_day_advanced)
-	if cells.is_empty():
-		_build_cells()
-	if cells.is_empty():
+	if get_map_size() == Vector2i.ZERO:
+		push_error("[BaseMap] %s has no base layer" % map_id)
+		return
+	var alignment_error := validate_alignment()
+	if alignment_error != OK:
+		push_error("[BaseMap] invalid map configuration for %s: %s" % [map_id, error_string(alignment_error)])
+
+
+func from_state(map_state: MapState) -> Error:
+	if map_state == null or map_state.map_id != map_id:
+		return ERR_INVALID_PARAMETER
+	cells.clear()
+	items.clear()
+	if get_map_size() == Vector2i.ZERO:
 		return ERR_UNCONFIGURED
 	var alignment_error := validate_alignment()
 	if alignment_error != OK:
 		return alignment_error
 	var seen_item_ids: Dictionary[StringName, bool] = {}
 	_map_state = map_state
-	if map_state.cells.size() > cells.size():
-		return ERR_INVALID_DATA
-	for coordinates: Vector2i in cells:
-		var map_cell: MapCell = cells[coordinates]
-		var state := map_state.cells.get(coordinates, null) as CellState
-		if state == null:
-			state = map_cell.state
-			map_state.cells[coordinates] = state
-		if state.cell != coordinates:
+	for coordinates: Vector2i in map_state.cells:
+		if not has_static_cell(coordinates):
 			return ERR_INVALID_DATA
-		var map_flags := map_cell.state.flags & ~CellState.PERSISTENT_FLAGS
-		map_cell.state = state
-		map_cell.state.cell = coordinates
-		map_cell.state.flags |= map_flags
-		for item_id: StringName in state.item_ids:
-			var item_state := map_state.items.get(item_id, null) as ItemState
-			if item_state == null or item_state.unique_id != item_id or seen_item_ids.has(item_id):
-				return ERR_INVALID_DATA
-			seen_item_ids[item_id] = true
-			var item := ItemManager.create_from_state(item_state)
-			if item == null:
-				return ERR_INVALID_DATA
-			var add_error := add_item(item, item_state.position)
-			if add_error != OK:
+		var state := map_state.cells[coordinates] as CellState
+		if state == null or state.coord != coordinates:
+			return ERR_INVALID_DATA
+		var map_cell := MapCell.new()
+		if map_cell.from_state(state) != OK:
+			return ERR_INVALID_DATA
+		_apply_static_flags(map_cell)
+		cells[coordinates] = map_cell
+	for item_id: StringName in map_state.items:
+		var item_state := map_state.items[item_id] as ItemState
+		if item_state == null or item_state.unique_id != item_id or seen_item_ids.has(item_id):
+			return ERR_INVALID_DATA
+		seen_item_ids[item_id] = true
+		var item := ItemManager.create_from_state(item_state)
+		if item == null or add_item(item, item_state.position) != OK:
+			if item != null:
 				item.free()
-				continue
-	if map_state.cells.size() != cells.size():
-		return ERR_INVALID_DATA
-	if seen_item_ids.size() != map_state.items.size():
-		return ERR_INVALID_DATA
-	if run_generation and not map_state.generator_initialized:
+			return ERR_INVALID_DATA
+	if not map_state.generated:
 		if item_generator == null:
-			map_state.generator_initialized = true
+			map_state.generated = true
 		else:
 			var generation_error := item_generator.generate(self)
 			if generation_error != OK:
 				return generation_error
-			map_state.generator_initialized = true
+			map_state.generated = true
 	return rebuild_layers()
+
+
+func to_state() -> MapState:
+	if _map_state == null:
+		_map_state = MapState.new()
+		_map_state.map_id = map_id
+	_map_state.cells.clear()
+	_map_state.items.clear()
+	for coordinates: Vector2i in cells:
+		var map_cell := cells[coordinates] as MapCell
+		if map_cell == null:
+			continue
+		if (map_cell.state.flags & CellState.PERSISTENT_FLAGS) != 0:
+			_map_state.cells[coordinates] = map_cell.to_state()
+	for item_id: StringName in items:
+		var item := items[item_id]
+		var item_state := item.to_state() if item != null else null
+		if item_state != null:
+			_map_state.items[item_id] = item_state
+	return _map_state
 
 
 func validate_alignment() -> Error:
@@ -78,17 +98,19 @@ func validate_alignment() -> Error:
 		return ERR_INVALID_DATA
 	for layer: TileMapLayer in map_layers.values():
 		if layer == null:
-			return ERR_INVALID_DATA
+			continue
 		if layer.tile_set == null or layer.tile_set.tile_size != tile_size:
 			return ERR_UNCONFIGURED
 		if layer.position != Vector2.ZERO or layer.rotation != 0.0 or layer.scale != Vector2.ONE:
 			return ERR_INVALID_DATA
 	for flag: CellState.CellFlag in map_layers:
 		var layer := map_layers[flag]
-		if int(flag) == 0 or layer == null:
+		if int(flag) == 0:
 			return ERR_INVALID_DATA
+		if layer == null:
+			continue
 		for coordinates: Vector2i in layer.get_used_cells():
-			if not cells.has(coordinates):
+			if not has_static_cell(coordinates):
 				return ERR_INVALID_DATA
 	if not map_layers.has(CellState.CellFlag.BASE):
 		return ERR_INVALID_DATA
@@ -111,79 +133,33 @@ func get_tile_size() -> Vector2i:
 	return base_layer.tile_set.tile_size if base_layer != null and base_layer.tile_set != null else Vector2i.ZERO
 
 
-func harvestable_at(coordinates: Vector2i) -> Harvestable:
-	var cell := get_cell(coordinates)
-	if cell == null:
-		return null
-	for item_id: StringName in cell.state.item_ids:
-		var harvestable := get_item(item_id) as Harvestable
-		if harvestable != null:
-			return harvestable
-	return null
-
-
 func check_cell(coordinates: Vector2i, condition: CellState.CellCondition) -> bool:
-	var cell := get_cell(coordinates)
-	if cell == null:
+	if not has_static_cell(coordinates):
 		return false
-	var has_occupant := false
-	for item_id: StringName in cell.state.item_ids:
-		var item := get_item(item_id)
-		if item == null or not item.meta.can_pickup:
-			has_occupant = true
-			break
+	var is_blocked := has_flag(coordinates, CellState.CellFlag.BLOCKED)
 	match condition:
 		CellState.CellCondition.WALKABLE:
-			return cell.has_flag(CellState.CellFlag.BASE) and not cell.has_flag(CellState.CellFlag.BLOCKED)
+			return has_flag(coordinates, CellState.CellFlag.BASE) and not is_blocked
 		CellState.CellCondition.DIGGABLE:
-			return cell.has_flag(CellState.CellFlag.DIGGABLE) and not cell.has_flag(CellState.CellFlag.BLOCKED)
+			return has_flag(coordinates, CellState.CellFlag.DIGGABLE) and not is_blocked
 		CellState.CellCondition.DUG:
-			return cell.has_flag(CellState.CellFlag.DUG)
+			return has_flag(coordinates, CellState.CellFlag.DUG)
 		CellState.CellCondition.WATERED:
-			return cell.has_flag(CellState.CellFlag.WATERED)
+			return has_flag(coordinates, CellState.CellFlag.WATERED)
 		CellState.CellCondition.HAS_OCCUPANT:
-			return has_occupant
+			return is_blocked
 		CellState.CellCondition.PLANTABLE:
-			return (
-				cell.has_flag(CellState.CellFlag.DUG)
-				and not cell.has_flag(CellState.CellFlag.BLOCKED)
-				and not has_occupant
-			)
+			return has_flag(coordinates, CellState.CellFlag.DUG) and not is_blocked
 		CellState.CellCondition.DROPABLE:
-			return (
-				cell.has_flag(CellState.CellFlag.DROPABLE)
-				and not cell.has_flag(CellState.CellFlag.BLOCKED)
-				and not has_occupant
-			)
+			return has_flag(coordinates, CellState.CellFlag.DROPABLE) and not is_blocked
 	return false
 
 
-func add_item(item: Item, item_position: Vector2) -> Error:
-	if item == null or item.state == null or item.meta == null or item.item_id() == &"":
-		return ERR_INVALID_PARAMETER
-	if items.has(item.item_id()):
-		return ERR_ALREADY_EXISTS
-	var coordinates := world_to_cell(item_position)
-	var cell := get_cell(coordinates)
-	if cell == null:
-		return ERR_DOES_NOT_EXIST
-	var host := item_hosts.get(item.meta.item_type, null) as Node2D
-	if host == null:
-		return ERR_UNCONFIGURED
-	if item.get_parent() == null:
-		host.add_child(item)
-	elif item.get_parent() != host:
-		return ERR_ALREADY_EXISTS
-	if not cell.has_item(item.item_id()):
-		var cell_error := cell.add_item_id(item.item_id())
-		if cell_error != OK:
-			return cell_error
-	if _map_state != null:
-		_map_state.items[item.item_id()] = item.state
-	items[item.item_id()] = item
-	item.position = item_position
-	item.state.position = item.position
-	return OK
+func _item_blocks_cell(item: Item) -> bool:
+	if item == null or item.meta == null:
+		return false
+	var harvestable_meta := item.meta as HarvestableMeta
+	return harvestable_meta.blocks_movement if harvestable_meta != null else not item.meta.can_pickup
 
 
 func get_item(item_id: StringName) -> Item:
@@ -195,26 +171,40 @@ func get_item_coord(item_id: StringName) -> Vector2i:
 	return world_to_cell(item.global_position) if item != null else Vector2i(999999, 999999)
 
 
-func move_item(item_id: StringName, target_position: Vector2) -> Error:
-	var item := get_item(item_id)
-	if item == null or item.state == null:
+func add_item(item: Item, item_position: Vector2) -> Error:
+	if item == null or item.state == null or item.meta == null or item.item_id() == &"":
+		return ERR_INVALID_PARAMETER
+	if items.has(item.item_id()):
+		return ERR_ALREADY_EXISTS
+	var coordinates := world_to_cell(item_position)
+	if not has_static_cell(coordinates):
 		return ERR_DOES_NOT_EXIST
-	var source := get_cell(world_to_cell(item.global_position))
-	var target := get_cell(world_to_cell(target_position))
-	if source == null or target == null or not source.has_item(item_id):
-		return ERR_INVALID_DATA
-	if source != target:
-		var remove_error := source.remove_item_id(item_id)
-		if remove_error != OK:
-			return remove_error
-		var add_error := target.add_item_id(item_id)
-		if add_error != OK:
-			var rollback_error := source.add_item_id(item_id)
-			assert(rollback_error == OK)
-			return add_error
-		interaction_revision += 1
-	item.global_position = target_position
-	item.state.position = item.position
+	var host := item_hosts.get(item.meta.item_type, null) as Node2D
+	if host == null:
+		return ERR_UNCONFIGURED
+	if item.get_parent() == null:
+		host.add_child(item)
+	elif item.get_parent() != host:
+		return ERR_ALREADY_EXISTS
+	if _map_state != null:
+		_map_state.items[item.item_id()] = item.state
+	items[item.item_id()] = item
+	item.position = item_position
+	if not item.meta.can_pickup:
+		var map_cell := ensure_cell(coordinates)
+		if map_cell != null:
+			if item.item_id() not in map_cell.state.item_ids:
+				map_cell.state.item_ids.append(item.item_id())
+			if _item_blocks_cell(item):
+				map_cell.add_flag(CellState.CellFlag.BLOCKED)
+	if item.meta.can_pickup:
+		var trace_key: StringName = &""
+		if item.has_flag(ItemMeta.ItemFlag.DROPPED):
+			trace_key = &"drop"
+		elif item.has_flag(ItemMeta.ItemFlag.GENERATED):
+			trace_key = &"generate"
+		if trace_key != &"":
+			item.set_trace_delay(float(DataCatalog.config.player_trace_delay.get(trace_key, 0.0)))
 	return OK
 
 
@@ -222,16 +212,26 @@ func remove_item(item_id: StringName) -> Error:
 	var item := get_item(item_id)
 	if item == null or item.state == null or _map_state == null:
 		return ERR_DOES_NOT_EXIST
-	var cell := get_cell(get_item_coord(item_id))
-	if cell == null:
-		return ERR_INVALID_DATA
-	var remove_error := cell.remove_item_id(item_id)
-	if remove_error != OK:
-		return remove_error
 	items.erase(item_id)
 	_map_state.items.erase(item_id)
+	var coordinates := world_to_cell(item.global_position)
+	var blocks_cell := _item_blocks_cell(item)
 	ItemManager.unregister_pickup(item)
 	item.destroy()
+	if not item.meta.can_pickup:
+		var map_cell := get_cell(coordinates)
+		if map_cell != null:
+			map_cell.state.item_ids.erase(item_id)
+			if blocks_cell:
+				var still_blocked := false
+				for remaining_id: StringName in map_cell.state.item_ids:
+					var remaining_item := get_item(remaining_id)
+					if _item_blocks_cell(remaining_item):
+						still_blocked = true
+						break
+				if not still_blocked:
+					map_cell.remove_flag(CellState.CellFlag.BLOCKED)
+			_prune_cell(coordinates)
 	return OK
 
 
@@ -248,7 +248,6 @@ func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
 		return pickup_ids
 	var replacement_id := harvestable_meta.depleted_replacement_id
 	var drop_entries := harvestable.active_drops()
-	var drop_delay := float(DataCatalog.config.player_trace_delay.get(&"drop", 0.0))
 	for entry: HarvestableDrop in drop_entries.values():
 		if entry == null or drop_rng.randf() > entry.chance:
 			continue
@@ -257,11 +256,10 @@ func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
 			var drop_item := ItemManager.create_from_id(entry.item_id)
 			if drop_item == null:
 				continue
+			drop_item.add_flag(ItemMeta.ItemFlag.DROPPED)
 			if add_item(drop_item, cell_to_world(coordinates, false)) != OK:
 				drop_item.free()
 				continue
-			drop_item.set_trace_delay(drop_delay)
-			drop_item.state.add_flag(ItemMeta.ItemFlag.DROPPED)
 			pickup_ids.append(drop_item.item_id())
 	var remove_error := remove_item(item_id)
 	if remove_error != OK:
@@ -289,18 +287,70 @@ func cell_to_world(cell: Vector2i, in_center: bool = true) -> Vector2:
 	if in_center:
 		return center
 	var tile_size := Vector2(get_tile_size())
-	return center + Vector2(randf_range(-tile_size.x * 0.5, tile_size.x * 0.5), randf_range(-tile_size.y * 0.5, tile_size.y * 0.5))
+	return (
+		center
+		+ Vector2(
+			randf_range(-tile_size.x * 0.5, tile_size.x * 0.5), randf_range(-tile_size.y * 0.5, tile_size.y * 0.5)
+		)
+	)
 
 
 func get_cell(cell: Vector2i) -> MapCell:
 	return cells.get(cell, null) as MapCell
 
 
+func ensure_cell(coordinates: Vector2i) -> MapCell:
+	var map_cell := get_cell(coordinates)
+	if map_cell == null and has_static_cell(coordinates):
+		var state := CellState.new()
+		state.coord = coordinates
+		map_cell = MapCell.new()
+		map_cell.from_state(state)
+		_apply_static_flags(map_cell)
+		cells[coordinates] = map_cell
+		if _map_state != null:
+			_map_state.cells[coordinates] = map_cell.to_state()
+	return map_cell
+
+
+func has_static_cell(coordinates: Vector2i) -> bool:
+	var base_layer := map_layers.get(CellState.CellFlag.BASE, null) as TileMapLayer
+	return base_layer != null and base_layer.get_cell_source_id(coordinates) != -1
+
+
+func has_flag(coordinates: Vector2i, flag: CellState.CellFlag) -> bool:
+	var map_cell := get_cell(coordinates)
+	if map_cell != null and map_cell.has_flag(flag):
+		return true
+	var layer := map_layers.get(flag, null) as TileMapLayer
+	return layer != null and layer.get_cell_source_id(coordinates) != -1
+
+
+func _apply_static_flags(map_cell: MapCell) -> void:
+	for flag: CellState.CellFlag in map_layers:
+		if (int(flag) & CellState.PERSISTENT_FLAGS) != 0:
+			continue
+		var layer := map_layers[flag] as TileMapLayer
+		if layer != null and layer.get_cell_source_id(map_cell.coord) != -1:
+			map_cell.add_flag(flag)
+
+
+func _prune_cell(coordinates: Vector2i) -> void:
+	var map_cell := get_cell(coordinates)
+	if map_cell == null:
+		return
+	if (map_cell.state.flags & CellState.PERSISTENT_FLAGS) != 0 or not map_cell.state.item_ids.is_empty():
+		return
+	cells.erase(coordinates)
+	if _map_state != null:
+		_map_state.cells.erase(coordinates)
+
+
 func generation_epoch() -> int:
 	return _map_state.generation_epoch if _map_state != null else -1
 
 
-func rebuild_layers() -> Error:
+func rebuild_layers(changed_cells: Array[Vector2i] = []) -> Error:
 	interaction_revision += 1
 	if get_tile_size() == Vector2i.ZERO:
 		return ERR_UNCONFIGURED
@@ -308,9 +358,18 @@ func rebuild_layers() -> Error:
 	var watered_layer := map_layers.get(CellState.CellFlag.WATERED, null) as TileMapLayer
 	if dug_layer == null or watered_layer == null:
 		return ERR_CANT_CREATE
-	dug_layer.clear()
-	watered_layer.clear()
-	for coordinates: Vector2i in cells:
+	var coordinates_to_update: Array[Vector2i] = changed_cells
+	if coordinates_to_update.is_empty():
+		dug_layer.clear()
+		watered_layer.clear()
+		coordinates_to_update = cells.keys()
+	for coordinates: Vector2i in coordinates_to_update:
+		if not cells.has(coordinates):
+			dug_layer.erase_cell(coordinates)
+			watered_layer.erase_cell(coordinates)
+			continue
+		dug_layer.erase_cell(coordinates)
+		watered_layer.erase_cell(coordinates)
 		if check_cell(coordinates, CellState.CellCondition.WATERED):
 			watered_layer.set_cell(coordinates, 0, Vector2i(3, 0), 0)
 		elif check_cell(coordinates, CellState.CellCondition.DUG):
@@ -326,23 +385,6 @@ func spawn_position(spawn_id: StringName) -> Vector2:
 	return cell_to_world(Vector2i(2, 2))
 
 
-func _build_cells() -> void:
-	cells.clear()
-	var base_layer := map_layers.get(CellState.CellFlag.BASE, null) as TileMapLayer
-	if base_layer == null:
-		return
-	for coordinates: Vector2i in base_layer.get_used_cells():
-		cells[coordinates] = MapCell.new(coordinates)
-	for flag: CellState.CellFlag in map_layers:
-		var layer := map_layers[flag]
-		if layer == null:
-			continue
-		for coordinates: Vector2i in layer.get_used_cells():
-			var map_cell := get_cell(coordinates)
-			if map_cell != null:
-				map_cell.add_flag(flag)
-
-
 func _on_day_advanced() -> void:
 	var current_day := CalendarManager.calendar.day
 	if current_day <= 0:
@@ -351,7 +393,9 @@ func _on_day_advanced() -> void:
 		var plant := items[item_id] as Plant
 		if plant == null or plant.state == null:
 			continue
-		if check_cell(get_item_coord(item_id), CellState.CellCondition.WATERED):
+		var plant_meta := plant.meta as PlantMeta
+		var watered := check_cell(get_item_coord(item_id), CellState.CellCondition.WATERED)
+		if plant_meta == null or not plant_meta.requires_water or watered:
 			plant.grow(current_day)
 	var is_rainy := CalendarManager.check_weather([&"rain", &"storm"])
 	var changed_cells: Array[Vector2i] = []
@@ -367,7 +411,7 @@ func _on_day_advanced() -> void:
 			cell.remove_flag(CellState.CellFlag.WATERED)
 		changed_cells.append(coordinates)
 	if not changed_cells.is_empty():
-		rebuild_layers()
+		rebuild_layers(changed_cells)
 	if _map_state == null or item_generator == null or not item_generator.regenerate_daily:
 		return
 	_map_state.generation_epoch += 1

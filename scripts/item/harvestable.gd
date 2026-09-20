@@ -6,13 +6,20 @@ var _hit_flash_tween: Tween = null
 
 func _ready() -> void:
 	super._ready()
+	var typed_meta := meta as HarvestableMeta
 	var obstacle := get_node_or_null("Obstacle") as StaticBody2D
 	if obstacle != null:
 		var collision := obstacle.get_node_or_null("CollisionShape2D") as CollisionShape2D
 		if collision != null:
-			var typed_meta := meta as HarvestableMeta
 			collision.disabled = not (typed_meta != null and typed_meta.blocks_movement)
+	var navigation_obstacle := get_node_or_null("NavigationObstacle") as NavigationObstacle2D
+	if navigation_obstacle != null:
+		navigation_obstacle.avoidance_enabled = typed_meta != null and typed_meta.blocks_movement
 	refresh_stage_visual()
+
+
+func _exit_tree() -> void:
+	ItemManager.unregister_harvestable(self)
 
 
 func apply_tool(tool_kind: ToolMeta.ToolKind, damage: int = 0, commit: bool = true) -> ItemMeta.ItemFlag:
@@ -36,6 +43,9 @@ func apply_tool(tool_kind: ToolMeta.ToolKind, damage: int = 0, commit: bool = tr
 
 
 func destroy() -> void:
+	var navigation_obstacle := get_node_or_null("NavigationObstacle") as NavigationObstacle2D
+	if navigation_obstacle != null:
+		navigation_obstacle.avoidance_enabled = false
 	var flash_material := _visual_material()
 	if flash_material == null:
 		queue_free()

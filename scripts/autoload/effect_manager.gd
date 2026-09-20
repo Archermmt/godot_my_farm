@@ -1,17 +1,20 @@
 class_name EffectManagerService
 extends Node
 var config: GameConfig:
-	get: return DataCatalog.config
+	get:
+		return DataCatalog.config
 
 var _effect_host: Node = null
 var _weather_effect: Node = null
 
 
 func _ready() -> void:
-	_effect_host = get_tree().current_scene.get_node_or_null("World/Effects")
+	var scene := get_tree().current_scene
+	if scene != null:
+		_effect_host = scene.get_node_or_null("World/Effects")
 
 
-func validate() -> Error:
+func setup() -> Error:
 	for effect_id: StringName in config.effect_scenes:
 		var scene := config.effect_scenes[effect_id] as PackedScene
 		if effect_id == &"" or scene == null:
@@ -20,6 +23,8 @@ func validate() -> Error:
 
 
 func play_effect(effect_id: StringName, positions: Array[Vector2]) -> Node:
+	if effect_id not in [&"rain", &"storm", &"cloudy"]:
+		_stop_weather_effect()
 	var scene := config.effect_scenes.get(effect_id, null) as PackedScene
 	if scene == null:
 		return null
@@ -38,6 +43,17 @@ func play_effect(effect_id: StringName, positions: Array[Vector2]) -> Node:
 	if effect_id in [&"rain", &"storm", &"cloudy"]:
 		_weather_effect = effect
 	return effect
+
+func _stop_weather_effect() -> void:
+	if not is_instance_valid(_weather_effect):
+		_weather_effect = null
+		return
+	if _weather_effect.has_method("stop"):
+		_weather_effect.stop()
+	else:
+		_weather_effect.queue_free()
+	_weather_effect = null
+
 
 func stop_effect(effect_id: StringName) -> void:
 	if is_instance_valid(_weather_effect) and _weather_effect.get_meta("effect_id", &"") == effect_id:

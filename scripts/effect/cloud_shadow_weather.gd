@@ -21,7 +21,6 @@ func play(weather_id: StringName, _positions: Array[Vector2]) -> void:
 	var group := cloud_groups.get(weather_id, null) as CloudGroup
 	if group == null:
 		return
-		return
 	var count := group.shadow_count
 	var shadow_scale := group.shadow_scale
 	var shadow_alpha := group.shadow_alpha
@@ -33,9 +32,10 @@ func play(weather_id: StringName, _positions: Array[Vector2]) -> void:
 		var shadow := Sprite2D.new()
 		shadow.texture = shadow_texture
 		var grid_cell := Vector2i(index % columns, floori(float(index) / float(columns)))
-		shadow.position = _bounds.position + Vector2(grid_cell) * spacing + spacing * Vector2(
-			_rng.randf_range(0.25, 0.75),
-			_rng.randf_range(0.25, 0.75)
+		shadow.position = (
+			_bounds.position
+			+ Vector2(grid_cell) * spacing
+			+ spacing * Vector2(_rng.randf_range(0.25, 0.75), _rng.randf_range(0.25, 0.75))
 		)
 		# Vary each shadow's silhouette without requiring a separate texture for
 		# every cloud: non-uniform scale and rotation produce visibly different

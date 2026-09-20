@@ -26,15 +26,15 @@ func test_game_services_start_in_architecture_order() -> void:
 
 
 func test_autoload_definitions_and_new_game_are_ready() -> void:
-	assert_true(DataCatalog.validate().is_empty())
+	assert_true(DataCatalog.setup().is_empty())
 	assert_equal((DataCatalog.get_item(&"hoe") as ToolMeta).tool_kind, ToolMeta.ToolKind.HOE)
 	assert_true(GameManager.is_initialized())
-	assert_equal(GameManager.player.map_id, &"farm")
-	assert_equal(GameManager.player.spawn_id, &"default")
-	assert_equal(GameManager.backpack_state.count_item(&"itembar", &"parsnip_seed"), 15)
-	assert_equal(GameManager.backpack_state.count_item(&"toolbar", &"hoe"), 1)
-	assert_equal(GameManager.backpack_state.used_slot_count(&"main_space"), 0)
-	assert_true(GameManager.can_snapshot())
+	assert_equal(MapManager.current_map_id(), &"farm")
+	assert_true(GameManager.player != null)
+	assert_equal(GameManager.player.backpack.count_item(&"itembar", &"parsnip_seed"), 15)
+	assert_equal(GameManager.player.backpack.count_item(&"toolbar", &"hoe"), 1)
+	assert_equal(GameManager.player.backpack.used_slot_count(&"main_space"), 0)
+	assert_true(not GameManager.snapshot().is_empty())
 
 
 func test_configurable_managers_load_shared_game_config() -> void:
@@ -44,14 +44,14 @@ func test_configurable_managers_load_shared_game_config() -> void:
 	assert_true(EffectManager.config == DataCatalog.config)
 	assert_true(AudioManager.config == DataCatalog.config)
 	assert_equal(GameManager.config.initial_time_scale, 1.0)
-	assert_equal(GameManager.time_scale, 1.0)
+	assert_equal(CalendarManager.time_scale, 1.0)
 	assert_equal(MapManager.config.transition_duration, 0.12)
 	assert_equal(MapManager.config.day_transition_duration, 0.55)
-	assert_true(CalendarManager.validate().is_empty())
+	assert_true(CalendarManager.setup().is_empty())
 	assert_equal(CalendarManager.config.season_metas.size(), 4)
 	assert_equal(CalendarManager.calendar.season(1), SeasonMeta.SeasonType.SPRING)
 	assert_true(CalendarManager.current_weather != &"")
 	assert_equal(AudioManager.config.audio_definitions.size(), 18)
 	assert_equal(AudioManager.config.sfx_pool_limit, 10)
-	assert_equal(EffectManager.validate(), OK)
+	assert_equal(EffectManager.setup(), OK)
 	assert_true(EffectManager.config.effect_scenes.has(&"rain"))

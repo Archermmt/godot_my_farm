@@ -31,7 +31,6 @@ CalendarManager="*res://scripts/autoload/calendar_manager.gd"
 EffectManager="*res://scripts/autoload/effect_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 Dialogic="*uid://ds2q0uclmolvu"
-InteractManager="*res://scripts/autoload/interact_manager.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [dialogic]
@@ -44,8 +43,11 @@ directories/dtl_directory={
 "npc_villager_default": "res://data/dialogue/npc_villager_default.dtl",
 "television_report": "res://data/dialogue/television_report.dtl"
 }
-layout/style_directory={}
+layout/style_directory={
+"": "res://data/dialogue/farm_vn_style.tres"
+}
 text/input_action="interact"
+layout/default_style="res://data/dialogue/farm_vn_style.tres"
 
 [display]
 

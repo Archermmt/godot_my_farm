@@ -4,23 +4,22 @@ extends PanelContainer
 @onready var speaker_label: Label = $Margin/VBox/Speaker
 @onready var text_label: Label = $Margin/VBox/Text
 @onready var prompt_label: Label = $Margin/VBox/Prompt
-var world_target: Node2D = null
-func set_prompt(speaker: String, text: String = "") -> void:
-	speaker_label.text = speaker
-	text_label.text = text
-	prompt_label.text = "Enter: Interact"
+
+func _ready() -> void:
+	resized.connect(_center_on_marker)
+	call_deferred("_center_on_marker")
 
 
-func _process(_delta: float) -> void:
-	if not is_instance_valid(world_target):
-		visible = false
-		return
-	visible = true
-	var viewport_size: Vector2 = get_viewport_rect().size
-	# The target's canvas transform already includes the active Camera2D. Unlike
-	# Camera3D, Camera2D has no unproject_position() API.
-	var screen_position := world_target.get_global_transform_with_canvas().origin + Vector2(0, -42)
-	position = Vector2(
-		clampf(screen_position.x - size.x * 0.5, 8.0, viewport_size.x - size.x - 8.0),
-		clampf(screen_position.y - size.y, 8.0, viewport_size.y - size.y - 8.0)
-	)
+func set_prompt(interactable_name: String) -> void:
+	speaker_label.text = interactable_name
+	# The bubble inherits the global UI theme at runtime; explicitly override
+	# the speaker color so names remain readable on the dark panel background.
+	speaker_label.add_theme_color_override("font_color", Color("f5f5f0"))
+	text_label.visible = false
+	prompt_label.visible = false
+	call_deferred("_center_on_marker")
+
+
+func _center_on_marker() -> void:
+	if get_parent() is Node2D:
+		position = -size * 0.5

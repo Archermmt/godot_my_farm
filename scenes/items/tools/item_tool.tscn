@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/item/tool/item_tool.gd" id="1_tool"]
+[sub_resource type="ConvexPolygonShape2D" id="ToolAreaShape"]
+points = PackedVector2Array(0, 0, 14, -46, 24, -42, 34, -34, 42, -24, 46, -14, 48, 0, 46, 14, 42, 24, 34, 34, 24, 42, 14, 46)
+[node name="ItemTool" type="Node2D"]
+z_index = 4095
+z_as_relative = false
+script = ExtResource("1_tool")
+[node name="Visual" type="Sprite2D" parent="."]
+[node name="ToolArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ToolArea"]
+shape = SubResource("ToolAreaShape")

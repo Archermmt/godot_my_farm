@@ -10,8 +10,8 @@
 
 ## 交付范围
 
-- `scripts/actors/interact_area.gd`：作为 Player 交互组件统一负责交互状态、目标计算与预览绘制，直接读取 PlayerState，具体使用逻辑由 Player 在 release 时调用 Item/Tool 运行时类型实现。
-- `scripts/actors/backpack.gd`：Player 子节点，按当前玩家容器复用 Tool/Seed 运行时对象，避免每次交互临时创建。
+- `scripts/actor/interact_area.gd`：作为 Player 交互组件统一负责交互状态、目标计算与预览绘制，具体使用逻辑由 Player 在 release 时调用 Item/Tool 运行时类型实现。
+- `scripts/actor/backpack.gd`：Player 子节点，按当前玩家容器复用 Tool/Seed 运行时对象，避免每次交互临时创建。
 - `scenes/world/interact_area.tscn` 与脚本。
 - Player 场景持有唯一的 `InteractArea`，并直接把 active BackpackSlot 和当前 BaseMap 交给它。
 - targeting/charge 单元与集成测试。

@@ -8,19 +8,6 @@ var flags: Array[ItemMeta.ItemFlag] = [ItemMeta.ItemFlag.AVAILABLE]
 var health: int = 1
 
 
-func add_flag(flag: ItemMeta.ItemFlag) -> void:
-	if not has_flag(flag):
-		flags.append(flag)
-
-
-func remove_flag(flag: ItemMeta.ItemFlag) -> void:
-	flags.erase(flag)
-
-
-func has_flag(flag: ItemMeta.ItemFlag) -> bool:
-	return flag in flags
-
-
 func to_dict_impl() -> Dictionary:
 	return {
 		"state_type": "item",

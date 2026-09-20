@@ -1,18 +1,14 @@
 class_name GameConfig
 extends Resource
 
-# Temporary source-compatibility hooks for older tooling. They are deliberately
-# not exported and are ignored by snapshot restore.
-var player_state_template: PlayerState = null
-var backpack_state_template: BackpackState = null
-
 @export_category("Catalog")
 @export var items: Dictionary[StringName, ItemMeta] = {}
-@export var npc_schedules: Dictionary[StringName, NpcSchedule] = {}
+@export var npc_schedules: Dictionary[StringName, Array] = {}
 
 @export_category("Game")
-@export var default_world_seed: int = 12031992
+@export var world_seed: int = 12031992
 @export_range(0.1, 120.0, 0.1, "or_greater") var initial_time_scale: float = 1.0
+@export_enum("NONE", "ERROR", "WARN", "INFO", "DEBUG") var verbose_level: int = 3
 
 @export_category("Player")
 @export var player_map_id: StringName = &"farm"
@@ -55,7 +51,6 @@ var backpack_state_template: BackpackState = null
 @export var noon_color: Color = Color.WHITE
 @export var evening_color: Color = Color("d59a72")
 @export var night_color: Color = Color("59657f")
-@export_range(0.0, 1.0, 0.05) var interior_neutral_blend: float = 0.55
 
 @export_category("Effect")
 @export var effect_scenes: Dictionary[StringName, PackedScene] = {}

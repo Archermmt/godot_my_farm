@@ -18,12 +18,11 @@ func generate(map: BaseMap) -> Error:
 	var validation_result := validation_error()
 	if validation_result != OK:
 		return validation_result
-	var trace_delay_seconds := float(DataCatalog.config.player_trace_delay.get(&"generate", 0.0))
 	var rng := RandomNumberGenerator.new()
-	rng.seed = _derived_seed(DataCatalog.config.default_world_seed, map.map_id, generation_epoch, seed_salt)
+	rng.seed = _derived_seed(DataCatalog.config.world_seed, map.map_id, generation_epoch, seed_salt)
 	var occupied: Array[Vector2i] = []
-	for coordinates: Vector2i in map.cells:
-		if map.cells[coordinates].has_occupant():
+	for coordinates: Vector2i in map.map_layers[CellState.CellFlag.BASE].get_used_cells():
+		if map.check_cell(coordinates, CellState.CellCondition.HAS_OCCUPANT):
 			occupied.append(coordinates)
 
 	for candidate: ItemGeneratorCandidate in candidates:
@@ -52,13 +51,11 @@ func generate(map: BaseMap) -> Error:
 			var item := ItemManager.create_from_id(meta_id)
 			if item == null:
 				continue
-			item.state.add_flag(ItemMeta.ItemFlag.GENERATED)
-			var tile_size := Vector2(map.get_tile_size())
+			item.add_flag(ItemMeta.ItemFlag.GENERATED)
 			var item_position := map.cell_to_world(coordinates, false)
 			if map.add_item(item, item_position) != OK:
 				item.free()
 				continue
-			item.set_trace_delay(trace_delay_seconds)
 			occupied.append(coordinates)
 			spawned_for_candidate += 1
 	return OK
@@ -93,13 +90,14 @@ static func _supports_meta(item_meta: ItemMeta) -> bool:
 func _available_cells(map: BaseMap, map_size: Vector2i, candidate: ItemGeneratorCandidate) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var map_bounds := Rect2i(Vector2i.ZERO, map_size)
-	for coordinates: Vector2i in map.cells:
+	for coordinates: Vector2i in map.map_layers[CellState.CellFlag.BASE].get_used_cells():
 		if not map_bounds.has_point(coordinates):
 			continue
-		var cell := map.get_cell(coordinates)
-		if cell == null or cell.has_occupant():
+		if map.check_cell(coordinates, CellState.CellCondition.HAS_OCCUPANT):
 			continue
-		if not cell.has_all_flags(candidate.required_flags):
+		if not map.check_cell(coordinates, CellState.CellCondition.DROPABLE) and CellState.CellFlag.DROPABLE in candidate.required_flags:
+			continue
+		if not candidate.required_flags.all(func(flag: CellState.CellFlag) -> bool: return map.has_flag(coordinates, flag)):
 			continue
 		result.append(coordinates)
 	result.sort_custom(
