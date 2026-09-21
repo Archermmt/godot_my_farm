@@ -70,10 +70,23 @@ func _ready() -> void:
 		EventBus.bar_selection_changed.connect(_on_bar_selection_changed)
 	if not EventBus.house_interior_changed.is_connected(_on_house_interior_changed):
 		EventBus.house_interior_changed.connect(_on_house_interior_changed)
+	if not EventBus.day_advanced.is_connected(_on_day_advanced):
+		EventBus.day_advanced.connect(_on_day_advanced)
 	if not interact_area.area_entered.is_connected(_on_interaction_area_entered):
 		interact_area.area_entered.connect(_on_interaction_area_entered)
 	if not interact_area.area_exited.is_connected(_on_interaction_area_exited):
 		interact_area.area_exited.connect(_on_interaction_area_exited)
+
+
+func _exit_tree() -> void:
+	if EventBus.day_advanced.is_connected(_on_day_advanced):
+		EventBus.day_advanced.disconnect(_on_day_advanced)
+
+
+func _on_day_advanced() -> void:
+	# Restore basic resources when a new day starts.
+	health = max_health
+	energy = max_energy
 
 
 func _unhandled_input(event: InputEvent) -> void:
