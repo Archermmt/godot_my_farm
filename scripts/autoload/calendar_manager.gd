@@ -262,7 +262,7 @@ func _ensure_weather(force: bool = false) -> void:
 	current_weather = next_weather
 	_selection_key = next_key
 	if is_instance_valid(EffectManager):
-		EffectManager.play_effect(current_weather, [])
+		EffectManager.play_weather_effect(current_weather, [])
 	EventBus.weather_changed.emit(current_weather, previous_id)
 
 

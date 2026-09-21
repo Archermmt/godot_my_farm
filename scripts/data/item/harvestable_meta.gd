@@ -3,6 +3,7 @@ extends ItemMeta
 
 @export var required_tool: ToolMeta.ToolKind = ToolMeta.ToolKind.NONE
 @export var depleted_replacement_id: StringName = &""
+@export_range(0, 999, 1) var harvest_return_health: int = 0
 @export var blocks_movement: bool = true
 @export var stages: Array[HarvestableStage] = []
 @export_category("Harvestable Animation")

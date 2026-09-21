@@ -65,7 +65,7 @@ func use(available_energy: int) -> ApplyResult:
 		var positions: Array[Vector2] = []
 		for cell: Vector2i in result.cells:
 			positions.append(map.cell_to_world(cell))
-		EffectManager.play_effect(typed_meta.event_id, positions)
+		EffectManager.play_tool_effect(typed_meta.event_id, positions)
 		AudioManager.play_audio(typed_meta.event_id)
 	return result
 

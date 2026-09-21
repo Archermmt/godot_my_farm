@@ -121,7 +121,11 @@ func _use_impl() -> ApplyResult:
 		):
 			continue
 		var target_cell := map.world_to_cell(target.global_position)
-		result.cells[target_cell] = map.get_cell(target_cell).state if map.get_cell(target_cell) != null else CellState.new()
+		var cell_state := map.get_cell(target_cell).state if map.get_cell(target_cell) != null else CellState.new()
+		cell_state.coord = target_cell
+		cell_state.usable = true
+		cell_state.invalid = false
+		result.cells[target_cell] = cell_state
 		target.add_flag(ItemMeta.ItemFlag.DESTROYED if target.is_depleted() else ItemMeta.ItemFlag.HURT)
 		result.items[target.item_id()] = target.state
 		if target.is_depleted():

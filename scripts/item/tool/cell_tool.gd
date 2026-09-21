@@ -53,7 +53,10 @@ func _use_impl() -> ApplyResult:
 	var result := ApplyResult.new()
 	for coordinates: Vector2i in targets:
 		if _apply_cell(map.ensure_cell(coordinates)):
-			result.cells[coordinates] = CellState.new()
+			var cell_state := CellState.new()
+			cell_state.coord = coordinates
+			cell_state.usable = true
+			result.cells[coordinates] = cell_state
 	if not result.cells.is_empty():
 		var changed: Array[Vector2i] = []
 		changed.assign(result.cells.keys())

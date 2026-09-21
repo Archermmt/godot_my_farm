@@ -385,7 +385,7 @@ func _use_tool() -> void:
 		if energy <= 0:
 			CalendarManager.next_day()
 	if item.meta is SeedMeta:
-		var consumed_count := tool_result.cells.size()
+		var consumed_count := tool_result.usable_cell_count()
 		if consumed_count > 0:
 			backpack.remove_item(&"itembar", item.meta.id, consumed_count)
 			EventBus.container_changed.emit(&"itembar")

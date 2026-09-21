@@ -22,6 +22,9 @@ var coord: Vector2i = Vector2i.ZERO
 var item_ids: Array[StringName] = []
 var flags: int = 0
 var interaction_flags: int = InteractionFlag.NONE
+# Transient targeting state; these flags are not persisted with map state.
+var usable: bool = false
+var invalid: bool = false
 
 
 func to_dict() -> Dictionary:

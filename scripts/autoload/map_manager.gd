@@ -143,10 +143,12 @@ func _change_map(map_id: StringName = &"", spawn_id: StringName = &"", with_tran
 		return validation
 	_transitioning = with_transition
 	if is_instance_valid(_current_map) and _current_map.map_id == map_id:
-		var same_error := _configure_map(_current_map, map_id, spawn_id)
-		if same_error == OK:
-			if should_apply_spawn:
-				_apply_player_spawn(_current_map, spawn_id)
+		# Reusing the current map must preserve live cell flags/items (including
+		# watering) instead of restoring the last serialized snapshot over them.
+		GameManager.map_states[map_id] = _current_map.to_state()
+		var same_error := OK
+		if should_apply_spawn:
+			_apply_player_spawn(_current_map, spawn_id)
 		if with_transition:
 			CalendarManager.resume(TRANSITION_LOCK)
 			if is_instance_valid(GameManager.player):

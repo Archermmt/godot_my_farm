@@ -149,7 +149,16 @@ func check_cell(coordinates: Vector2i, condition: CellState.CellCondition) -> bo
 		CellState.CellCondition.HAS_OCCUPANT:
 			return is_blocked
 		CellState.CellCondition.PLANTABLE:
-			return has_flag(coordinates, CellState.CellFlag.DUG) and not is_blocked
+			var cell := get_cell(coordinates)
+			# Tilled soil can only receive a seed when the cell has no item at all.
+			# Relying only on BLOCKED misses plants/items restored from state or
+			# items whose movement blocking rules changed.
+			return (
+				has_flag(coordinates, CellState.CellFlag.DUG)
+				and not is_blocked
+				and cell != null
+				and cell.state.item_ids.is_empty()
+			)
 		CellState.CellCondition.DROPABLE:
 			return has_flag(coordinates, CellState.CellFlag.DROPABLE) and not is_blocked
 	return false
@@ -235,7 +244,7 @@ func remove_item(item_id: StringName) -> Error:
 	return OK
 
 
-func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
+func resolve_depleted_item(item_id: StringName, collector: FarmPlayer = null) -> Array[StringName]:
 	var harvestable := get_item(item_id) as Harvestable
 	var pickup_ids: Array[StringName] = []
 	if harvestable == null or not harvestable.is_depleted():
@@ -256,14 +265,25 @@ func resolve_depleted_item(item_id: StringName) -> Array[StringName]:
 			var drop_item := ItemManager.create_from_id(entry.item_id)
 			if drop_item == null:
 				continue
+			if collector != null and drop_item.meta != null:
+				if collector.collect_item(drop_item.meta, 1) > 0:
+					pickup_ids.append(drop_item.item_id())
+					drop_item.free()
+					continue
 			drop_item.add_flag(ItemMeta.ItemFlag.DROPPED)
 			if add_item(drop_item, cell_to_world(coordinates, false)) != OK:
 				drop_item.free()
 				continue
 			pickup_ids.append(drop_item.item_id())
-	var remove_error := remove_item(item_id)
-	if remove_error != OK:
-		return pickup_ids
+	var plant := harvestable as Plant
+	var return_health := harvestable_meta.harvest_return_health if plant != null else 0
+	if return_health > 0 and plant != null:
+		plant.state.health = mini(return_health, harvestable_meta.health)
+		plant.refresh_stage_visual()
+	else:
+		var remove_error := remove_item(item_id)
+		if remove_error != OK:
+			return pickup_ids
 	if replacement_id != &"":
 		var replacement := ItemManager.create_from_id(replacement_id)
 		if replacement != null:
@@ -395,8 +415,30 @@ func _on_day_advanced() -> void:
 			continue
 		var plant_meta := plant.meta as PlantMeta
 		var watered := check_cell(get_item_coord(item_id), CellState.CellCondition.WATERED)
+		var plant_state := plant.state as PlantState
+		var before_health := plant_state.health if plant_state != null else -1
+		var before_growth_day := plant_state.last_growth_day if plant_state != null else -1
+		var did_grow := false
 		if plant_meta == null or not plant_meta.requires_water or watered:
-			plant.grow(current_day)
+			did_grow = plant.grow(current_day)
+		var display_name := plant_meta.display_name if plant_meta != null and not plant_meta.display_name.is_empty() else String(plant.item_id())
+		var after_health := plant_state.health if plant_state != null else -1
+		var after_growth_day := plant_state.last_growth_day if plant_state != null else -1
+		GameManager.debug(
+			"[PlantGrowth] map=%s plant=%s id=%s day=%d watered=%s health=%d->%d growth_day=%d->%d grew=%s"
+			% [
+				map_id,
+				display_name,
+				plant.item_id(),
+				current_day,
+				watered,
+				before_health,
+				after_health,
+				before_growth_day,
+				after_growth_day,
+				did_grow,
+			]
+		)
 	var is_rainy := CalendarManager.check_weather([&"rain", &"storm"])
 	var changed_cells: Array[Vector2i] = []
 	for coordinates: Vector2i in cells:

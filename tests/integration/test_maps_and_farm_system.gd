@@ -51,6 +51,34 @@ func test_successful_tool_use_reports_and_consumes_energy() -> void:
 	player.energy = previous_energy
 
 
+func test_watered_plant_grows_on_day_advanced() -> void:
+	var map := MapManager.current_map()
+	assert_true(map != null)
+	var target := Vector2i(-1, -1)
+	for candidate: Vector2i in map.map_layers[CellState.CellFlag.BASE].get_used_cells():
+		if map.check_cell(candidate, CellState.CellCondition.DIGGABLE):
+			target = candidate
+			break
+	assert_true(target != Vector2i(-1, -1))
+	if target == Vector2i(-1, -1):
+		return
+	var cell := map.ensure_cell(target)
+	var original_flags := cell.state.flags
+	cell.add_flag(CellState.CellFlag.DUG)
+	cell.add_flag(CellState.CellFlag.WATERED)
+	var plant := ItemManager.create_from_id(&"parsnip") as Plant
+	assert_true(plant != null)
+	assert_equal(map.add_item(plant, map.cell_to_world(target)), OK)
+	var state := plant.state as PlantState
+	assert_equal(state.health, 1)
+	var day := CalendarManager.calendar.day
+	map._on_day_advanced()
+	assert_equal(state.health, 2, "watered plant should advance from the first growth stage")
+	assert_equal(state.last_growth_day, day)
+	assert_equal(map.remove_item(plant.item_id()), OK)
+	cell.state.flags = original_flags
+
+
 func test_map_transition_reuses_hosts_without_duplicate_runtime_maps() -> void:
 	var initial := MapManager.current_map()
 	assert_true(initial != null)
