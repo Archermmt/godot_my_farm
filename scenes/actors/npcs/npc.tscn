@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cs1pymck77wi"]
 
 [ext_resource type="Script" uid="uid://dvara64mb21mt" path="res://scripts/actor/npc.gd" id="1_npc"]
-[ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://assets/art/runtime/tiny_farm/player_atlas.png" id="2_sprite"]
 [ext_resource type="AnimationLibrary" uid="uid://vyh3yhltdeot" path="res://scenes/actors/player/player_animations.tres" id="3_animations"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleNpc"]

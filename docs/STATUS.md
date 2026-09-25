@@ -2,6 +2,12 @@
 
 ## 当前状态
 
+- T19 素材替换增量（2026-09-25）：已将用户购买的 `Farm RPG - Tiny Asset Pack` 原始目录保留到 `assets/art/external/tiny_farm_purchased/`，未使用 premium/preview 变体；许可证和 EmanuelleDev 署名要求已登记到 `assets/licenses/ASSETS.md`。欧洲防风草、土豆、南瓜的成长图已切换为购买包原生 16x16 atlas，成长阶段取第 1/3/5/7 帧，不做缩放；Alex 原生 Idle/Walk 帧已整理为项目 6x4 动画契约并接入 Player/NPC。成长规则、掉落和存档 ID 保持不变。
+- T19 地块增量（2026-09-25）：新增 `tools/build_tiny_farm_runtime_atlas.gd`，将购买包原生 16x16 草地、耕地、湿地、沙地、水面和林地 tile 拼成 160x64 的 32x32 TileSet atlas，并切换 `world_tileset.tres` 引用；执行顺序为先运行该脚本，再执行 Godot import。水面边缘/动画、角色和装饰将继续单独预处理，避免把复杂 atlas 直接当作单一 tile 使用。
+- Farm 地图参考图改造（2026-09-25）：FarmMap 现在使用购买包 tileset 重排为上方居中主屋、左上池塘、中央紧凑耕作区和连通的土路；DUG/WATERED 动态图层坐标修正为干土/湿土。三张地图尺寸与外围碰撞保持不变，Farm 农事流程测试通过。
+- godot-map-cli 接入（2026-09-25）：通过 GitHub 源码安装 `godot-map-cli`（npm registry 当前镜像未发布该包），已验证 `info`、`map list/info`、`tileset create/register-tiles` 和 `map fill`。新增 `assets/art/tiles/spring_farm_tileset_cli.tres`，Farm 场景改用该独立 TileSet；BaseLayer、DiggableLayer、RoadLayer、PondLayer、DugLayer、WateredLayer 仍是独立可编辑层，CLI 已将耕地、土路、池塘区域写入场景数据。
+- CLI 安装记录：`curl -L https://codeload.github.com/DjinnFoundry/godot-map-cli/tar.gz/refs/heads/main`，在解压目录执行 `npm install && npm run build && npm link`；可用命令为 `godot-map-cli info .`、`godot-map-cli map list .`、`godot-map-cli map info scenes/maps/farm/farm.tscn`。当前 npm 镜像直接执行 `npm install -g godot-map-cli` 会返回 404。
+
 - 当前任务：T17 完整流程集成与稳定性（completed）。已重写 T17 任务卡以匹配当前 Tool/MapManager/GameManager/状态架构；工具体力结算已统一并完成回归覆盖，T17.6 的旧测试/API 清理已完成。
 - T17 验证：`godot --headless --path . -s res://tests/test_runner.gd` 当前通过（41 tests / 384 assertions）；NPC 不可达目标已降为可配置 debug 日志，不再污染正常运行日志。
 - T17 增量：补充了 Player 背包存档、当前地图/NPC live state snapshot、20 次 farm/field 转场、10 次 save、连续 2 次 load、损坏 JSON、非法传送、100 个动态 Item、100 次无效 action 和 2 次换日回归；这些压力项已纳入当前 41 tests / 384 assertions runner。

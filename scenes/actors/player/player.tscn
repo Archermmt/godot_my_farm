@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ctuq8r0y26w3g"]
 
 [ext_resource type="Script" uid="uid://dejd0dxqxkhcl" path="res://scripts/actor/player.gd" id="1_player"]
-[ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="5_sprite"]
+[ext_resource type="Texture2D" path="res://assets/art/runtime/tiny_farm/player_atlas.png" id="5_sprite"]
 [ext_resource type="AnimationLibrary" uid="uid://vyh3yhltdeot" path="res://scenes/actors/player/player_animations.tres" id="6_animations"]
 [ext_resource type="PackedScene" path="res://scenes/world/interact_area.tscn" id="7_interact_area"]
 [ext_resource type="Script" uid="uid://cq4t3tm1opk5a" path="res://scripts/actor/backpack.gd" id="8_backpack"]

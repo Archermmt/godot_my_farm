@@ -9,10 +9,10 @@
 [ext_resource type="Script" uid="uid://6pityxlu0kcg" path="res://scripts/data/item/harvestable_drop.gd" id="8_1055k"]
 [ext_resource type="Script" uid="uid://dfdfmw51sbsux" path="res://scripts/data/item/plant_meta.gd" id="9_80w7n"]
 [ext_resource type="Script" uid="uid://baxg0nghiivw1" path="res://scripts/data/item/tool_level.gd" id="11_4viie"]
-[ext_resource type="Texture2D" uid="uid://da27uj4pmqef3" path="res://assets/art/items/plant_stages.svg" id="11_ilctg"]
+[ext_resource type="Texture2D" path="res://assets/art/runtime/tiny_farm/parsnip_stages.png" id="11_ilctg"]
 [ext_resource type="Script" uid="uid://boysekcy4g118" path="res://scripts/data/item/harvestable_stage.gd" id="12_ecfw3"]
-[ext_resource type="Texture2D" uid="uid://cqdussljinmol" path="res://assets/art/items/potato_stages.svg" id="13_slr41"]
-[ext_resource type="Texture2D" uid="uid://b05ytwskloyv1" path="res://assets/art/items/pumpkin_stages.svg" id="14_oasux"]
+[ext_resource type="Texture2D" path="res://assets/art/runtime/tiny_farm/potato_stages.png" id="13_slr41"]
+[ext_resource type="Texture2D" path="res://assets/art/runtime/tiny_farm/pumpkin_stages.png" id="14_oasux"]
 [ext_resource type="Texture2D" uid="uid://csaj5hfb636ly" path="res://assets/art/items/item_icons.svg" id="15_rjflr"]
 [ext_resource type="Script" uid="uid://d4ebhamhxwkkq" path="res://scripts/data/item/harvestable_meta.gd" id="16_u2ehg"]
 [ext_resource type="Texture2D" uid="uid://c2sdxxhaj3l1x" path="res://assets/art/items/harvestable_stages.svg" id="17_onu5g"]
@@ -460,7 +460,7 @@ region = Rect2(512, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5eim5"]
 atlas = ExtResource("11_ilctg")
-region = Rect2(0, 0, 32, 32)
+region = Rect2(0, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_elrlm"]
 script = ExtResource("12_ecfw3")
@@ -468,7 +468,7 @@ texture = SubResource("AtlasTexture_5eim5")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jidpy"]
 atlas = ExtResource("11_ilctg")
-region = Rect2(32, 0, 32, 32)
+region = Rect2(32, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_s1m1o"]
 script = ExtResource("12_ecfw3")
@@ -477,7 +477,7 @@ texture = SubResource("AtlasTexture_jidpy")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qfd2c"]
 atlas = ExtResource("11_ilctg")
-region = Rect2(64, 0, 32, 32)
+region = Rect2(64, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_4l4l4"]
 script = ExtResource("12_ecfw3")
@@ -491,7 +491,7 @@ max_amount = 2
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_d7i4o"]
 atlas = ExtResource("11_ilctg")
-region = Rect2(96, 0, 32, 32)
+region = Rect2(96, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_mhc3m"]
 script = ExtResource("12_ecfw3")
@@ -562,7 +562,7 @@ region = Rect2(544, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_vokai"]
 atlas = ExtResource("13_slr41")
-region = Rect2(0, 0, 32, 32)
+region = Rect2(0, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_yccwn"]
 script = ExtResource("12_ecfw3")
@@ -570,7 +570,7 @@ texture = SubResource("AtlasTexture_vokai")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_auwdn"]
 atlas = ExtResource("13_slr41")
-region = Rect2(32, 0, 32, 32)
+region = Rect2(32, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_411pp"]
 script = ExtResource("12_ecfw3")
@@ -579,7 +579,7 @@ texture = SubResource("AtlasTexture_auwdn")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_xbnjy"]
 atlas = ExtResource("13_slr41")
-region = Rect2(64, 0, 32, 32)
+region = Rect2(64, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_ooklc"]
 script = ExtResource("12_ecfw3")
@@ -594,7 +594,7 @@ max_amount = 4
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w0rvo"]
 atlas = ExtResource("13_slr41")
-region = Rect2(96, 0, 32, 32)
+region = Rect2(96, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_kukna"]
 script = ExtResource("12_ecfw3")
@@ -650,7 +650,7 @@ region = Rect2(576, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_gey22"]
 atlas = ExtResource("14_oasux")
-region = Rect2(0, 0, 32, 32)
+region = Rect2(0, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_37e7e"]
 script = ExtResource("12_ecfw3")
@@ -658,7 +658,7 @@ texture = SubResource("AtlasTexture_gey22")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_bu78q"]
 atlas = ExtResource("14_oasux")
-region = Rect2(32, 0, 32, 32)
+region = Rect2(32, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_3p6bd"]
 script = ExtResource("12_ecfw3")
@@ -667,7 +667,7 @@ texture = SubResource("AtlasTexture_bu78q")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_tx4vi"]
 atlas = ExtResource("14_oasux")
-region = Rect2(64, 0, 32, 32)
+region = Rect2(64, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_ct1vg"]
 script = ExtResource("12_ecfw3")
@@ -681,7 +681,7 @@ max_amount = 2
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_yn4eg"]
 atlas = ExtResource("14_oasux")
-region = Rect2(96, 0, 32, 32)
+region = Rect2(96, 0, 16, 16)
 
 [sub_resource type="Resource" id="Resource_m4v5p"]
 script = ExtResource("12_ecfw3")

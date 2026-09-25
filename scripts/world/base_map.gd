@@ -391,9 +391,9 @@ func rebuild_layers(changed_cells: Array[Vector2i] = []) -> Error:
 		dug_layer.erase_cell(coordinates)
 		watered_layer.erase_cell(coordinates)
 		if check_cell(coordinates, CellState.CellCondition.WATERED):
-			watered_layer.set_cell(coordinates, 0, Vector2i(3, 0), 0)
+			watered_layer.set_cell(coordinates, 0, Vector2i(1, 1), 0)
 		elif check_cell(coordinates, CellState.CellCondition.DUG):
-			dug_layer.set_cell(coordinates, 0, Vector2i(1, 1), 0)
+			dug_layer.set_cell(coordinates, 0, Vector2i(1, 0), 0)
 	return OK
 
 

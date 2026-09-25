@@ -17,6 +17,19 @@ func test_all_maps_have_valid_authored_layers() -> void:
 		map.free()
 
 
+func test_farm_layout_uses_compact_crop_plot_and_purchased_pond_tiles() -> void:
+	var farm := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as FarmMap
+	(Engine.get_main_loop() as SceneTree).root.add_child(farm)
+	await (Engine.get_main_loop() as SceneTree).process_frame
+	assert_equal(farm.diggable_layer.get_used_cells().size(), 19 * 12)
+	assert_equal(farm.pond_layer.get_used_cells().size(), 11 * 9)
+	assert_equal(farm.pond_layer.get_cell_atlas_coords(Vector2i(5, 3)), Vector2i(3, 0))
+	assert_equal(farm.pond_layer.get_cell_atlas_coords(Vector2i(3, 3)), Vector2i(2, 0))
+	assert_equal(farm.get_node("House").position, Vector2(640, 32))
+	farm.queue_free()
+	await (Engine.get_main_loop() as SceneTree).process_frame
+
+
 func test_map_state_round_trip_uses_sparse_cells_and_items() -> void:
 	var map := (load(MAP_PATHS[&"farm"]) as PackedScene).instantiate() as BaseMap
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
