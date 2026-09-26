@@ -1,7 +1,6 @@
 class_name MapManagerService
 extends Node
 
-const NPC_SCENE := preload("res://scenes/actors/npcs/npc.tscn")
 const NPC_SCENES: Dictionary[StringName, PackedScene] = {
 	&"npc_fisher": preload("res://scenes/actors/npcs/fisher.tscn"),
 	&"npc_ranger": preload("res://scenes/actors/npcs/ranger.tscn"),
@@ -239,7 +238,9 @@ func _load_npcs(map: BaseMap) -> void:
 		var state := GameManager.npc_states.get(npc_id, null) as NpcState
 		if state == null or state.map_id != map.map_id:
 			continue
-		var npc_scene := NPC_SCENES.get(npc_id, NPC_SCENE) as PackedScene
+		var npc_scene := NPC_SCENES.get(npc_id, null) as PackedScene
+		if npc_scene == null:
+			continue
 		var npc := npc_scene.instantiate() as FarmNpc
 		if npc == null:
 			continue

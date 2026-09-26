@@ -16,7 +16,6 @@ var indoor_camera_zoom: Vector2 = Vector2.ONE
 var camera_zoom_duration: float = 0.0
 var input_direction: Vector2 = Vector2.ZERO
 var facing: StringName = &"down"
-var motion_state: StringName = &"idle"
 var walking: bool = false
 var current_interactable: Node2D = null
 var health: int = 100
@@ -62,7 +61,7 @@ func _ready() -> void:
 		pickup_speed_curve = config.player_pickup_speed_curve
 		indoor_camera_zoom = config.player_indoor_camera_zoom
 		camera_zoom_duration = config.player_camera_zoom_duration
-	_play_animation()
+	_play_animation(&"idle")
 	if animation_player != null and not animation_player.animation_finished.is_connected(_on_animation_finished):
 		animation_player.animation_finished.connect(_on_animation_finished)
 	_outdoor_camera_zoom = camera.zoom
@@ -233,22 +232,22 @@ func set_motion(direction: Vector2, is_walking: bool, next_facing: StringName) -
 		next_state = &"idle"
 	if next_facing not in DIRECTIONS:
 		next_facing = facing
-	motion_state = next_state
 	facing = next_facing
-	_play_animation()
+	_play_animation(next_state)
 
 
-func _play_animation() -> void:
-	# All three motion states are authored in the Player scene.
-	if animation_player == null or _hold_tool_animation_playing or _tool_animation_playing:
-		return
-	var safe_state: StringName = motion_state if motion_state in MOTION_STATES else &"idle"
+func _play_animation(action_key: StringName) -> bool:
+	if animation_player == null:
+		return false
+	if action_key in MOTION_STATES and (_hold_tool_animation_playing or _tool_animation_playing):
+		return false
 	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
-	var next_animation := StringName("%s_%s" % [safe_state, safe_direction])
+	var next_animation := StringName("%s_%s" % [action_key, safe_direction])
 	if not animation_player.has_animation(next_animation):
-		return
+		return false
 	if animation_player.current_animation != next_animation or not animation_player.is_playing():
 		animation_player.play(next_animation)
+	return true
 
 
 func lock_input(reason: StringName) -> Error:
@@ -370,7 +369,7 @@ func _begin_hold() -> void:
 	if item == null:
 		return
 	if item.has_method("begin_charge") and item.begin_charge() == OK:
-		_play_hold_tool_animation(item.meta.id)
+		_hold_tool_animation_playing = _play_animation(StringName("%s_hold" % item.meta.id))
 		_refresh_charge_bar()
 
 
@@ -380,7 +379,7 @@ func _cancel_hold() -> void:
 		active_tool.cancel_charge()
 	_hold_tool_animation_playing = false
 	_hide_charge_bar()
-	_play_animation()
+	_play_current_motion_animation()
 
 
 func _use_tool() -> void:
@@ -400,7 +399,7 @@ func _use_tool() -> void:
 	var tool_result := tool.use(energy)
 	tool.cancel_charge()
 	if not tool_result.succeeded():
-		_play_animation()
+		_play_current_motion_animation()
 		_emit_invalid_tool()
 		return
 	if tool_result.energy_spent > 0:
@@ -409,7 +408,7 @@ func _use_tool() -> void:
 			return
 		if energy <= 0:
 			CalendarManager.next_day()
-	_play_tool_animation(item.meta.id)
+	_tool_animation_playing = _play_animation(StringName("%s_use" % item.meta.id))
 	if item.meta is SeedMeta:
 		var consumed_count := tool_result.usable_cell_count()
 		if consumed_count > 0:
@@ -423,35 +422,16 @@ func _use_tool() -> void:
 			)
 
 
-func _play_tool_animation(tool_id: StringName) -> void:
-	if animation_player == null:
-		return
-	_hold_tool_animation_playing = false
-	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
-	var animation_name := StringName("%s_use_%s" % [tool_id, safe_direction])
-	if not animation_player.has_animation(animation_name):
-		print("[FarmPlayer] tool animation not found: ", animation_name)
-		return
-	_tool_animation_playing = true
-	animation_player.play(animation_name)
-
-
-func _play_hold_tool_animation(tool_id: StringName) -> void:
-	if animation_player == null:
-		return
-	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
-	var animation_name := StringName("%s_hold_%s" % [tool_id, safe_direction])
-	if not animation_player.has_animation(animation_name):
-		return
-	_hold_tool_animation_playing = true
-	animation_player.play(animation_name)
-
-
 func _on_animation_finished(animation_name: StringName) -> void:
 	if not _tool_animation_playing or not String(animation_name).contains("_use_"):
 		return
 	_tool_animation_playing = false
-	_play_animation()
+	_play_current_motion_animation()
+
+
+func _play_current_motion_animation() -> void:
+	var action_key: StringName = &"idle" if velocity.is_zero_approx() else &"walk" if walking else &"run"
+	_play_animation(action_key)
 
 
 func _drop_item() -> void:

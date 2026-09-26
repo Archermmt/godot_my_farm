@@ -1,15 +1,57 @@
 [gd_scene format=3 uid="uid://dohhv0pas8d0b"]
 
-[ext_resource type="PackedScene" uid="uid://cs1pymck77wi" path="res://scenes/actors/npcs/npc.tscn" id="1"]
-[ext_resource type="Texture2D" uid="uid://b1evk1m0dp8tu" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Idle.png" id="2_mnbp2"]
+[ext_resource type="Script" uid="uid://dvara64mb21mt" path="res://scripts/actor/npc.gd" id="1_npc"]
+[ext_resource type="Texture2D" uid="uid://bci0tv33gpfhl" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Lyria/Idle.png" id="2_mnbp2"]
+[ext_resource type="AnimationLibrary" uid="uid://davcbllou70ny" path="res://scenes/actors/npcs/villager_animation.tres" id="3_anim"]
 
-[node name="Villager" unique_id=1978821094 instance=ExtResource("1")]
+[sub_resource type="CapsuleShape2D" id="CapsuleNpc"]
+radius = 6.0
+height = 14.0
 
-[node name="Sprite" parent="Visual" parent_id_path=PackedInt32Array(782951668) index="0" unique_id=835532912]
+[sub_resource type="CircleShape2D" id="CircleInteractionNpc"]
+radius = 24.0
+
+[node name="Villager" type="CharacterBody2D" unique_id=1978821094 groups=["interaction_target", "npc"]]
+script = ExtResource("1_npc")
+
+[node name="Shadow" type="Polygon2D" parent="." unique_id=654135830]
+position = Vector2(0, -2)
+color = Color(0.0392157, 0.0627451, 0.0588235, 0.36)
+polygon = PackedVector2Array(-7, -2, -4, -4, 4, -4, 7, -2, 4, 0, -4, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=220345934]
+position = Vector2(0, -7)
+shape = SubResource("CapsuleNpc")
+
+[node name="Visual" type="Node2D" parent="." unique_id=514639031]
+
+[node name="Sprite" type="Sprite2D" parent="Visual" unique_id=1808731276]
+texture_filter = 1
 position = Vector2(0, -8)
 texture = ExtResource("2_mnbp2")
 hframes = 4
 vframes = 3
+frame = 6
 
-[node name="InteractionMarker" parent="." index="3" unique_id=2064810126]
+[node name="InteractionMarker" type="Marker2D" parent="." unique_id=681185172]
 position = Vector2(0, -58)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=73725640]
+libraries/ = ExtResource("3_anim")
+autoplay = &"idle_down"
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="." unique_id=1345750176]
+path_desired_distance = 2.0
+target_desired_distance = 2.0
+avoidance_enabled = true
+debug_path_custom_color = Color(1, 0, 1, 1)
+
+[node name="WanderTimer" type="Timer" parent="." unique_id=1770390675]
+one_shot = true
+
+[node name="InteractionArea" type="Area2D" parent="." unique_id=420586979]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea" unique_id=1605723934]
+shape = SubResource("CircleInteractionNpc")

@@ -33,7 +33,6 @@ const STUCK_TIMEOUT := 1.5
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var sprite: Sprite2D = $Visual/Sprite
-@onready var accent: Polygon2D = $Visual/Accent
 @onready var wander_timer: Timer = $WanderTimer
 var velocity := Vector2.ZERO
 
@@ -333,6 +332,16 @@ func _set_animation(moving: bool) -> void:
 	_animation_state = next_state
 	if animation_player.has_animation(next_state):
 		animation_player.play(next_state)
+
+
+func play_tool_animation(tool_id: StringName) -> bool:
+	var direction := facing if facing in [&"down", &"left", &"right", &"up"] else &"down"
+	var animation_name := StringName("%s_use_%s" % [tool_id, direction])
+	if not animation_player.has_animation(animation_name):
+		return false
+	_animation_state = animation_name
+	animation_player.play(animation_name)
+	return true
 
 
 func interaction_name() -> String:

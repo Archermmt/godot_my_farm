@@ -1,13 +1,13 @@
-[gd_resource type="AnimationLibrary" format=3]
+[gd_resource type="AnimationLibrary" format=3 uid="uid://cuwl8mw8ejlry"]
 
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Idle.png" id="1_yb4df"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Run.png" id="2_apyjm"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Walk.png" id="3_43twy"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Axe.png" id="3_ttlco"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Hoe.png" id="4_yyxpq"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Pickaxe.png" id="5_3yqjq"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Sickle.png" id="6_ouwc2"]
-[ext_resource type="Texture2D" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Watering.png" id="7_jbll6"]
+[ext_resource type="Texture2D" uid="uid://b1evk1m0dp8tu" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Idle.png" id="1_yb4df"]
+[ext_resource type="Texture2D" uid="uid://cxpciijemhwo7" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Run.png" id="2_apyjm"]
+[ext_resource type="Texture2D" uid="uid://24y2dbmch6ef" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Walk.png" id="3_43twy"]
+[ext_resource type="Texture2D" uid="uid://dj67ynailg1r0" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Axe.png" id="3_ttlco"]
+[ext_resource type="Texture2D" uid="uid://dggyx8wav2j6i" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Hoe.png" id="4_yyxpq"]
+[ext_resource type="Texture2D" uid="uid://bsa4f0wmctb87" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Pickaxe.png" id="5_3yqjq"]
+[ext_resource type="Texture2D" uid="uid://cfh2crfuoyvmj" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Sickle.png" id="6_ouwc2"]
+[ext_resource type="Texture2D" uid="uid://bde46pjtf5xv1" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Watering.png" id="7_jbll6"]
 
 [sub_resource type="Animation" id="Animation_lwcml"]
 length = 0.001
@@ -1853,7 +1853,7 @@ tracks/4/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_ouwc2"]
-length = 0.8
+length = 0.7
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -1917,7 +1917,7 @@ tracks/4/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_jbll6"]
-length = 0.8
+length = 0.7
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -1981,7 +1981,7 @@ tracks/4/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_ekug7"]
-length = 0.8
+length = 0.7
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2045,7 +2045,7 @@ tracks/4/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_rcs04"]
-length = 0.8
+length = 0.7
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false

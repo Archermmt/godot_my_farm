@@ -10,7 +10,7 @@
 
 ## 交付范围
 
-- `scenes/actors/npcs/npc.tscn` 及原创占位角色。
+- `scenes/actors/npcs/fisher.tscn`、`ranger.tscn`、`villager.tscn`，各 NPC 使用独立场景与角色动画资源。
 - GameManager 根据 CalendarState 更新 NpcState 的日程目标；`FarmNpc` 自身负责移动、动画和目标刷新，NPC 场景挂载 Godot 原生 `NavigationAgent2D` 与 `AnimationPlayer`。
 - 按 NPC 分组的 NpcSchedule Resource、地图 NPC portal graph 和独立 NPC 场景。
 - schedule/path/map transition 单元与集成测试。

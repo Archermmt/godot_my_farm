@@ -13,10 +13,13 @@
 - 补充修复 Run 专属行顺序：`Run.png` 实际为下/上/侧面，因此 `run_left/right` 使用第 2 行，`run_up` 使用第 1 行；Idle/Walk 仍按下/侧面/上处理。runner 继续通过 42 tests / 392 assertions。
 - Player 动画已清空，供手工重新配置：`player.tscn` 的 AnimationPlayer 保留为空节点，不再挂载旧 AnimationLibrary 或 autoplay；`FarmPlayer._play_animation()` 不再运行时强制播放动画，因此编辑器中的手工动画不会被代码覆盖。NPC 仍保留自己的现有动画资源引用。
 - 删除旧的 `scenes/actors/player/player_animations.tres`。该文件原先被 Player/NPC 共用；现在 NPC 也解除共享引用并保持空 AnimationPlayer，避免 Player 从零配置时残留旧动画资源或被 NPC 依赖。
-- NPC 动画也已确认清空：`npc.tscn` 的 AnimationPlayer 保留为空节点，不挂载 AnimationLibrary、不设置 autoplay；NPC 脚本仅在未来存在对应动画名称时播放，当前不会强制覆盖手工配置。
 - Player 已接入手工创建的四向 idle 动画：运行时仅在 `motion_state == idle` 时按 facing 播放 `idle_down/left/right/up`，Walk/Run 仍不由代码播放或覆盖。
 - Player 已接入手工创建的四向 run 动画：运行时在 `motion_state == run` 时按 facing 播放 `run_down/left/right/up`；walk 仍保持手工控制，不会被运行时覆盖。
 - Player 已接入手工创建的四向 walk 动画：idle、walk、run 三种状态现在都会按 facing 播放对应的四向动画；不存在的动画仍会安全跳过。
+- NPC 场景已独立化，不再有通用 `npc.tscn` 或 Accent 节点；Fisher、Ranger、Villager 分别使用 Manu、Tori、Lyria 角色贴图与 `fisher_animation.tres`、`ranger_animation.tres`、`villager_animation.tres`。三份动画库复用 Player 的 idle/walk/run 方向与帧节奏，仅替换角色对应的 Idle/Walk/Run PNG。
+- 三个 NPC 动画库也已加入各自角色的五类工具四向使用动画（`<tool>_use_<direction>`），并在 `npc.gd` 提供 `play_tool_animation(tool_id)` 入口；工具帧使用对应角色的工具 PNG 和与 Player 相同的列数/方向行规则。
+- Player 动画播放逻辑已统一为 `_play_animation(action_key)`：idle/walk/run、工具 hold 和工具 use 都通过 action key 选择，移除 `motion_state` 成员及重复的工具播放函数逻辑。
+- 修复 NPC 动画切换帧越界：NPC 动画生成器将 hframes/vframes/texture/frame 轨道设为离散更新，避免切换纹理布局时先写入高帧索引。Player 对角移动朝向现在优先按垂直分量解析，左上不会错误沿用右向动画。
 - 工具动画已合并到 `player_animations.tres`：从 Alex 的 Axe/Hoe/Pickaxe/Sickle/Watering PNG 按实际列数生成四向工具释放动画；`_use_tool()` 成功释放后按普通动画名播放，动画结束自动恢复当前 idle/walk/run。
 - 工具动画资源列数：Axe/Hoe/Pickaxe/Sickle 为 6 列×3 行，Watering 为 8 列×3 行；生成器为 `tools/build_player_tool_animation_library.gd`。释放动画命名为 `<tool_id>_use_<direction>`，仅成功释放工具时触发。
 - 工具动画与基础动画共用默认 AnimationLibrary；蓄力动画命名为 `<tool_id>_hold_<direction>`，使用对应释放动画第一帧并在蓄力时循环。

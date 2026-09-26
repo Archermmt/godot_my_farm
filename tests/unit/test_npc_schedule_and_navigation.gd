@@ -16,7 +16,7 @@ func test_schedule_filters_by_date_and_exposes_wander_configuration() -> void:
 
 
 func test_npc_scene_uses_native_navigation_agent() -> void:
-	var scene := load("res://scenes/actors/npcs/npc.tscn") as PackedScene
+	var scene := load("res://scenes/actors/npcs/fisher.tscn") as PackedScene
 	var npc := scene.instantiate() as FarmNpc
 	assert_true(npc.get_node_or_null("NavigationAgent2D") is NavigationAgent2D)
 	npc.free()
