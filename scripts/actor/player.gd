@@ -40,6 +40,8 @@ var _outdoor_camera_zoom := Vector2.ONE
 @onready var charge_bar: ProgressBar = $ChargeBar
 
 var _charge_fill_style: StyleBoxFlat = null
+var _tool_animation_playing := false
+var _hold_tool_animation_playing := false
 
 
 func _ready() -> void:
@@ -61,6 +63,8 @@ func _ready() -> void:
 		indoor_camera_zoom = config.player_indoor_camera_zoom
 		camera_zoom_duration = config.player_camera_zoom_duration
 	_play_animation()
+	if animation_player != null and not animation_player.animation_finished.is_connected(_on_animation_finished):
+		animation_player.animation_finished.connect(_on_animation_finished)
 	_outdoor_camera_zoom = camera.zoom
 	selection_timer.timeout.connect(_hide_selection_popup)
 	_charge_fill_style = charge_bar.get_theme_stylebox("fill").duplicate() as StyleBoxFlat
@@ -236,7 +240,7 @@ func set_motion(direction: Vector2, is_walking: bool, next_facing: StringName) -
 
 func _play_animation() -> void:
 	# All three motion states are authored in the Player scene.
-	if animation_player == null:
+	if animation_player == null or _hold_tool_animation_playing or _tool_animation_playing:
 		return
 	var safe_state: StringName = motion_state if motion_state in MOTION_STATES else &"idle"
 	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
@@ -366,6 +370,7 @@ func _begin_hold() -> void:
 	if item == null:
 		return
 	if item.has_method("begin_charge") and item.begin_charge() == OK:
+		_play_hold_tool_animation(item.meta.id)
 		_refresh_charge_bar()
 
 
@@ -373,7 +378,9 @@ func _cancel_hold() -> void:
 	var active_tool := backpack.active_item() as Tool if backpack != null else null
 	if active_tool != null:
 		active_tool.cancel_charge()
+	_hold_tool_animation_playing = false
 	_hide_charge_bar()
+	_play_animation()
 
 
 func _use_tool() -> void:
@@ -385,6 +392,7 @@ func _use_tool() -> void:
 		_emit_invalid_tool()
 		return
 	_hide_charge_bar()
+	_hold_tool_animation_playing = false
 	var tool := item as Tool
 	if tool == null:
 		_emit_invalid_tool()
@@ -392,6 +400,7 @@ func _use_tool() -> void:
 	var tool_result := tool.use(energy)
 	tool.cancel_charge()
 	if not tool_result.succeeded():
+		_play_animation()
 		_emit_invalid_tool()
 		return
 	if tool_result.energy_spent > 0:
@@ -400,6 +409,7 @@ func _use_tool() -> void:
 			return
 		if energy <= 0:
 			CalendarManager.next_day()
+	_play_tool_animation(item.meta.id)
 	if item.meta is SeedMeta:
 		var consumed_count := tool_result.usable_cell_count()
 		if consumed_count > 0:
@@ -411,6 +421,37 @@ func _use_tool() -> void:
 				active.item_id if active != null and not active.is_empty() else &"",
 				active.amount if active != null and not active.is_empty() else 0
 			)
+
+
+func _play_tool_animation(tool_id: StringName) -> void:
+	if animation_player == null:
+		return
+	_hold_tool_animation_playing = false
+	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
+	var animation_name := StringName("%s_use_%s" % [tool_id, safe_direction])
+	if not animation_player.has_animation(animation_name):
+		print("[FarmPlayer] tool animation not found: ", animation_name)
+		return
+	_tool_animation_playing = true
+	animation_player.play(animation_name)
+
+
+func _play_hold_tool_animation(tool_id: StringName) -> void:
+	if animation_player == null:
+		return
+	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
+	var animation_name := StringName("%s_hold_%s" % [tool_id, safe_direction])
+	if not animation_player.has_animation(animation_name):
+		return
+	_hold_tool_animation_playing = true
+	animation_player.play(animation_name)
+
+
+func _on_animation_finished(animation_name: StringName) -> void:
+	if not _tool_animation_playing or not String(animation_name).contains("_use_"):
+		return
+	_tool_animation_playing = false
+	_play_animation()
 
 
 func _drop_item() -> void:

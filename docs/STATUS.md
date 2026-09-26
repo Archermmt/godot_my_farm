@@ -17,6 +17,9 @@
 - Player 已接入手工创建的四向 idle 动画：运行时仅在 `motion_state == idle` 时按 facing 播放 `idle_down/left/right/up`，Walk/Run 仍不由代码播放或覆盖。
 - Player 已接入手工创建的四向 run 动画：运行时在 `motion_state == run` 时按 facing 播放 `run_down/left/right/up`；walk 仍保持手工控制，不会被运行时覆盖。
 - Player 已接入手工创建的四向 walk 动画：idle、walk、run 三种状态现在都会按 facing 播放对应的四向动画；不存在的动画仍会安全跳过。
+- 工具动画已合并到 `player_animations.tres`：从 Alex 的 Axe/Hoe/Pickaxe/Sickle/Watering PNG 按实际列数生成四向工具释放动画；`_use_tool()` 成功释放后按普通动画名播放，动画结束自动恢复当前 idle/walk/run。
+- 工具动画资源列数：Axe/Hoe/Pickaxe/Sickle 为 6 列×3 行，Watering 为 8 列×3 行；生成器为 `tools/build_player_tool_animation_library.gd`。释放动画命名为 `<tool_id>_use_<direction>`，仅成功释放工具时触发。
+- 工具动画与基础动画共用默认 AnimationLibrary；蓄力动画命名为 `<tool_id>_hold_<direction>`，使用对应释放动画第一帧并在蓄力时循环。
 
 ## 当前状态
 
