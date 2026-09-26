@@ -235,11 +235,14 @@ func set_motion(direction: Vector2, is_walking: bool, next_facing: StringName) -
 
 
 func _play_animation() -> void:
+	# All three motion states are authored in the Player scene.
 	if animation_player == null:
 		return
 	var safe_state: StringName = motion_state if motion_state in MOTION_STATES else &"idle"
 	var safe_direction: StringName = facing if facing in DIRECTIONS else &"down"
 	var next_animation := StringName("%s_%s" % [safe_state, safe_direction])
+	if not animation_player.has_animation(next_animation):
+		return
 	if animation_player.current_animation != next_animation or not animation_player.is_playing():
 		animation_player.play(next_animation)
 

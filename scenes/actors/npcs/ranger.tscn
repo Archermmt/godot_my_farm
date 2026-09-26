@@ -1,8 +1,15 @@
 [gd_scene format=3 uid="uid://2kqwtl3n1r5e"]
 
 [ext_resource type="PackedScene" uid="uid://cs1pymck77wi" path="res://scenes/actors/npcs/npc.tscn" id="1"]
+[ext_resource type="Texture2D" uid="uid://b1evk1m0dp8tu" path="res://assets/art/extern/farm_rpg_tiny/Character/Character/Pre-made/Alex/Idle.png" id="2_vhgcd"]
 
 [node name="Ranger" unique_id=1678520169 instance=ExtResource("1")]
+
+[node name="Sprite" parent="Visual" parent_id_path=PackedInt32Array(782951668) index="0" unique_id=835532912]
+position = Vector2(0, -8)
+texture = ExtResource("2_vhgcd")
+hframes = 4
+vframes = 3
 
 [node name="InteractionMarker" parent="." index="3" unique_id=2064810126]
 position = Vector2(0, -58)

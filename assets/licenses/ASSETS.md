@@ -13,5 +13,6 @@
 | `assets/art/effects/stone_chip.svg` | T12 mining particle texture | Original locally authored vector shape | Project-generated | CC0-1.0 | 0 | No |
 | `assets/art/effects/raindrop.svg` | T12 rain particle texture | Original locally authored vector shape | Project-generated | CC0-1.0 | 0 | No |
 | `assets/art/effects/ripple.svg` | T12 ground ripple particle texture | Original locally authored vector shape | Project-generated | CC0-1.0 | 0 | No |
+| `assets/art/runtime/farm_rpg_tiny/player_atlas.png` | Player default, idle, walk, and run sprite atlas | Preprocessed from the user-provided Farm RPG Tiny Asset Pack Alex sprites; purchased source files remain under `assets/art/extern/farm_rpg_tiny/` | EmanuelleDev | See purchased pack `Documentation.txt` | Purchased by user | Yes |
 
 This manifest will expand as later tasks add distributable art, audio, fonts, and effects.

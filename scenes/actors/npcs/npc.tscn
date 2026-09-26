@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://dvara64mb21mt" path="res://scripts/actor/npc.gd" id="1_npc"]
 [ext_resource type="Texture2D" uid="uid://dxnrr7u02jvyp" path="res://assets/art/characters/player_placeholder.png" id="2_sprite"]
-[ext_resource type="AnimationLibrary" uid="uid://vyh3yhltdeot" path="res://scenes/actors/player/player_animations.tres" id="3_animations"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleNpc"]
 radius = 6.0
@@ -40,8 +39,6 @@ polygon = PackedVector2Array(-7, 0, 7, 0, 5, 3, -5, 3)
 position = Vector2(0, -48)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1657981401]
-libraries/ = ExtResource("3_animations")
-autoplay = &"idle_down"
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="." unique_id=2009855329]
 path_desired_distance = 2.0

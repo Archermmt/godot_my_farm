@@ -1,5 +1,23 @@
 # 开发状态
 
+## Player Alex 资源替换
+
+- 使用用户提供的 Farm RPG Tiny Asset Pack Alex `Idle.png`、`Walk.png`、`Run.png`，生成运行时图集 `assets/art/runtime/farm_rpg_tiny/player_atlas.png`；购买包原始文件保持不变。
+- 新增 `tools/build_farm_rpg_player_atlas.gd` 作为可重复的预处理脚本。图集使用原生 32x32 格子，8 列 x 4 行，方向为下/左/右/上，左向由侧向帧水平镜像生成。
+- `scenes/actors/player/player.tscn` 已改用新图集并设为 8 列；节点、碰撞和 AnimationPlayer 动画名称保持不变。
+- `scenes/actors/player/player_animations.tres` 已更新：idle 使用各方向固定首帧，walk 使用源图完整 6 帧，run 使用源图完整 8 帧。
+- 当前项目没有独立 Player portrait/icon 配置；默认图标指 Player 场景中的默认 Sprite 帧，现已切换为 Alex 下向 idle。
+- 修复手工分离 Idle/Walk/Run 纹理后的动画越界：新增 `tools/build_player_animation_library.gd`，每个动画同时配置 texture、hframes、vframes、frame 和 flip_h，切换时不会继承上一动画的图集布局。
+- Player 场景恢复既有 `AnimationPlayer` 与 `Visual/Sprite` 节点契约；`FarmPlayer._play_animation()` 只按状态和方向选择动画，不会运行时重写 AnimationLibrary。当前 runner 为 42 tests / 392 assertions。
+- 修复 Alex 图集方向映射：原始 Idle/Walk/Run 是三行（下、侧面、上），左右共用侧面行并分别使用 `flip_h`；不再把四个方向错误地当成四行，避免播放超出 12/18/24 帧总数。
+- 补充修复 Run 专属行顺序：`Run.png` 实际为下/上/侧面，因此 `run_left/right` 使用第 2 行，`run_up` 使用第 1 行；Idle/Walk 仍按下/侧面/上处理。runner 继续通过 42 tests / 392 assertions。
+- Player 动画已清空，供手工重新配置：`player.tscn` 的 AnimationPlayer 保留为空节点，不再挂载旧 AnimationLibrary 或 autoplay；`FarmPlayer._play_animation()` 不再运行时强制播放动画，因此编辑器中的手工动画不会被代码覆盖。NPC 仍保留自己的现有动画资源引用。
+- 删除旧的 `scenes/actors/player/player_animations.tres`。该文件原先被 Player/NPC 共用；现在 NPC 也解除共享引用并保持空 AnimationPlayer，避免 Player 从零配置时残留旧动画资源或被 NPC 依赖。
+- NPC 动画也已确认清空：`npc.tscn` 的 AnimationPlayer 保留为空节点，不挂载 AnimationLibrary、不设置 autoplay；NPC 脚本仅在未来存在对应动画名称时播放，当前不会强制覆盖手工配置。
+- Player 已接入手工创建的四向 idle 动画：运行时仅在 `motion_state == idle` 时按 facing 播放 `idle_down/left/right/up`，Walk/Run 仍不由代码播放或覆盖。
+- Player 已接入手工创建的四向 run 动画：运行时在 `motion_state == run` 时按 facing 播放 `run_down/left/right/up`；walk 仍保持手工控制，不会被运行时覆盖。
+- Player 已接入手工创建的四向 walk 动画：idle、walk、run 三种状态现在都会按 facing 播放对应的四向动画；不存在的动画仍会安全跳过。
+
 ## 当前状态
 
 - 当前任务：T17 完整流程集成与稳定性（completed）。已重写 T17 任务卡以匹配当前 Tool/MapManager/GameManager/状态架构；工具体力结算已统一并完成回归覆盖，T17.6 的旧测试/API 清理已完成。
