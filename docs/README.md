@@ -85,6 +85,7 @@ Codex 在首次开发前必须依次完整阅读：
 | [04_GODOT_AI_WORKFLOW.md](./04_GODOT_AI_WORKFLOW.md) | 使用 godot-ai 搭建和验证项目的标准流程 |
 | [05_TEST_PLAN.md](./05_TEST_PLAN.md) | 自动化、集成、视觉验收和最终证明场景 |
 | [06_FARM_GAME_ARCHITECTURE_PRINCIPLES.md](./06_FARM_GAME_ARCHITECTURE_PRINCIPLES.md) | 可复用的农场游戏分层、存档、地图和 Manager 设计原则 |
+| [skills/godot_tilemap_mastery_valley_village.md](./skills/godot_tilemap_mastery_valley_village.md) | 春季山脚牧场使用 `godot-tilemap-mastery`、TileSet terrain 和动态瀑布的实战记录 |
 | [TASKS.md](./TASKS.md) | 阶段、依赖、任务状态和执行顺序 |
 | [STATUS.md](./STATUS.md) | 当前可恢复进度、验证证据、已知问题和下一步 |
 | [tasks/](./tasks/) | 可独立交给 Codex 执行的任务卡 |

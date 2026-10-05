@@ -26,6 +26,16 @@
 
 ## 当前状态
 
+### Valley Village TileMap
+
+- 2026-09-30：已确认上一版 valley 场景是错误的脚手架：只注册 atlas 原点 tile，没有实际 terrain metadata，已删除场景、TileSet 和生成器，不修改 farm/field/beach。
+- 2026-09-30：已将新的六步重建计划写入根目录 `TODO.md`。当前执行 V1：盘点购买包 `farm_rpg_tiny/Tileset` 与 `Objects` 资源，确认 PNG 图集尺寸、16x16 对齐和可拼接候选；未生成新场景。
+- 2026-09-30：V1 完成。已确认春季草地 24x40、草水 48x16、悬崖 20x12、森林 24x40、道路 24x16、桥梁 13x9、房屋 52x24、水动画 24x16、季节装饰 22x12 均按 16px 对齐；将原始图集复制到 `docs/skills/valley_village/atlas/` 作为复用参考。视觉检查确认图集由重复 terrain 模板组成，下一步需按模板内子格配置 peering bits，不能再使用原点 tile。
+- 2026-09-30：V2 完成第一版 terrain 资源。新增 `tools/build_valley_village_tileset.gd`，用购买包 `Tileset Grass Water Spring.png` 的 4x4 模板建立 16px TileSet，写入两个 terrain（spring_water/spring_grass）和显式 side peering bits；headless 构建成功生成 `assets/art/tiles/valley_village_tileset.tres`。碰撞和水面动画将在地图层确认后补齐，当前未生成场景。
+- 2026-09-30：V3 完成语义布局规格，新增 `docs/skills/valley_village/layout_spec.md`。明确 96x64 地图的草地、S 形河流、岸线、曲线路径、三座桥、北侧山坡/森林、村屋和装饰层级；布局与 atlas 坐标解耦，下一步进入 terrain connect 烘焙。
+- 2026-09-30：V4 完成第一版静态 TileMap 烘焙。新增 `tools/build_valley_village_scene.gd`，使用 `set_cells_terrain_connect` 写入 96x64 草地和 S 形河流，另有 Shore/Path/Bridge/Highland/Collision 图层，生成 `scenes/maps/valley_village/valley_village.tscn`；terrain-connect 小图验证 64/64 通过。房屋和装饰节点将在 V5 资源加载检查后补齐。
+- 2026-09-30：V5 完成。新增 `tools/verify_valley_scene.gd`，确认 valley 场景可加载、7 个 TileMapLayer 都有静态 `tile_map_data`、16x16 TileSet 和 terrain set 均存在；Godot editor/headless import 无项目脚本解析错误，退出时仅有 dummy renderer 资源回收提示。
+
 - 当前任务：T17 完整流程集成与稳定性（completed）。已重写 T17 任务卡以匹配当前 Tool/MapManager/GameManager/状态架构；工具体力结算已统一并完成回归覆盖，T17.6 的旧测试/API 清理已完成。
 - T17 验证：`godot --headless --path . -s res://tests/test_runner.gd` 当前通过（41 tests / 384 assertions）；NPC 不可达目标已降为可配置 debug 日志，不再污染正常运行日志。
 - T17 增量：补充了 Player 背包存档、当前地图/NPC live state snapshot、20 次 farm/field 转场、10 次 save、连续 2 次 load、损坏 JSON、非法传送、100 个动态 Item、100 次无效 action 和 2 次换日回归；这些压力项已纳入当前 41 tests / 384 assertions runner。
@@ -138,6 +148,25 @@
 - PyPI `godot-ai==3.0.7` 的 Python tool schema 落后于当前本地源码，缺少 `game_manage(input_sequence)`；需要帧序列验收时继续使用已记录提交的本地源码服务，或在上游发布包含该 op 的版本后升级。
 - Godot 4.7 的 dummy headless renderer 在 `--headless --write-movie` 下崩溃；规定的 headless import/test/quit 均正常，视觉录制使用非 headless movie writer 或 godot-ai game screenshot。
 - 正式美术/音频来源尚未决定，T16 前必须确认许可和生成成本。
+
+## Valley Village V6 历史记录（2026-09-30，已由下方交付状态取代）
+
+- 已按 `godot-tilemap-mastery` 规则重建 Valley Village TileSet：购买包路径、桥梁、悬崖 atlas 已注册，草地/水面使用 16x16 专用连续填充图块。
+- 新增 `tools/inspect_valley_atlas.gd`，用于扫描购买包 atlas 的 16x16 候选内部 tile；新增 `tools/build_valley_generated_atlas.gd`，生成无缩放、可无缝铺设的基础色块 atlas。
+- 当前场景已生成连续草地、S 形浅蓝河流和 3 个桥位，静态数据仍序列化在 `scenes/maps/valley_village/valley_village.tscn`，编辑器可继续编辑各 TileMapLayer。
+- 自动化验证通过：`verify_valley_terrain.gd` 输出 `64/64`，`verify_valley_scene.gd` 输出 `Valley scene validation passed`；层数量和 cell 数据均存在。
+- 视觉证据和未完成项属于当时的 generated-atlas 实验版本，不代表当前场景；当前验证以 `scenes/maps/valley_village/valley_village.tscn` 和下方 2026-10-01 记录为准。
+
+## Valley Village 当前交付状态（2026-10-01）
+
+- 已生成 `scenes/maps/valley_village/valley_village.tscn`，场景直接引用 `assets/art/extern/farm_rpg_tiny` 原始 PNG；旧 generated atlas/tileset 未被新场景引用。
+- TileMapLayer 分为 Ground、Mountain、Water、Shore、Field、Path、Bridge、Waterfall 和 HillsideFlower；大面积草地/水面使用 terrain set，岸线单独保留在 ShoreLayer。
+- Ground 已改为购买 atlas 的纯内部 `(9, 2)` 草地 tile，去除原 `(2, 2)` 边缘 tile 在整面填充时造成的重复纹理。
+- 瀑布使用 TileSetAtlasSource 动画：4x4 atlas tile、8 个明确 duration 的动画帧、8 列、7.0 FPS，放在 `WaterfallLayer`；场景中没有 `AnimatedSprite2D`。
+- godot-ai session `godot-my-farm@2f7a` 已完成 scene reload、hierarchy/screenshot 检查和当前场景运行；运行日志无本次场景错误，运行截图为非空实时 framebuffer。
+- headless 验证命令 `HOME=/tmp/godot_home godot --headless --display-driver headless --audio-driver Dummy --path . --script tools/verify_valley_scene.gd` 通过：当前输出为 `ground=9216`、`mountain=1175`、`water=360`、`shore=144`、`field=252`、`path=45`、`bridge=10`、`waterfall=2`、`hillside_flowers=129`；瀑布为 `8` 帧、`7.0` FPS，`animated_sprite_count=0`，并检查所有已用 cell 均引用已注册 atlas tile。
+- 使用心得记录在 [godot_tilemap_mastery_valley_village.md](./skills/godot_tilemap_mastery_valley_village.md)。
+- 工作区中的旧生成器、临时脚本和生成 atlas/TileSet 仍保留为未跟踪实验文件，当前场景不引用它们；交付只依赖购买包原始 PNG 和场景内嵌 TileSet 数据。
 
 ## 任务交接模板
 
